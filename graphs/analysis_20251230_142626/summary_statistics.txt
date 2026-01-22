@@ -1,0 +1,52 @@
+============================================================
+BATCH ANALYSIS SUMMARY
+============================================================
+Batch ID: 20251230_142626
+Total Clips: 3600
+
+SPEED STATISTICS:
+  Mean: 30.00 m/s
+  Std Dev: 11.83 m/s
+  Min: 10.00 m/s
+  Max: 50.00 m/s
+  Median: 30.00 m/s
+
+DISTANCE STATISTICS:
+  Mean: 52.49 m
+  Std Dev: 27.74 m
+  Min: 5.00 m
+  Max: 100.00 m
+  Median: 52.00 m
+
+ANGLE STATISTICS (Straight Path):
+  Mean: -0.04°
+  Std Dev: 26.28°
+  Min: -45.00°
+  Max: 45.00°
+
+VEHICLE DISTRIBUTION:
+  car_4: 200 (5.6%)
+  40-H2-Mi2: 200 (5.6%)
+  car_2: 200 (5.6%)
+  47-HF-Mi6: 200 (5.6%)
+  40-HF-Mi6: 200 (5.6%)
+  car_7: 200 (5.6%)
+  24-FB-Mi6: 200 (5.6%)
+  05-H1-Mi2: 200 (5.6%)
+  04-H1-Mi1: 200 (5.6%)
+  car_6: 200 (5.6%)
+  car_5: 200 (5.6%)
+  24-H1-Mi2: 200 (5.6%)
+  41-FB-Mi6: 200 (5.6%)
+  05-H1-Mi3: 200 (5.6%)
+  car_8: 200 (5.6%)
+  car_1: 200 (5.6%)
+  car_3: 200 (5.6%)
+  03-HF-Mi5: 200 (5.6%)
+
+PATH TYPE DISTRIBUTION:
+  bezier: 1200 (33.3%)
+  parabola: 1200 (33.3%)
+  straight: 1200 (33.3%)
+
+============================================================

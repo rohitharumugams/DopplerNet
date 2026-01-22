@@ -1,0 +1,156 @@
+{
+  "speed_40-H2-Mi2": {
+    "low": 10,
+    "high": 50,
+    "step": 35,
+    "offset": 5,
+    "k": 18000
+  },
+  "distance": {
+    "low": 5,
+    "high": 100,
+    "step": 67,
+    "offset": 65,
+    "k": 180000
+  },
+  "bx0": {
+    "low": -150,
+    "high": 150,
+    "step": 250,
+    "offset": 238,
+    "k": 60000
+  },
+  "bx1": {
+    "low": -150,
+    "high": 150,
+    "step": 139,
+    "offset": 116,
+    "k": 60000
+  },
+  "bx2": {
+    "low": -150,
+    "high": 150,
+    "step": 253,
+    "offset": 32,
+    "k": 60000
+  },
+  "bx3": {
+    "low": -150,
+    "high": 150,
+    "step": 204,
+    "offset": 184,
+    "k": 60000
+  },
+  "by0": {
+    "low": 5,
+    "high": 80,
+    "step": 43,
+    "offset": 73,
+    "k": 60000
+  },
+  "by1": {
+    "low": 5,
+    "high": 80,
+    "step": 31,
+    "offset": 62,
+    "k": 60000
+  },
+  "by2": {
+    "low": 5,
+    "high": 80,
+    "step": 11,
+    "offset": 73,
+    "k": 60000
+  },
+  "by3": {
+    "low": 5,
+    "high": 80,
+    "step": 13,
+    "offset": 20,
+    "k": 60000
+  },
+  "speed_40-HF-Mi6": {
+    "low": 10,
+    "high": 50,
+    "step": 5,
+    "offset": 37,
+    "k": 18000
+  },
+  "angle": {
+    "low": -45,
+    "high": 45,
+    "step": 46,
+    "offset": 64,
+    "k": 60000
+  },
+  "parabola_a": {
+    "low": 1,
+    "high": 10,
+    "step": 1,
+    "offset": 7,
+    "k": 60000
+  },
+  "parabola_h": {
+    "low": 10,
+    "high": 50,
+    "step": 37,
+    "offset": 31,
+    "k": 60000
+  },
+  "speed_04-H1-Mi1": {
+    "low": 10,
+    "high": 50,
+    "step": 33,
+    "offset": 12,
+    "k": 18000
+  },
+  "speed_03-HF-Mi5": {
+    "low": 10,
+    "high": 50,
+    "step": 28,
+    "offset": 35,
+    "k": 18000
+  },
+  "speed_05-H1-Mi3": {
+    "low": 10,
+    "high": 50,
+    "step": 38,
+    "offset": 34,
+    "k": 18000
+  },
+  "speed_05-H1-Mi2": {
+    "low": 10,
+    "high": 50,
+    "step": 20,
+    "offset": 6,
+    "k": 18000
+  },
+  "speed_24-H1-Mi2": {
+    "low": 10,
+    "high": 50,
+    "step": 22,
+    "offset": 14,
+    "k": 18000
+  },
+  "speed_41-FB-Mi6": {
+    "low": 10,
+    "high": 50,
+    "step": 25,
+    "offset": 13,
+    "k": 18000
+  },
+  "speed_24-FB-Mi6": {
+    "low": 10,
+    "high": 50,
+    "step": 29,
+    "offset": 18,
+    "k": 18000
+  },
+  "speed_47-HF-Mi6": {
+    "low": 10,
+    "high": 50,
+    "step": 19,
+    "offset": 39,
+    "k": 18000
+  }
+}

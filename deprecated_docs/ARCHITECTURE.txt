@@ -1,0 +1,322 @@
+DOPPLER EFFECT BATCH SIMULATOR - SYSTEM ARCHITECTURE
+====================================================
+
+
+‚                         WEB INTERFACE                                ‚
+‚                      (index_batch.html)                              ‚
+‚                                                                      ‚
+‚        ‚
+‚  ‚ Vehicle Manager ‚  ‚ Parameter Config ‚  ‚ Batch Generator  ‚  ‚
+‚  ‚                 ‚  ‚                  ‚  ‚                  ‚  ‚
+‚  ‚  Upload        ‚  ‚  Randomize All  ‚  ‚  Total Clips    ‚  ‚
+‚  ‚  List          ‚  ‚  Speed          ‚  ‚  Distribution   ‚  ‚
+‚  ‚  Delete        ‚  ‚  Distance       ‚  ‚  Auto/Manual    ‚  ‚
+‚  ‚  Preview       ‚  ‚  Duration       ‚  ‚  Validation     ‚  ‚
+‚        ‚
+
+                               ‚
+                               ‚ AJAX/Fetch API
+                               ¼
+
+‚                        FLASK BACKEND                                 ‚
+‚                       (app_batch.py)                                 ‚
+‚                                                                      ‚
+‚    ‚
+‚  ‚                     API ENDPOINTS                             ‚  ‚
+‚    ‚
+‚  ‚ POST /api/upload_vehicle       Vehicle Sound Upload         ‚  ‚
+‚  ‚ GET  /api/list_vehicles         List Uploaded Vehicles      ‚  ‚
+‚  ‚ DELETE /api/delete_vehicle/:id  Delete Vehicle Sound        ‚  ‚
+‚  ‚ POST /api/batch_generate        Generate Batch              ‚  ‚
+‚    ‚
+‚                               ‚                                      ‚
+‚                               ¼                                      ‚
+‚    ‚
+‚  ‚              BATCH GENERATION ENGINE                          ‚  ‚
+‚    ‚
+‚  ‚  1. Validate Configuration                                    ‚  ‚
+‚  ‚      Check parameter ranges                                  ‚  ‚
+‚  ‚      Verify distribution sums                                ‚  ‚
+‚  ‚      Validate vehicle availability                           ‚  ‚
+‚  ‚                                                               ‚  ‚
+‚  ‚  2. Calculate Distribution                                    ‚  ‚
+‚  ‚      Auto: Equal split across vehicles/paths                 ‚  ‚
+‚  ‚      Manual: Use user-specified counts                       ‚  ‚
+‚  ‚                                                               ‚  ‚
+‚  ‚  3. Generate Parameters                                       ‚  ‚
+‚  ‚      Randomize or use fixed values                           ‚  ‚
+‚  ‚      Apply vehicle-specific ranges                           ‚  ‚
+‚  ‚      Ensure physical validity                                ‚  ‚
+‚  ‚                                                               ‚  ‚
+‚  ‚  4. Generate Audio Clips                                      ‚  ‚
+‚  ‚                          ‚  ‚
+‚  ‚     ‚ For each clip:                    ‚                     ‚  ‚
+‚  ‚     ‚    Load vehicle audio            ‚                     ‚  ‚
+‚  ‚     ‚    Calculate Doppler effect      ‚              ‚  ‚
+‚  ‚     ‚    Apply frequency/amplitude     ‚     ‚              ‚  ‚
+‚  ‚     ‚    Save to file                  ‚     ‚              ‚  ‚
+‚  ‚     ‚    Record metadata               ‚     ‚              ‚  ‚
+‚  ‚          ‚              ‚  ‚
+‚  ‚                                               ‚              ‚  ‚
+‚  ‚  5. Generate Output Files                     ‚              ‚  ‚
+‚  ‚      metadata.json                           ‚              ‚  ‚
+‚  ‚      generation_log.txt                      ‚              ‚  ‚
+‚  ‚      statistics.txt                          ‚              ‚  ‚
+‚  ¼  ‚
+¼
+                                                   ‚
+                        
+                        ‚
+                        ¼
+
+‚                    PHYSICS CALCULATION LAYER                         ‚
+‚                                                                      ‚
+‚                   ‚
+‚  ‚ straight_line‚    ‚  parabola.py ‚    ‚  bezier.py   ‚         ‚
+‚  ‚    .py       ‚    ‚              ‚    ‚              ‚         ‚
+‚  ‚              ‚    ‚              ‚    ‚              ‚         ‚
+‚  ‚ Linear       ‚    ‚ Parabolic    ‚    ‚ Bezier Curve ‚         ‚
+‚  ‚ Motion       ‚    ‚ Trajectory   ‚    ‚ Motion       ‚         ‚
+‚  ‚              ‚    ‚              ‚    ‚              ‚         ‚
+‚  ‚  Speed      ‚    ‚  Speed      ‚    ‚  Speed      ‚         ‚
+‚  ‚  Distance   ‚    ‚  Curvature  ‚    ‚  4 Control  ‚         ‚
+‚  ‚  Angle      ‚    ‚  Height     ‚    ‚   Points     ‚         ‚
+‚  ‚              ‚    ‚              ‚    ‚              ‚         ‚
+‚  ‚ Output:      ‚    ‚ Output:      ‚    ‚ Output:      ‚         ‚
+‚  ‚  Freq ratio ‚    ‚  Freq ratio ‚    ‚  Freq ratio ‚         ‚
+‚  ‚  Amplitude  ‚    ‚  Amplitude  ‚    ‚  Amplitude  ‚         ‚
+‚                   ‚
+‚                               ‚                                      ‚
+‚                               ¼                                      ‚
+‚    ‚
+‚  ‚                   DOPPLER PHYSICS CORE                        ‚  ‚
+‚    ‚
+‚  ‚   Sound speed: c = 343 m/s                                   ‚  ‚
+‚  ‚   Frequency ratio: f'/f = c/(c - vr)                         ‚  ‚
+‚  ‚   Radial velocity: vr = (vƒ Â rƒ) / |rƒ|                       ‚  ‚
+‚  ‚   Amplitude: A  1/distance                                  ‚  ‚
+‚  ‚   Smoothing: Savitzky-Golay filter                           ‚  ‚
+‚    ‚
+
+                                   ‚
+                                   ¼
+
+‚                  AUDIO PROCESSING LAYER                              ‚
+‚                    (audio_utils.py)                                  ‚
+‚                                                                      ‚
+‚    ‚
+‚  ‚              AUDIO LOADING & VALIDATION                       ‚  ‚
+‚    ‚
+‚  ‚   Load audio file (WAV/MP3/OGG/FLAC)                         ‚  ‚
+‚  ‚   Check duration (3 Â± 0.5 seconds)                           ‚  ‚
+‚  ‚   Resample to 22,050 Hz                                      ‚  ‚
+‚  ‚   Convert to mono                                            ‚  ‚
+‚  ‚   Extend/trim to target duration                             ‚  ‚
+‚    ‚
+‚                               ‚                                      ‚
+‚                               ¼                                      ‚
+‚    ‚
+‚  ‚           DOPPLER SHIFT APPLICATION                           ‚  ‚
+‚    ‚
+‚  ‚  Method 1: Variable Resampling                                ‚  ‚
+‚  ‚     Time-domain stretching                                   ‚  ‚
+‚  ‚     Local resampling based on freq ratio                     ‚  ‚
+‚  ‚                                                               ‚  ‚
+‚  ‚  Method 2: Spectral Processing                                ‚  ‚
+‚  ‚     STFT transformation                                      ‚  ‚
+‚  ‚     Frequency bin shifting                                   ‚  ‚
+‚  ‚                                                               ‚  ‚
+‚  ‚  Method 3: Phase Modulation                                   ‚  ‚
+‚  ‚     Hilbert transform (analytic signal)                      ‚  ‚
+‚  ‚     Phase trajectory calculation                             ‚  ‚
+‚  ‚     Complex modulation                                       ‚  ‚
+‚    ‚
+‚                               ‚                                      ‚
+‚                               ¼                                      ‚
+‚    ‚
+‚  ‚            AMPLITUDE MODULATION & SAVING                      ‚  ‚
+‚    ‚
+‚  ‚   Apply distance-based amplitude curve                       ‚  ‚
+‚  ‚   Normalize to prevent clipping                              ‚  ‚
+‚  ‚   Add fade in/out envelopes                                  ‚  ‚
+‚  ‚   Save as WAV or convert to MP3                              ‚  ‚
+‚    ‚
+
+                                   ‚
+                                   ¼
+
+‚                        FILE SYSTEM                                   ‚
+‚                                                                      ‚
+‚  static/                                                             ‚
+‚   vehicle_sounds/               User-uploaded vehicle audio     ‚
+‚  ‚    car.wav                                                    ‚
+‚  ‚    train.wav                                                  ‚
+‚  ‚    drone.wav                                                  ‚
+‚  ‚                                                                  ‚
+‚   batch_outputs/                 Generated batches              ‚
+‚       batch_20241121_153045/                                     ‚
+‚           audio_clips/           Generated WAV/MP3 files        ‚
+‚          ‚    car_straight_25mps_15m_..._0001.wav               ‚
+‚          ‚    train_parabola_40mps_30m_..._0002.wav             ‚
+‚          ‚    drone_bezier_18mps_45m_..._0003.wav               ‚
+‚          ‚                                                          ‚
+‚           metadata.json          Complete parameter records     ‚
+‚           generation_log.txt     Success/failure log            ‚
+‚           statistics.txt         Aggregate statistics           ‚
+
+
+
+DATA FLOW EXAMPLE
+=================
+
+User Request: "Generate 100 clips, all randomized"
+    ‚
+    ¼
+Configuration Object:
+    {
+      "vehicles": {"randomize": true},
+      "paths": {"randomize": true},
+      "speed": {"randomize": true},
+      "batch": {"total_clips": 100, "mode": "auto"}
+    }
+    ‚
+    ¼
+Validation:
+     Total clips > 0
+     Vehicles available
+     Parameters valid
+    ‚
+    ¼
+Distribution Calculation:
+    Vehicles: car(33), train(33), drone(34)
+    Paths: straight(33), parabola(33), bezier(34)
+    ‚
+    ¼
+For each clip (100 iterations):
+    ‚
+     Generate random parameters
+    ‚    Vehicle: drone
+    ‚    Path: bezier
+    ‚    Speed: 18.5 m/s
+    ‚    Distance: 45.2 m
+    ‚    Duration: 5.3 s
+    ‚    Bezier points: P0(-120,80), P1(-45,-20), P2(30,-15), P3(95,75)
+    ‚
+     Load vehicle audio
+    ‚    File: static/vehicle_sounds/drone.wav
+    ‚    Duration: 3.0s  extend to 5.3s
+    ‚
+     Calculate Doppler effect
+    ‚    Call bezier.calculate_bezier_doppler()
+    ‚    Returns: freq_ratios[1100], amplitudes[1100]
+    ‚
+     Apply audio processing
+    ‚    Method: Phase modulation
+    ‚    Input: 3.0s audio @ 22050 Hz
+    ‚    Output: 5.3s Doppler-shifted audio
+    ‚
+     Save file
+    ‚    Filename: drone_bezier_18mps_45m_20241121_0057.wav
+    ‚    Path: static/batch_outputs/batch_.../audio_clips/
+    ‚
+     Record metadata
+         All parameters logged
+         Frequency ratio range noted
+        ‚
+        ¼
+After all clips:
+    ‚
+     Generate metadata.json
+    ‚    Complete record of all parameters
+    ‚
+     Generate generation_log.txt
+    ‚    Success/failure status for each clip
+    ‚
+     Generate statistics.txt
+         Vehicle distribution
+         Path distribution
+         Parameter statistics (mean, median, min, max)
+
+
+RANDOMIZATION LOGIC
+===================
+
+If "Randomize All" = ON:
+    ‚
+     Vehicle: Randomly select from uploaded vehicles
+    ‚
+     Path: Randomly select from [straight, parabola, bezier]
+    ‚
+     Speed: Random in vehicle-specific range
+    ‚    car: 15-50 m/s
+    ‚    train: 20-55 m/s
+    ‚    drone: 5-30 m/s
+    ‚
+     Distance: Random in 5-100 m
+    ‚
+     Duration: Random in 3-8 seconds
+    ‚
+     Path-specific parameters:
+         Straight: angle in -45 to 45Â°
+         Parabola: a in -0.1 to 0.1, h in 10-50m
+         Bezier: all coords in -150 to 150m
+
+If Individual Toggles:
+    ‚
+     Apply randomization selectively
+         ON: Use default range
+         OFF: Use user-specified min/max
+
+
+VALIDATION CHECKS
+=================
+
+Pre-Generation:
+     Total clips > 0 and  10,000
+     At least one vehicle uploaded
+     Distribution sums match total (manual mode)
+     All parameter ranges valid (min < max)
+     Sufficient disk space
+
+During Upload:
+     Audio duration 3 Â± 0.5 seconds
+     Valid audio format (WAV/MP3/OGG/FLAC)
+     Unique vehicle name
+
+During Generation:
+     Vehicle sound file exists
+     Parameters within physical limits
+     Audio processing successful
+
+
+ERROR HANDLING
+==============
+
+Upload Errors:
+     Invalid duration  Show error message
+     Invalid format  Show error message
+     File too large  Show error message
+
+Generation Errors:
+     Missing vehicle  Skip clip, log error
+     Invalid parameters  Skip clip, log error
+     Processing failure  Skip clip, log error
+     Disk space full  Stop batch, save partial
+
+All errors logged to generation_log.txt
+
+
+PERFORMANCE OPTIMIZATION
+========================
+
+Current Implementation:
+     Sequential processing
+     Single-threaded
+     ~100 clips per minute
+
+Potential Improvements:
+     Multiprocessing (8 workers  8x faster)
+     GPU acceleration for audio processing
+     Batch preprocessing of vehicle sounds
+     Disk I/O optimization (SSD, buffering)
+
