@@ -139,4 +139,4 @@ Sri Sivasubramaniya Nadar College of Engineering
 
 ## Acknowledgments
 Carnegie Mellon University, Language Technologies Institute  
-Professor Bhiksha Raj and Bradley Warren for research guidance.
+Bradley Warren and Professor Bhiksha Raj for research guidance.
