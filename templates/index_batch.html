@@ -550,6 +550,14 @@
         transform: rotate(360deg);
       }
     }
+
+    .timer-display {
+      text-align: right;
+      font-size: 13px;
+      color: #8b949e;
+      margin-bottom: 5px;
+      font-family: monospace;
+    }
   </style>
 </head>
 
@@ -748,6 +756,7 @@
       </div>
 
       <div class="progress-container" id="progressContainer">
+        <div id="batchTimer" class="timer-display" style="display: none;">Estimated Time Remaining: --:--</div>
         <div class="progress-bar">
           <div class="progress-fill" id="progressFill">0%</div>
         </div>
@@ -846,6 +855,7 @@
       </div>
 
       <div class="progress-container" id="overlapProgressContainer">
+        <div id="overlapTimer" class="timer-display" style="display: none;">Estimated Time Remaining: --:--</div>
         <div class="progress-bar">
           <div class="progress-fill" id="overlapProgressFill">0%</div>
         </div>
@@ -1484,10 +1494,14 @@
       }
 
       document.getElementById('progressContainer').style.display = 'block';
+      document.getElementById('batchTimer').style.display = 'block';
+      document.getElementById('batchTimer').textContent = 'Estimated Time Remaining: --:--';
       document.getElementById('resultBox').style.display = 'none';
       document.getElementById('progressFill').style.width = '0%';
       document.getElementById('progressFill').textContent = '0%';
       document.getElementById('progressLog').innerHTML = 'Starting batch generation.';
+
+      const startTime = Date.now();
 
       // Start polling for progress
       const progressInterval = setInterval(async () => {
@@ -1499,6 +1513,21 @@
             const fill = document.getElementById('progressFill');
             fill.style.width = percent + '%';
             fill.textContent = `${data.generated_so_far} / ${data.total_target} (${percent}%)`;
+
+            // Timer logic
+            if (data.generated_so_far > 0) {
+              const elapsed = (Date.now() - startTime) / 1000;
+              const avgTimePerClip = elapsed / data.generated_so_far;
+              const remainingClips = data.total_target - data.generated_so_far;
+              const remainingSeconds = Math.round(remainingClips * avgTimePerClip);
+
+              if (remainingSeconds >= 0) {
+                const mins = Math.floor(remainingSeconds / 60);
+                const secs = remainingSeconds % 60;
+                document.getElementById('batchTimer').textContent =
+                  `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+              }
+            }
           }
         } catch (err) {
           console.warn("Polling error:", err);
@@ -1518,9 +1547,11 @@
         clearInterval(progressInterval);
 
         if (data.error) {
+          document.getElementById('batchTimer').textContent = 'Error occurred';
           document.getElementById('resultBox').style.display = 'block';
           document.getElementById('resultBox').innerHTML = `<div class="error">Error: ${data.error}</div>`;
         } else {
+          document.getElementById('batchTimer').textContent = 'Generation Complete';
           document.getElementById('progressFill').style.width = '100%';
           document.getElementById('progressFill').textContent = `${data.total_generated} / ${data.total_generated} (100%)`;
           document.getElementById('progressLog').innerHTML += `<br><span class="success">✓ Batch generation complete!</span>`;
@@ -1539,6 +1570,7 @@
         }
       } catch (error) {
         clearInterval(progressInterval);
+        document.getElementById('batchTimer').textContent = 'Error occurred';
         document.getElementById('resultBox').style.display = 'block';
         document.getElementById('resultBox').innerHTML = `<div class="error">Error: ${error}</div>`;
       }
@@ -1597,10 +1629,14 @@
       }
 
       document.getElementById('overlapProgressContainer').style.display = 'block';
+      document.getElementById('overlapTimer').style.display = 'block';
+      document.getElementById('overlapTimer').textContent = 'Estimated Time Remaining: --:--';
       document.getElementById('overlapResultBox').style.display = 'none';
       document.getElementById('overlapProgressFill').style.width = '0%';
       document.getElementById('overlapProgressFill').textContent = '0%';
       document.getElementById('overlapProgressLog').innerHTML = 'Starting busy road generation.';
+
+      const startTime = Date.now();
 
       const progressInterval = setInterval(async () => {
         try {
@@ -1611,6 +1647,21 @@
             const fill = document.getElementById('overlapProgressFill');
             fill.style.width = percent + '%';
             fill.textContent = `${data.generated_so_far} / ${data.total_target} (${percent}%)`;
+
+            // Timer logic
+            if (data.generated_so_far > 0) {
+              const elapsed = (Date.now() - startTime) / 1000;
+              const avgTimePerClip = elapsed / data.generated_so_far;
+              const remainingClips = data.total_target - data.generated_so_far;
+              const remainingSeconds = Math.round(remainingClips * avgTimePerClip);
+
+              if (remainingSeconds >= 0) {
+                const mins = Math.floor(remainingSeconds / 60);
+                const secs = remainingSeconds % 60;
+                document.getElementById('overlapTimer').textContent =
+                  `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+              }
+            }
           }
         } catch (err) { }
       }, 500);
@@ -1626,9 +1677,11 @@
         clearInterval(progressInterval);
 
         if (data.error) {
+          document.getElementById('overlapTimer').textContent = 'Error occurred';
           document.getElementById('overlapResultBox').style.display = 'block';
           document.getElementById('overlapResultBox').innerHTML = `<div class="error">Error: ${data.error}</div>`;
         } else {
+          document.getElementById('overlapTimer').textContent = 'Generation Complete';
           document.getElementById('overlapProgressFill').style.width = '100%';
           document.getElementById('overlapProgressFill').textContent = '100%';
           document.getElementById('overlapProgressLog').innerHTML += `<br><span class="success">✓ Busy road generation complete!</span>`;
@@ -1644,6 +1697,7 @@
         }
       } catch (error) {
         clearInterval(progressInterval);
+        document.getElementById('overlapTimer').textContent = 'Error occurred';
         document.getElementById('overlapResultBox').style.display = 'block';
         document.getElementById('overlapResultBox').innerHTML = `<div class="error">Error: ${error}</div>`;
       }
