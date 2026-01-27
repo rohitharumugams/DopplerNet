@@ -799,9 +799,17 @@
           </div>
         </div>
 
-        <div class="param-group">
-          <label class="param-label" for="maxStagger">Maximum Start Delay (s)</label>
-          <input type="number" id="maxStagger" value="5" min="0" max="10" step="0.5">
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label" for="maxStagger">Maximum Start Delay (s)</label>
+            <input type="number" id="maxStagger" value="5" min="0" max="10" step="0.5">
+          </div>
+          <div class="param-group" style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="includeOpposite" checked>
+              Include Opposite Traffic
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1609,6 +1617,7 @@
           vehicle_max: parseInt(document.getElementById('overlapVehMax').value),
           lane_width: parseFloat(document.getElementById('laneWidth').value),
           max_stagger: parseFloat(document.getElementById('maxStagger').value),
+          include_opposite: document.getElementById('includeOpposite').checked,
           path_mixing_mode: document.getElementById('overlapPathMode').value
         },
         vehicles: {

@@ -432,6 +432,7 @@ def batch_overlap_generate():
         vehicle_max = int(config.get('overlap', {}).get('vehicle_max', 20))
         lane_width = float(config.get('overlap', {}).get('lane_width', 4.0))
         max_stagger = float(config.get('overlap', {}).get('max_stagger', 5.0))
+        include_opposite = config.get('overlap', {}).get('include_opposite', False)
         
         selected_vehicles = config.get('vehicles', {}).get('selected', [])
         if not selected_vehicles:
@@ -476,20 +477,95 @@ def batch_overlap_generate():
                 # Base parameters for this vehicle
                 params = generate_random_parameters(config, vehicle_name, path_type, force_symmetric=True)
                 
-                # Apply lane offset to distance/height
-                # We center the lanes around the base 'distance'
-                lane_offset = (v_idx - (num_vehicles + 1) / 2) * lane_width
+                # CRITICAL: lane_width is the TOTAL road width for ALL vehicles
+                # Randomly distribute vehicles within this total width (not evenly spaced)
+                # If include_opposite is True, split lanes: 
+                # Bottom half (negative offset) for forward traffic (left to right)
+                # Top half (positive offset) for reverse traffic (right to left)
+                is_opposite = False
+                if include_opposite:
+                    # Randomly decide direction (roughly equal spread)
+                    is_opposite = (v_idx % 2 == 0)
+                    if is_opposite:
+                        lane_offset = random.uniform(0, lane_width / 2)
+                    else:
+                        lane_offset = random.uniform(-lane_width / 2, 0)
+                else:
+                    lane_offset = random.uniform(-lane_width / 2, lane_width / 2)
+                
+                # For reverse traffic, we need to flip the direction
+                if is_opposite:
+                    if path_type == 'straight':
+                        params['angle'] = 180  # Opposite direction
+                    elif path_type == 'parabola':
+                        params['speed'] = -params['speed']  # Move right to left
+                    elif path_type == 'bezier':
+                        # Reverse the path by swapping endpoints and control points
+                        params['x0'], params['x3'] = params['x3'], params['x0']
+                        params['x1'], params['x2'] = params['x2'], params['x1']
+                
+                # For all path types, we want them to be as flat as possible
+                # so the road width constraint is just about the y-position, not path curvature
                 
                 if path_type == 'straight':
-                    params['distance'] = max(1.0, params['distance'] + lane_offset)
+                    # Force angle to 0 to keep the path horizontal at constant height
+                    params['angle'] = 0
+                    # Set distance to the lane offset (this is the y-coordinate)
+                    # Add a base offset to ensure minimum distance from observer
+                    params['distance'] = max(1.0, 5.0 + lane_offset)
+                    
                 elif path_type == 'parabola':
-                    params['h'] = max(1.0, params['h'] + lane_offset)
+                    # Allow parabola to have some curvature, but only within this vehicle's lane slice
+                    # Each vehicle gets lane_width/num_vehicles of vertical space for its curve
+                    vehicle_lane_slice = lane_width / num_vehicles if num_vehicles > 1 else lane_width
+                    
+                    span = params['speed'] * params['duration']
+                    x_max = span / 2.0
+                    
+                    # Limit curve to 80% of the vehicle's lane slice to leave some spacing
+                    max_curve_height = vehicle_lane_slice * 0.8
+                    max_a = max_curve_height / (x_max ** 2) if x_max > 0 else 0.0001
+                    
+                    # Use the original 'a' but clamp it to stay within bounds
+                    params['a'] = min(params['a'], max_a)
+                    
+                    # Set center height to the lane offset with base offset
+                    params['h'] = max(1.0, 5.0 + lane_offset)
                     params['distance'] = params['h']
+                    
                 elif path_type == 'bezier':
-                    params['y0'] = max(1.0, params['y0'] + lane_offset)
-                    params['y1'] = max(1.0, params['y1'] + lane_offset)
-                    params['y2'] = max(1.0, params['y2'] + lane_offset)
-                    params['y3'] = max(1.0, params['y3'] + lane_offset)
+                    # Keep the bezier curve shape but constrain to this vehicle's lane slice
+                    # Each vehicle gets lane_width/num_vehicles of vertical space
+                    vehicle_lane_slice = lane_width / num_vehicles if num_vehicles > 1 else lane_width
+                    
+                    # Get the original y-coordinates (they have variation for curve shape)
+                    y_coords = [params['y0'], params['y1'], params['y2'], params['y3']]
+                    y_min = min(y_coords)
+                    y_max = max(y_coords)
+                    current_span = y_max - y_min
+                    
+                    # Limit curve to 80% of the vehicle's lane slice
+                    max_curve_height = vehicle_lane_slice * 0.8
+                    
+                    if current_span > max_curve_height:
+                        # Scale down the curve to fit within allowed height
+                        scale_factor = max_curve_height / current_span
+                        y_center = (y_min + y_max) / 2
+                        params['y0'] = y_center + (params['y0'] - y_center) * scale_factor
+                        params['y1'] = y_center + (params['y1'] - y_center) * scale_factor
+                        params['y2'] = y_center + (params['y2'] - y_center) * scale_factor
+                        params['y3'] = y_center + (params['y3'] - y_center) * scale_factor
+                    
+                    # Now shift the entire curve to the vehicle's lane position
+                    base_height = 5.0 + lane_offset
+                    y_coords_new = [params['y0'], params['y1'], params['y2'], params['y3']]
+                    y_center_new = sum(y_coords_new) / 4
+                    offset = base_height - y_center_new
+                    
+                    params['y0'] = max(1.0, params['y0'] + offset)
+                    params['y1'] = max(1.0, params['y1'] + offset)
+                    params['y2'] = max(1.0, params['y2'] + offset)
+                    params['y3'] = max(1.0, params['y3'] + offset)
                 
                 delay = random.uniform(0, max_stagger)
                 
@@ -527,7 +603,7 @@ def batch_overlap_generate():
             save_spectrogram_to_file(mixed_audio, SR, f"Mixed Scene: {scene_id} ({num_vehicles} cars)", mixed_spec_path)
             
             # Save combined plot
-            save_combined_path_plot(scene_paths_data, scene_dir, "scene")
+            save_combined_path_plot(scene_paths_data, scene_dir, "scene", lane_width=lane_width, include_opposite=include_opposite)
             
             # Save metadata
             with open(os.path.join(scene_dir, "metadata.json"), 'w') as f:
@@ -1004,11 +1080,22 @@ def save_path_plot(path_type, params, output_dir, base_name):
         fig, ax = plt.subplots(figsize=(4.5, 4.5))
 
         # Path
-        ax.plot(x, y, linewidth=2, antialiased=False)
+        line = ax.plot(x, y, linewidth=2, antialiased=False)
+        color = line[0].get_color()
 
         # Start / end points
-        ax.scatter([x[0]], [y[0]], s=40)
-        ax.scatter([x[-1]], [y[-1]], s=40)
+        ax.scatter([x[0]], [y[0]], s=40, color=color)
+        ax.scatter([x[-1]], [y[-1]], s=40, color=color)
+
+        # Add directional arrows at 30% and 70% along the path
+        for pos in [0.3, 0.7]:
+            idx = int(len(x) * pos)
+            if idx < len(x) - 1:
+                dx = x[idx+1] - x[idx]
+                dy = y[idx+1] - y[idx]
+                ax.quiver(x[idx], y[idx], dx, dy, color=color, 
+                          angles='xy', scale_units='xy', scale=1, 
+                          width=0.015, headwidth=4, headlength=5, minshaft=0.1, headaxislength=4.5)
 
         # Observer at origin
         ax.scatter([0], [0], marker='x', s=50)
@@ -1041,7 +1128,7 @@ def save_path_plot(path_type, params, output_dir, base_name):
         return None
 
 
-def save_combined_path_plot(scenes_data, output_dir, base_name):
+def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
     """
     Save a PNG graph with all vehicle paths in a scene.
     """
@@ -1051,14 +1138,42 @@ def save_combined_path_plot(scenes_data, output_dir, base_name):
 
         for i, (path_type, params, vehicle_name) in enumerate(scenes_data):
             x, y, _ = compute_path_points(path_type, params, n_points=200)
-            ax.plot(x, y, linewidth=1.5, label=f"V{i+1}: {vehicle_name}", alpha=0.8)
-            ax.scatter([x[0]], [y[0]], s=20)
-            ax.scatter([x[-1]], [y[-1]], s=20)
+            line = ax.plot(x, y, linewidth=1.5, label=f"V{i+1}: {vehicle_name}", alpha=0.8)
+            color = line[0].get_color()
+            ax.scatter([x[0]], [y[0]], s=20, color=color)
+            ax.scatter([x[-1]], [y[-1]], s=20, color=color)
+
+            # Add directional arrows at 30% and 70% along the path
+            for pos in [0.3, 0.7]:
+                idx = int(len(x) * pos)
+                if idx < len(x) - 1:
+                    dx = x[idx+1] - x[idx]
+                    dy = y[idx+1] - y[idx]
+                    ax.quiver(x[idx], y[idx], dx, dy, color=color, 
+                              angles='xy', scale_units='xy', scale=1, 
+                              width=0.015, headwidth=4, headlength=5, minshaft=0.1, headaxislength=4.5)
 
         # Observer at origin
         ax.scatter([0], [0], marker='x', s=50, color='red', label='Observer')
 
-        ax.axis('equal')
+        # Road details from kwargs
+        lane_width = kwargs.get('lane_width', 4.0)
+        include_opposite = kwargs.get('include_opposite', False)
+        road_center = 5.0 # We're centering the road around y=5.0
+        
+        # Draw road boundaries (long dotted lines)
+        ax.axhline(y=road_center - lane_width/2, color='white', linestyle='--', linewidth=1, alpha=0.5)
+        ax.axhline(y=road_center + lane_width/2, color='white', linestyle='--', linewidth=1, alpha=0.5)
+        
+        if include_opposite:
+            # Draw median
+            ax.axhline(y=road_center, color='yellow', linestyle=':', linewidth=1.5, alpha=0.6)
+
+        # Zoom in y-axis to see vehicle spacing better
+        ax.set_ylim(road_center - lane_width, road_center + lane_width)
+        yticks = np.arange(np.floor(road_center - lane_width), np.ceil(road_center + lane_width) + 1, 2)
+        ax.set_yticks(yticks)
+        
         ax.set_xlabel("x (meters)")
         ax.set_ylabel("y (meters)")
         ax.legend(fontsize='x-small', loc='upper right', bbox_to_anchor=(1.3, 1))
