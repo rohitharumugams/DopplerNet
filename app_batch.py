@@ -39,6 +39,9 @@ from straight_line import calculate_straight_line_doppler
 from parabola import calculate_parabola_doppler
 from bezier import calculate_bezier_doppler
 
+# NEW: Import scipy for validation
+from scipy.ndimage import gaussian_filter1d
+
 app = Flask(__name__)
 CORS(app)
 
@@ -137,6 +140,280 @@ DEFAULT_RANGES = {
     'parabola_h': (10, 50)       # always positive height
 }
 
+
+# ============================================================
+# PATH VALIDATION FUNCTIONS
+# ============================================================
+
+def compute_road_boundaries(all_paths, lane_width, include_opposite=False):
+    """
+    Compute road boundaries (upper, lower, and centerline) based on all vehicle paths.
+    
+    Args:
+        all_paths: List of (x, y) tuples for each vehicle
+        lane_width: Total width of the road
+        include_opposite: Whether the road has opposite-direction traffic
+        
+    Returns:
+        x_common: Common x-coordinates for boundaries
+        y_upper: Upper road boundary
+        y_lower: Lower road boundary
+        y_centerline: Center line (median)
+    """
+    if not all_paths:
+        return None, None, None, None
+    
+    # Find x range
+    x_min = min(np.min(x) for x, y in all_paths)
+    x_max = max(np.max(x) for x, y in all_paths)
+    
+    # Common x grid
+    x_common = np.linspace(x_min, x_max, 300)
+    
+    # Interpolate all paths onto common x-grid
+    y_interpolated = []
+    for x, y in all_paths:
+        sort_idx = np.argsort(x)
+        x_sorted = x[sort_idx]
+        y_sorted = y[sort_idx]
+        y_interp = np.interp(x_common, x_sorted, y_sorted, 
+                            left=y_sorted[0], right=y_sorted[-1])
+        y_interpolated.append(y_interp)
+    
+    # Calculate centerline (split into two balanced groups)
+    avg_y_per_path = [np.mean(y) for y in y_interpolated]
+    
+    if len(y_interpolated) > 1:
+        sorted_indices = np.argsort(avg_y_per_path)
+        num_cars = len(sorted_indices)
+        split_idx = num_cars // 2
+        
+        lower_indices = sorted_indices[:split_idx]
+        upper_indices = sorted_indices[split_idx:]
+        
+        y_lower_max = np.max([y_interpolated[i] for i in lower_indices], axis=0)
+        y_upper_min = np.min([y_interpolated[i] for i in upper_indices], axis=0)
+        
+        y_centerline = (y_lower_max + y_upper_min) / 2
+    else:
+        y_centerline = np.mean(y_interpolated, axis=0)
+    
+    # Smooth centerline
+    y_centerline_smooth = gaussian_filter1d(y_centerline, sigma=10)
+    
+    # Compute adaptive lane width
+    y_min_env = np.min(y_interpolated, axis=0)
+    y_max_env = np.max(y_interpolated, axis=0)
+    actual_spread = np.max(y_max_env - y_min_env)
+    effective_lane_width = max(lane_width, actual_spread + 6.0)
+    
+    # Road boundaries
+    y_upper = y_centerline_smooth + effective_lane_width / 2
+    y_lower = y_centerline_smooth - effective_lane_width / 2
+    
+    # Apply the y-shift transformation used in plotting (from the code)
+    y_shift = 7.5
+    y_upper += y_shift
+    y_lower += y_shift
+    y_centerline_smooth += y_shift
+    
+    return x_common, y_upper, y_lower, y_centerline_smooth
+
+
+def check_path_violations(path_x, path_y, x_common, y_upper, y_lower, y_centerline, 
+                         tolerance=0.5):
+    """
+    Check if a single path violates road boundaries or crosses the median.
+    
+    Args:
+        path_x, path_y: Vehicle path coordinates
+        x_common: Common x-coordinates for boundaries
+        y_upper, y_lower: Road boundaries
+        y_centerline: Center line (median)
+        tolerance: Allowed tolerance for violations (in meters)
+        
+    Returns:
+        dict with violation information
+    """
+    # Interpolate boundaries to path's x-coordinates
+    y_upper_interp = np.interp(path_x, x_common, y_upper)
+    y_lower_interp = np.interp(path_x, x_common, y_lower)
+    y_center_interp = np.interp(path_x, x_common, y_centerline)
+    
+    violations = {
+        'has_violation': False,
+        'upper_boundary_violations': [],
+        'lower_boundary_violations': [],
+        'median_crossings': [],
+        'summary': ''
+    }
+    
+    # Check upper boundary violations
+    upper_violations = path_y > (y_upper_interp + tolerance)
+    if np.any(upper_violations):
+        violation_indices = np.where(upper_violations)[0]
+        max_violation = np.max(path_y[upper_violations] - y_upper_interp[upper_violations])
+        violations['has_violation'] = True
+        violations['upper_boundary_violations'] = [
+            {
+                'index': int(idx),
+                'x': float(path_x[idx]),
+                'y': float(path_y[idx]),
+                'boundary_y': float(y_upper_interp[idx]),
+                'violation_distance': float(path_y[idx] - y_upper_interp[idx])
+            }
+            for idx in violation_indices[::10]  # Sample every 10th point
+        ]
+        violations['summary'] += f"Upper boundary violated by {max_violation:.2f}m. "
+    
+    # Check lower boundary violations
+    lower_violations = path_y < (y_lower_interp - tolerance)
+    if np.any(lower_violations):
+        violation_indices = np.where(lower_violations)[0]
+        max_violation = np.max(y_lower_interp[lower_violations] - path_y[lower_violations])
+        violations['has_violation'] = True
+        violations['lower_boundary_violations'] = [
+            {
+                'index': int(idx),
+                'x': float(path_x[idx]),
+                'y': float(path_y[idx]),
+                'boundary_y': float(y_lower_interp[idx]),
+                'violation_distance': float(y_lower_interp[idx] - path_y[idx])
+            }
+            for idx in violation_indices[::10]
+        ]
+        violations['summary'] += f"Lower boundary violated by {max_violation:.2f}m. "
+    
+    # Check median crossings (detect when path crosses from one side to other)
+    y_relative_to_center = path_y - y_center_interp
+    sign_changes = np.diff(np.sign(y_relative_to_center))
+    crossings = np.where(sign_changes != 0)[0]
+    
+    if len(crossings) > 0:
+        violations['has_violation'] = True
+        violations['median_crossings'] = [
+            {
+                'index': int(idx),
+                'x': float(path_x[idx]),
+                'y_before': float(path_y[idx]),
+                'y_after': float(path_y[idx + 1]),
+                'centerline_y': float(y_center_interp[idx])
+            }
+            for idx in crossings
+        ]
+        violations['summary'] += f"Median crossed {len(crossings)} time(s). "
+    
+    if not violations['has_violation']:
+        violations['summary'] = "No violations detected."
+    
+    return violations
+
+
+def validate_scene_paths(scenes_data, lane_width=4.0, include_opposite=False, 
+                        tolerance=0.5, y_shift=7.5):
+    """
+    Validate all vehicle paths in a scene for boundary and median violations.
+    
+    Args:
+        scenes_data: List of (path_type, params, vehicle_name) tuples
+        lane_width: Total road width
+        include_opposite: Whether road has opposite traffic
+        tolerance: Allowed tolerance for violations (meters)
+        y_shift: Y-axis transformation applied to paths (from plotting code)
+        
+    Returns:
+        dict with validation results for all vehicles
+    """
+    # Compute all vehicle paths
+    all_paths = []
+    for path_type, params, vehicle_name in scenes_data:
+        x, y, _ = compute_path_points(path_type, params, n_points=200)
+        # Apply the same y_shift transformation as in plotting
+        y_shifted = y + y_shift
+        all_paths.append((x, y_shifted))
+    
+    # Compute road boundaries
+    x_common, y_upper, y_lower, y_centerline = compute_road_boundaries(
+        all_paths, lane_width, include_opposite
+    )
+    
+    # Validate each vehicle path
+    results = {
+        'scene_valid': True,
+        'total_vehicles': len(scenes_data),
+        'vehicles_with_violations': 0,
+        'vehicle_results': []
+    }
+    
+    for i, ((x, y), (path_type, params, vehicle_name)) in enumerate(zip(all_paths, scenes_data)):
+        violations = check_path_violations(x, y, x_common, y_upper, y_lower, 
+                                          y_centerline, tolerance)
+        
+        vehicle_result = {
+            'vehicle_id': i + 1,
+            'vehicle_name': vehicle_name,
+            'path_type': path_type,
+            'violations': violations
+        }
+        
+        if violations['has_violation']:
+            results['scene_valid'] = False
+            results['vehicles_with_violations'] += 1
+        
+        results['vehicle_results'].append(vehicle_result)
+    
+    return results
+
+
+def save_validation_report(validation_results, output_dir, scene_id):
+    """Save validation results to JSON and text files."""
+    # Save JSON
+    validation_file = os.path.join(output_dir, f"validation.json")
+    with open(validation_file, 'w') as f:
+        json.dump(validation_results, f, indent=2)
+    
+    # Save human-readable report
+    report_file = os.path.join(output_dir, f"validation.txt")
+    with open(report_file, 'w') as f:
+        f.write("=" * 70 + "\n")
+        f.write(f"PATH VALIDATION REPORT - Scene {scene_id}\n")
+        f.write("=" * 70 + "\n")
+        f.write(f"Total Vehicles: {validation_results['total_vehicles']}\n")
+        f.write(f"Scene Valid: {'YES' if validation_results['scene_valid'] else 'NO'}\n")
+        f.write(f"Vehicles with Violations: {validation_results['vehicles_with_violations']}\n")
+        f.write("=" * 70 + "\n\n")
+        
+        for vehicle_result in validation_results['vehicle_results']:
+            vid = vehicle_result['vehicle_id']
+            vname = vehicle_result['vehicle_name']
+            vpath = vehicle_result['path_type']
+            violations = vehicle_result['violations']
+            
+            status = "VALID" if not violations['has_violation'] else "INVALID"
+            f.write(f"Vehicle {vid}: {vname} ({vpath}) - {status}\n")
+            
+            if violations['has_violation']:
+                f.write(f"  Summary: {violations['summary']}\n")
+                
+                if violations['upper_boundary_violations']:
+                    f.write(f"  - Upper boundary violations: "
+                          f"{len(violations['upper_boundary_violations'])} points\n")
+                
+                if violations['lower_boundary_violations']:
+                    f.write(f"  - Lower boundary violations: "
+                          f"{len(violations['lower_boundary_violations'])} points\n")
+                
+                if violations['median_crossings']:
+                    f.write(f"  - Median crossings: {len(violations['median_crossings'])}\n")
+            
+            f.write("\n")
+    
+    return validation_file, report_file
+
+
+# ============================================================
+# FLASK ROUTES
+# ============================================================
 
 @app.route('/')
 def home():
@@ -412,7 +689,7 @@ def batch_generate():
 
 @app.route('/api/batch_overlap_generate', methods=['POST'])
 def batch_overlap_generate():
-    """Generate scenes with multiple overlapping vehicles (busy road simulation)"""
+    """Generate scenes with multiple overlapping vehicles (busy road simulation) WITH VALIDATION"""
     try:
         config = request.get_json()
         start_time = time.time()
@@ -434,6 +711,10 @@ def batch_overlap_generate():
         max_stagger = float(config.get('overlap', {}).get('max_stagger', 5.0))
         include_opposite = config.get('overlap', {}).get('include_opposite', False)
         
+        # NEW: Get validation settings from config (with defaults)
+        enable_validation = config.get('validation', {}).get('enabled', True)
+        validation_tolerance = float(config.get('validation', {}).get('tolerance', 0.5))
+        
         selected_vehicles = config.get('vehicles', {}).get('selected', [])
         if not selected_vehicles:
             return jsonify({'error': 'No vehicles selected'}), 400
@@ -444,6 +725,16 @@ def batch_overlap_generate():
         
         SAMPLERS.clear()
         save_progress(num_datasets, 0)
+        
+        # NEW: Track validation statistics
+        validation_stats = {
+            'total_scenes': 0,
+            'valid_scenes': 0,
+            'invalid_scenes': 0,
+            'total_vehicles': 0,
+            'valid_vehicles': 0,
+            'invalid_vehicles': 0
+        }
         
         for scene_idx in range(1, num_datasets + 1):
             scene_id = f"{scene_idx:04d}"
@@ -592,6 +883,38 @@ def batch_overlap_generate():
                     'delay_s': delay,
                     'parameters': params
                 })
+            
+            # NEW: VALIDATE PATHS BEFORE SAVING
+            if enable_validation:
+                validation_results = validate_scene_paths(
+                    scenes_data=scene_paths_data,
+                    lane_width=lane_width,
+                    include_opposite=include_opposite,
+                    tolerance=validation_tolerance,
+                    y_shift=7.5
+                )
+                
+                # Save validation reports
+                save_validation_report(validation_results, scene_dir, scene_id)
+                
+                # Update statistics
+                validation_stats['total_scenes'] += 1
+                validation_stats['total_vehicles'] += validation_results['total_vehicles']
+                validation_stats['valid_vehicles'] += (
+                    validation_results['total_vehicles'] - 
+                    validation_results['vehicles_with_violations']
+                )
+                validation_stats['invalid_vehicles'] += validation_results['vehicles_with_violations']
+                
+                if validation_results['scene_valid']:
+                    validation_stats['valid_scenes'] += 1
+                    print(f"✓ Scene {scene_id}: All {num_vehicles} vehicle paths valid")
+                else:
+                    validation_stats['invalid_scenes'] += 1
+                    print(f"✗ Scene {scene_id}: {validation_results['vehicles_with_violations']}/{num_vehicles} "
+                          f"vehicles have violations")
+            else:
+                print(f"Generated scene {scene_idx}/{num_datasets} (validation disabled)")
                 
             # Mix and save combined audio
             mixed_audio = mix_audio_clips(clips_with_delays)
@@ -605,29 +928,78 @@ def batch_overlap_generate():
             # Save combined plot
             save_combined_path_plot(scene_paths_data, scene_dir, "scene", lane_width=lane_width, include_opposite=include_opposite)
             
-            # Save metadata
+            # Save metadata (with validation results if enabled)
+            metadata = {
+                'scene_id': scene_id,
+                'num_vehicles': num_vehicles,
+                'path_type': scene_path_type if scene_path_mixing == 'same' else 'mixed',
+                'vehicles': clips_metadata,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            if enable_validation:
+                metadata['validation'] = {
+                    'enabled': True,
+                    'scene_valid': validation_results['scene_valid'],
+                    'vehicles_with_violations': validation_results['vehicles_with_violations']
+                }
+            
             with open(os.path.join(scene_dir, "metadata.json"), 'w') as f:
-                json.dump({
-                    'scene_id': scene_id,
-                    'num_vehicles': num_vehicles,
-                    'path_type': path_type,
-                    'vehicles': clips_metadata,
-                    'timestamp': datetime.now().isoformat()
-                }, f, indent=2)
+                json.dump(metadata, f, indent=2)
                 
             save_progress(num_datasets, scene_idx)
-            print(f"Generated scene {scene_idx}/{num_datasets}")
 
         elapsed_time = time.time() - start_time
         formatted_time = f"{elapsed_time:.2f}s"
-        return jsonify({
+        
+        # NEW: Print validation summary
+        if enable_validation:
+            print("\n" + "=" * 70)
+            print("BATCH VALIDATION SUMMARY")
+            print("=" * 70)
+            print(f"Total Scenes: {validation_stats['total_scenes']}")
+            print(f"Valid Scenes: {validation_stats['valid_scenes']} "
+                  f"({validation_stats['valid_scenes']/max(validation_stats['total_scenes'],1)*100:.1f}%)")
+            print(f"Invalid Scenes: {validation_stats['invalid_scenes']} "
+                  f"({validation_stats['invalid_scenes']/max(validation_stats['total_scenes'],1)*100:.1f}%)")
+            print()
+            print(f"Total Vehicles: {validation_stats['total_vehicles']}")
+            print(f"Valid Vehicles: {validation_stats['valid_vehicles']} "
+                  f"({validation_stats['valid_vehicles']/max(validation_stats['total_vehicles'],1)*100:.1f}%)")
+            print(f"Invalid Vehicles: {validation_stats['invalid_vehicles']} "
+                  f"({validation_stats['invalid_vehicles']/max(validation_stats['total_vehicles'],1)*100:.1f}%)")
+            print("=" * 70)
+            
+            # Save batch validation summary
+            summary_file = os.path.join(root_dir, "validation_summary.txt")
+            with open(summary_file, 'w') as f:
+                f.write("=" * 70 + "\n")
+                f.write("BATCH VALIDATION SUMMARY\n")
+                f.write("=" * 70 + "\n")
+                f.write(f"Total Scenes: {validation_stats['total_scenes']}\n")
+                f.write(f"Valid Scenes: {validation_stats['valid_scenes']} "
+                       f"({validation_stats['valid_scenes']/max(validation_stats['total_scenes'],1)*100:.1f}%)\n")
+                f.write(f"Invalid Scenes: {validation_stats['invalid_scenes']} "
+                       f"({validation_stats['invalid_scenes']/max(validation_stats['total_scenes'],1)*100:.1f}%)\n")
+                f.write(f"\nTotal Vehicles: {validation_stats['total_vehicles']}\n")
+                f.write(f"Valid Vehicles: {validation_stats['valid_vehicles']} "
+                       f"({validation_stats['valid_vehicles']/max(validation_stats['total_vehicles'],1)*100:.1f}%)\n")
+                f.write(f"Invalid Vehicles: {validation_stats['invalid_vehicles']} "
+                       f"({validation_stats['invalid_vehicles']/max(validation_stats['total_vehicles'],1)*100:.1f}%)\n")
+        
+        response_data = {
             'success': True,
             'batch_id': safe_root_name,
             'root_directory': root_dir,
             'total_generated': num_datasets,
             'elapsed_time': elapsed_time,
             'formatted_time': formatted_time
-        })
+        }
+        
+        if enable_validation:
+            response_data['validation'] = validation_stats
+        
+        return jsonify(response_data)
 
     except Exception as e:
         traceback.print_exc()
@@ -1080,22 +1452,11 @@ def save_path_plot(path_type, params, output_dir, base_name):
         fig, ax = plt.subplots(figsize=(4.5, 4.5))
 
         # Path
-        line = ax.plot(x, y, linewidth=2, antialiased=False)
-        color = line[0].get_color()
+        ax.plot(x, y, linewidth=2, antialiased=False)
 
         # Start / end points
-        ax.scatter([x[0]], [y[0]], s=40, color=color)
-        ax.scatter([x[-1]], [y[-1]], s=40, color=color)
-
-        # Add directional arrows at 30% and 70% along the path
-        for pos in [0.3, 0.7]:
-            idx = int(len(x) * pos)
-            if idx < len(x) - 1:
-                dx = x[idx+1] - x[idx]
-                dy = y[idx+1] - y[idx]
-                ax.quiver(x[idx], y[idx], dx, dy, color=color, 
-                          angles='xy', scale_units='xy', scale=1, 
-                          width=0.015, headwidth=4, headlength=5, minshaft=0.1, headaxislength=4.5)
+        ax.scatter([x[0]], [y[0]], s=40)
+        ax.scatter([x[-1]], [y[-1]], s=40)
 
         # Observer at origin
         ax.scatter([0], [0], marker='x', s=50)
@@ -1131,63 +1492,145 @@ def save_path_plot(path_type, params, output_dir, base_name):
 def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
     """
     Save a PNG graph with all vehicle paths in a scene.
+    Now draws curved road boundaries that follow the average path trajectory.
+    Graph size is dynamically calculated based on the span of the paths.
+    Observer is positioned outside (below) the road boundaries.
     """
     try:
         plot_path = os.path.join(output_dir, f"{base_name}_combined_path.png")
-        fig, ax = plt.subplots(figsize=(6, 5))
-
+        
+        # Collect all vehicle paths to compute road centerline and spatial ranges
+        all_paths = []
+        x_min, x_max = float('inf'), float('-inf')
+        y_min, y_max = float('inf'), float('-inf')
+        
         for i, (path_type, params, vehicle_name) in enumerate(scenes_data):
             x, y, _ = compute_path_points(path_type, params, n_points=200)
-            line = ax.plot(x, y, linewidth=1.5, label=f"V{i+1}: {vehicle_name}", alpha=0.8)
-            color = line[0].get_color()
-            ax.scatter([x[0]], [y[0]], s=20, color=color)
-            ax.scatter([x[-1]], [y[-1]], s=20, color=color)
+            all_paths.append((x, y))
+            x_min = min(x_min, np.min(x))
+            x_max = max(x_max, np.max(x))
+            y_min = min(y_min, np.min(y))
+            y_max = max(y_max, np.max(y))
 
-            # Add directional arrows at 30% and 70% along the path
-            for pos in [0.3, 0.7]:
-                idx = int(len(x) * pos)
-                if idx < len(x) - 1:
-                    dx = x[idx+1] - x[idx]
-                    dy = y[idx+1] - y[idx]
-                    ax.quiver(x[idx], y[idx], dx, dy, color=color, 
-                              angles='xy', scale_units='xy', scale=1, 
-                              width=0.015, headwidth=4, headlength=5, minshaft=0.1, headaxislength=4.5)
-
-        # Observer at origin
-        ax.scatter([0], [0], marker='x', s=50, color='red', label='Observer')
+        # Dynamic figsize calculation - Make it SQUARE
+        x_span = x_max - x_min
+        num_vehicles = len(scenes_data)
+        
+        # Base dimensions and scaling
+        # Choose a square size that accommodates the span and vehicle count
+        # Each vehicle needs room, and long spans need width. 
+        # We take the larger of the two required dimensions to keep it square.
+        base_size = max(10, min(24, x_span / 15.0, num_vehicles * 1.5 + 4))
+        fig, ax = plt.subplots(figsize=(base_size, base_size))
 
         # Road details from kwargs
         lane_width = kwargs.get('lane_width', 4.0)
         include_opposite = kwargs.get('include_opposite', False)
-        road_center = 5.0 # We're centering the road around y=5.0
         
-        # Draw road boundaries (long dotted lines)
-        ax.axhline(y=road_center - lane_width/2, color='white', linestyle='--', linewidth=1, alpha=0.5)
-        ax.axhline(y=road_center + lane_width/2, color='white', linestyle='--', linewidth=1, alpha=0.5)
+        # Compute average centerline by interpolating all paths on a common x-grid
+        x_common = np.linspace(x_min, x_max, 300)
+        y_interpolated = []
         
+        for x, y in all_paths:
+            # Sort by x to ensure monotonic for interpolation
+            sort_idx = np.argsort(x)
+            x_sorted = x[sort_idx]
+            y_sorted = y[sort_idx]
+            
+            # Interpolate this path onto common x-grid
+            y_interp = np.interp(x_common, x_sorted, y_sorted, left=y_sorted[0], right=y_sorted[-1])
+            y_interpolated.append(y_interp)
+        
+        # Calculate envelopes and group paths to prevent median crossings
+        avg_y_per_path = [np.mean(y) for y in y_interpolated]
+        
+        # Split into two EQUAL clusters (balanced lanes) using median
+        if len(y_interpolated) > 1:
+            # Sort by average height and split exactly in the middle
+            sorted_indices = np.argsort(avg_y_per_path)
+            num_cars = len(sorted_indices)
+            split_idx = num_cars // 2  # This ensures balanced grouping e.g. 3 vs 3
+            
+            lower_indices = sorted_indices[:split_idx]
+            upper_indices = sorted_indices[split_idx:]
+            
+            # Find the max of the lower group and min of the upper group at each x
+            y_lower_max = np.max([y_interpolated[i] for i in lower_indices], axis=0)
+            y_upper_min = np.min([y_interpolated[i] for i in upper_indices], axis=0)
+            
+            # Centerline is exactly in the gap between the two clusters
+            y_centerline = (y_lower_max + y_upper_min) / 2
+        else:
+            y_centerline = np.mean(y_interpolated, axis=0)
+        
+        # Global envelopes for road width
+        y_min_env = np.min(y_interpolated, axis=0)
+        y_max_env = np.max(y_interpolated, axis=0)
+        
+        # Use the provided lane_width, ensure it fits the cars but don't add massive hardcoded margins
+        actual_spread = np.max(y_max_env - y_min_env)
+        lane_width = max(lane_width, actual_spread + 2.0) # Small 2m buffer instead of 6m
+        
+        # Smooth the centerline for better road appearance
+        y_centerline_smooth = gaussian_filter1d(y_centerline, sigma=10)
+        
+        # Compute road boundaries (offset perpendicular to centerline)
+        y_upper_boundary = y_centerline_smooth + lane_width / 2
+        y_lower_boundary = y_centerline_smooth - lane_width / 2
+        
+        # Apply transformation: Shift road so the lower boundary is at a safe distance from observer
+        # Original observer is at 0. If lower boundary is at y_lower, shift it to y=2 or similar
+        y_shift = -np.min(y_lower_boundary) + 5.0 # Ensure road is at least 5m away from observer
+        y_upper_boundary += y_shift
+        y_lower_boundary += y_shift
+        y_centerline_smooth += y_shift
+        
+        # Draw road boundaries (RED DOTTED lines)
+        ax.plot(x_common, y_upper_boundary, color='red', linestyle=':', 
+               linewidth=2.5, alpha=0.9, label='Road Edge')
+        ax.plot(x_common, y_lower_boundary, color='red', linestyle=':', 
+               linewidth=2.5, alpha=0.9)
+        
+        # Draw median if opposite traffic
         if include_opposite:
-            # Draw median
-            ax.axhline(y=road_center, color='yellow', linestyle=':', linewidth=1.5, alpha=0.6)
-
-        # Zoom in y-axis to see vehicle spacing better
-        ax.set_ylim(road_center - lane_width, road_center + lane_width)
-        yticks = np.arange(np.floor(road_center - lane_width), np.ceil(road_center + lane_width) + 1, 2)
-        ax.set_yticks(yticks)
+            ax.plot(x_common, y_centerline_smooth, color='yellow', linestyle='--', 
+                   linewidth=2, alpha=0.8, label='Center Line')
         
-        ax.set_xlabel("x (meters)")
-        ax.set_ylabel("y (meters)")
-        ax.legend(fontsize='x-small', loc='upper right', bbox_to_anchor=(1.3, 1))
-        ax.grid(True, which="major", linestyle='--', alpha=0.4)
+        # Now draw vehicle paths on top of the road
+        for i, (path_type, params, vehicle_name) in enumerate(scenes_data):
+            x, y, _ = compute_path_points(path_type, params, n_points=200)
+            y_shifted = y + y_shift
+            ax.plot(x, y_shifted, linewidth=2.5, label=f"V{i+1}: {vehicle_name}", alpha=0.9)
+            ax.scatter([x[0]], [y_shifted[0]], s=50, zorder=5)
+            ax.scatter([x[-1]], [y_shifted[-1]], s=50, zorder=5)
+ 
+        # Observer at origin (0, 0)
+        ax.scatter([0], [0], marker='x', s=120, color='red', label='Observer', zorder=10, linewidth=3)
+ 
+        # Set axis limits with some padding
+        y_min_plot = min(0, np.min(y_lower_boundary)) - 5
+        y_max_plot = np.max(y_upper_boundary) + 5
+        ax.set_ylim(y_min_plot, y_max_plot)
+        ax.set_xlim(x_min - 20, x_max + 20)
+        
+        ax.set_xlabel("x (meters)", fontsize=16)
+        ax.set_ylabel("y (meters)", fontsize=16)
+        ax.tick_params(labelsize=14)
+        ax.legend(fontsize=18, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0.)
+        ax.grid(True, which="major", linestyle='--', alpha=0.3)
+        ax.set_aspect('auto')
+        ax.grid(True, which="major", linestyle='--', alpha=0.3)
 
         fig.savefig(
             plot_path,
-            dpi=120,
+            dpi=150,
             bbox_inches="tight"
         )
         plt.close(fig)
         return os.path.basename(plot_path)
     except Exception as e:
         print(f"Failed to save combined path plot: {e}")
+        traceback.print_exc()
         return None
 
 
@@ -1406,12 +1849,19 @@ def generate_statistics(clips_metadata, config):
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("Doppler Effect Batch Simulator")
+    print("Doppler Effect Batch Simulator (WITH PATH VALIDATION)")
     print("=" * 60)
     print(f"Vehicle sounds folder: {UPLOAD_FOLDER}")
     print(f"Batch output folder (default root): {OUTPUT_FOLDER}")
     print(f"Single-clip output folder: {SINGLE_OUTPUT_FOLDER}")
     print(f"Server starting on http://0.0.0.0:5050")
+    print("=" * 60)
+    print("\nNEW FEATURES:")
+    print("  ✓ Path validation enabled by default")
+    print("  ✓ Detects road boundary violations")
+    print("  ✓ Detects median/centerline crossings")
+    print("  ✓ Generates validation reports (JSON + TXT)")
+    print("  ✓ Batch validation statistics")
     print("=" * 60)
 
     app.run(debug=True, host='0.0.0.0', port=5050)
