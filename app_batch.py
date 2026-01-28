@@ -768,56 +768,64 @@ def batch_overlap_generate():
                 # Base parameters for this vehicle
                 params = generate_random_parameters(config, vehicle_name, path_type, force_symmetric=True)
                 
-                # CRITICAL: lane_width is the TOTAL road width for ALL vehicles
-                # Randomly distribute vehicles within this total width (not evenly spaced)
-                # If include_opposite is True, split lanes: 
-                # Bottom half (negative offset) for forward traffic (left to right)
-                # Top half (positive offset) for reverse traffic (right to left)
+                # CRITICAL: Define lane boundaries to prevent median and road edge crossings
+                # Road is centered around Y=5.0 (unshifted frame in batch_overlap)
+                y_median = 0.0
+                road_y_min = -lane_width / 2
+                road_y_max = lane_width / 2
+                
                 is_opposite = False
                 if include_opposite:
                     # Randomly decide direction (roughly equal spread)
                     is_opposite = (v_idx % 2 == 0)
                     if is_opposite:
-                        lane_offset = random.uniform(0, lane_width / 2)
+                        # Lane 2 (Opposite): between median and upper road edge
+                        lane_y_min, lane_y_max = y_median, road_y_max
                     else:
-                        lane_offset = random.uniform(-lane_width / 2, 0)
+                        # Lane 1 (Forward): between lower road edge and median
+                        lane_y_min, lane_y_max = road_y_min, y_median
                 else:
-                    lane_offset = random.uniform(-lane_width / 2, lane_width / 2)
+                    # Single direction road: use entire width
+                    lane_y_min, lane_y_max = road_y_min, road_y_max
+
+                # Choose lane_offset with a safety buffer (0.5m) from boundaries
+                buffer = 0.5
+                if lane_y_max - lane_y_min > 2 * buffer:
+                    lane_offset = random.uniform(lane_y_min + buffer, lane_y_max - buffer)
+                else:
+                    # Fallback if lane is too narrow
+                    lane_offset = (lane_y_min + lane_y_max) / 2
                 
                 # For reverse traffic, we need to flip the direction
-                if is_opposite:
-                    if path_type == 'straight':
-                        params['angle'] = 180  # Opposite direction
-                    elif path_type == 'parabola':
-                        params['speed'] = -params['speed']  # Move right to left
-                    elif path_type == 'bezier':
-                        # Reverse the path by swapping endpoints and control points
-                        params['x0'], params['x3'] = params['x3'], params['x0']
-                        params['x1'], params['x2'] = params['x2'], params['x1']
-                
-                # For all path types, we want them to be as flat as possible
-                # so the road width constraint is just about the y-position, not path curvature
-                
                 if path_type == 'straight':
-                    # Force angle to 0 to keep the path horizontal at constant height
-                    params['angle'] = 0
+                    # Direction: Angle 180 (Right->Left) for opposite, 0 (Left->Right) for forward
+                    params['angle'] = 180 if is_opposite else 0
+                    
                     # Set distance to the lane offset (this is the y-coordinate)
                     # Add a base offset to ensure minimum distance from observer
                     params['distance'] = max(1.0, 5.0 + lane_offset)
                     
                 elif path_type == 'parabola':
-                    # Allow parabola to have some curvature, but only within this vehicle's lane slice
-                    # Each vehicle gets lane_width/num_vehicles of vertical space for its curve
-                    vehicle_lane_slice = lane_width / num_vehicles if num_vehicles > 1 else lane_width
+                    # Direction: Negative speed (Right->Left) for opposite, Positive for forward
+                    if is_opposite:
+                        params['speed'] = -abs(params['speed'])
+                    else:
+                        params['speed'] = abs(params['speed'])
+                    
+                    # Update: Limit curve to stay within the vehicle's specific lane boundaries
+                    # y(t) = a * x(t)^2 + h. Since a > 0, y increases from h.
+                    # We need h + a * x_max^2 <= lane_y_max
+                    h = 5.0 + lane_offset
+                    available_up = (5.0 + lane_y_max) - h
                     
                     span = params['speed'] * params['duration']
-                    x_max = span / 2.0
+                    x_max = abs(span / 2.0)
                     
-                    # Limit curve to 80% of the vehicle's lane slice to leave some spacing
-                    max_curve_height = vehicle_lane_slice * 0.8
+                    # Leave a small buffer from the edge
+                    max_curve_height = max(0.1, available_up - 0.2)
                     max_a = max_curve_height / (x_max ** 2) if x_max > 0 else 0.0001
                     
-                    # Use the original 'a' but clamp it to stay within bounds
+                    # Use the original 'a' but clamp it to stay within road bounds
                     params['a'] = min(params['a'], max_a)
                     
                     # Set center height to the lane offset with base offset
@@ -825,38 +833,54 @@ def batch_overlap_generate():
                     params['distance'] = params['h']
                     
                 elif path_type == 'bezier':
-                    # Keep the bezier curve shape but constrain to this vehicle's lane slice
-                    # Each vehicle gets lane_width/num_vehicles of vertical space
-                    vehicle_lane_slice = lane_width / num_vehicles if num_vehicles > 1 else lane_width
-                    
-                    # Get the original y-coordinates (they have variation for curve shape)
+                    # Update: keep the bezier curve shape but constrain to this vehicle's lane
                     y_coords = [params['y0'], params['y1'], params['y2'], params['y3']]
-                    y_min = min(y_coords)
-                    y_max = max(y_coords)
-                    current_span = y_max - y_min
+                    y_min_curr = min(y_coords)
+                    y_max_curr = max(y_coords)
+                    current_span = y_max_curr - y_min_curr
                     
-                    # Limit curve to 80% of the vehicle's lane slice
-                    max_curve_height = vehicle_lane_slice * 0.8
+                    # Available space in the assigned lane from its chosen center (lane_offset)
+                    # lane_offset is in [-lane_width/2, lane_width/2]
+                    # lane_y_min/max are the boundaries for this vehicle's specific lane
+                    available_up = lane_y_max - lane_offset
+                    available_down = lane_offset - lane_y_min
+                    # Use a 0.2m buffer from the nearest boundary
+                    max_half_span = max(0.05, min(available_up, available_down) - 0.2)
+                    lane_space = max_half_span * 2
                     
-                    if current_span > max_curve_height:
-                        # Scale down the curve to fit within allowed height
-                        scale_factor = max_curve_height / current_span
-                        y_center = (y_min + y_max) / 2
+                    if current_span > lane_space and current_span > 0:
+                        scale_factor = lane_space / current_span
+                        y_center = (y_min_curr + y_max_curr) / 2
                         params['y0'] = y_center + (params['y0'] - y_center) * scale_factor
                         params['y1'] = y_center + (params['y1'] - y_center) * scale_factor
                         params['y2'] = y_center + (params['y2'] - y_center) * scale_factor
                         params['y3'] = y_center + (params['y3'] - y_center) * scale_factor
                     
-                    # Now shift the entire curve to the vehicle's lane position
+                    # Shift the curve to the vehicle's lane position (relative to observer y=5.0)
                     base_height = 5.0 + lane_offset
                     y_coords_new = [params['y0'], params['y1'], params['y2'], params['y3']]
-                    y_center_new = sum(y_coords_new) / 4
+                    y_center_new = (min(y_coords_new) + max(y_coords_new)) / 2
                     offset = base_height - y_center_new
                     
-                    params['y0'] = max(1.0, params['y0'] + offset)
-                    params['y1'] = max(1.0, params['y1'] + offset)
-                    params['y2'] = max(1.0, params['y2'] + offset)
-                    params['y3'] = max(1.0, params['y3'] + offset)
+                    params['y0'] += offset
+                    params['y1'] += offset
+                    params['y2'] += offset
+                    params['y3'] += offset
+                    
+                    # Direction: Reverse the path by swapping endpoints and control points for Right->Left
+                    if is_opposite:
+                        params['x0'], params['x3'] = params['x3'], params['x0']
+                        params['x1'], params['x2'] = params['x2'], params['x1']
+                        # Ensure x0 is still start, x3 is end (though compute_path_points uses u from 0 to 1)
+                        # The swap is enough to reverse the direction.
+                    
+                    # Clamp absolute results to lane boundaries to be 100% sure
+                    y_bound_min = 5.0 + lane_y_min + 0.1
+                    y_bound_max = 5.0 + lane_y_max - 0.1
+                    params['y0'] = max(y_bound_min, min(y_bound_max, params['y0']))
+                    params['y1'] = max(y_bound_min, min(y_bound_max, params['y1']))
+                    params['y2'] = max(y_bound_min, min(y_bound_max, params['y2']))
+                    params['y3'] = max(y_bound_min, min(y_bound_max, params['y3']))
                 
                 delay = random.uniform(0, max_stagger)
                 
@@ -870,7 +894,7 @@ def batch_overlap_generate():
                 
                 # NEW: Auto-generate spectrogram for individual car
                 v_spec_path = v_audio_path.replace('.wav', '_spec.png')
-                save_spectrogram_to_file(audio_arr, SR, f"Car {v_idx}: {vehicle_name}", v_spec_path)
+                save_spectrogram_to_file(audio_arr, SR, f"Vehicle {v_idx}: {vehicle_name}", v_spec_path)
                 
                 clips_with_delays.append((audio_arr, delay))
                 scene_paths_data.append((path_type, params, vehicle_name))
@@ -1600,7 +1624,11 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         for i, (path_type, params, vehicle_name) in enumerate(scenes_data):
             x, y, _ = compute_path_points(path_type, params, n_points=200)
             y_shifted = y + y_shift
-            ax.plot(x, y_shifted, linewidth=2.5, label=f"V{i+1}: {vehicle_name}", alpha=0.9)
+            
+            # Determine direction arrow: Right (→) for L->R, Left (←) for R->L
+            arrow = " →" if x[-1] > x[0] else " ←"
+            
+            ax.plot(x, y_shifted, linewidth=2.5, label=f"V{i+1}: {vehicle_name}{arrow}", alpha=0.9)
             ax.scatter([x[0]], [y_shifted[0]], s=50, zorder=5)
             ax.scatter([x[-1]], [y_shifted[-1]], s=50, zorder=5)
  
@@ -1692,11 +1720,10 @@ def get_doppler_audio_array(vehicle_name, path_type, params):
     audio_full, sr = librosa.load(vehicle_file, sr=SR, mono=True)
     target_samples = int(SR * params['duration'])
 
-    if len(audio_full) < target_samples:
-        from audio_utils import extend_audio_with_overlap
-        audio = extend_audio_with_overlap(audio_full, params['duration'], SR)
-    else:
-        audio = audio_full[:target_samples]
+    # Ensure source audio is long enough for pitch-up Doppler shifts
+    # (Doppler up-shift consumes source samples faster, so we need a buffer)
+    from audio_utils import extend_audio_with_overlap
+    audio = extend_audio_with_overlap(audio_full, params['duration'] * 2.0, SR)
 
     if path_type == 'straight':
         freq_ratios, amplitudes = calculate_straight_line_doppler(
