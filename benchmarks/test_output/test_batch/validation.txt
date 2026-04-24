@@ -1,0 +1,14 @@
+======================================================================
+PATH VALIDATION REPORT - Scene test_batch
+======================================================================
+Total Vehicles: 2
+Scene Valid: NO
+Vehicles with Violations: 1
+======================================================================
+
+Vehicle 1: 03-HF-Mi5 (parabola) - VALID
+
+Vehicle 2: car_2 (parabola) - INVALID
+  Summary: Lower boundary violated by 1.45m. 
+  - Lower boundary violations: 17 points
+

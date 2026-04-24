@@ -1,0 +1,11 @@
+sample_id,batch_id,speed_mps,cpa_distance_m,trajectory_type,vehicle_class,approach_angle_deg,audio_path,cpa_frame_idx,cpa_time_sec
+sample_0000001,test_batch,37,188,parabola,03-HF-Mi5,0,static/batch_outputs/test_batch/audio_clips/sample_0000001/03-HF-Mi5_parabola_37mps_188m_0000001.wav,195,4.5348835
+sample_0000002,test_batch,42,721,parabola,car_1,0,static/batch_outputs/test_batch/audio_clips/sample_0000002/car_1_parabola_42mps_721m_0000002.wav,228,5.3023257
+sample_0000003,test_batch,41,258,parabola,03-HF-Mi5,0,static/batch_outputs/test_batch/audio_clips/sample_0000003/03-HF-Mi5_parabola_41mps_258m_0000003.wav,198,4.604651
+sample_0000004,test_batch,10,791,straight,04-H1-Mi1,23,static/batch_outputs/test_batch/audio_clips/sample_0000004/04-H1-Mi1_straight_10mps_791m_0000004.wav,200,4.6511626
+sample_0000005,test_batch,28,328,parabola,car_2,0,static/batch_outputs/test_batch/audio_clips/sample_0000005/car_2_parabola_28mps_328m_0000005.wav,221,5.139535
+sample_0000006,test_batch,21,861,parabola,car_1,0,static/batch_outputs/test_batch/audio_clips/sample_0000006/car_1_parabola_21mps_861m_0000006.wav,250,5.8139534
+sample_0000007,test_batch,41,398,parabola,car_1,0,static/batch_outputs/test_batch/audio_clips/sample_0000007/car_1_parabola_41mps_398m_0000007.wav,244,5.6744184
+sample_0000008,test_batch,45,931,bezier,03-HF-Mi5,0,static/batch_outputs/test_batch/audio_clips/sample_0000008/03-HF-Mi5_bezier_45mps_931m_0000008.wav,173,4.023256
+sample_0000009,test_batch,19,468,straight,car_2,3,static/batch_outputs/test_batch/audio_clips/sample_0000009/car_2_straight_19mps_468m_0000009.wav,182,4.2325583
+sample_0000010,test_batch,50,5,parabola,04-H1-Mi1,0,static/batch_outputs/test_batch/audio_clips/sample_0000010/04-H1-Mi1_parabola_50mps_5m_0000010.wav,204,4.744186
