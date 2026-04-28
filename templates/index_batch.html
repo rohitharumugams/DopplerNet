@@ -575,6 +575,7 @@
         <button id="modeBatch" class="mode-btn active">Batch Generation</button>
         <button id="modeOverlap" class="mode-btn">Batch Overlap</button>
         <button id="modeSpectrogram" class="mode-btn">Spectrograms</button>
+        <button id="modeCompare" class="mode-btn">Compare Audio</button>
         <button id="modeSingle" class="mode-btn">Single Clip</button>
         <button id="modeMap" class="mode-btn">Outline Converter</button>
         <button id="modeIntersection" class="mode-btn">Intersection</button>
@@ -771,18 +772,22 @@
         <div id="benchmarkControls" style="display: none; margin-top: 15px; padding-left: 20px; border-left: 2px solid #30363d;">
           <p class="param-label" style="margin-bottom: 10px;">Select benchmarks to activate and log ground-truth for:</p>
           
-          <div class="grid-3" style="background: #0d1117; padding: 15px; border-radius: 6px; border: 1px solid #30363d; margin-bottom: 15px;">
+          <div class="grid-2" style="background: #0d1117; padding: 15px; border-radius: 6px; border: 1px solid #30363d; margin-bottom: 15px;">
             <label class="radio-label" style="font-weight: bold;">
               <input type="radio" name="benchMode" value="single" checked onchange="switchBenchGroup('single')">
-              Part 1: Single Vehicle (B1 - B7)
+              Part 1: Single Vehicle (B1 - B6)
+            </label>
+            <label class="radio-label" style="font-weight: bold;">
+              <input type="radio" name="benchMode" value="b7" onchange="switchBenchGroup('b7')">
+              Part 2: B7 Acceleration
             </label>
             <label class="radio-label" style="font-weight: bold;">
               <input type="radio" name="benchMode" value="multi" onchange="switchBenchGroup('multi')">
-              Part 2: Multi Vehicle (B8 - B10)
+              Part 3: Multi Vehicle (B8 - B10)
             </label>
             <label class="radio-label" style="font-weight: bold;">
               <input type="radio" name="benchMode" value="intersection" onchange="switchBenchGroup('intersection')">
-              Intersection benchmark (B9)
+              Part 4: Intersection benchmark (B9)
             </label>
           </div>
 
@@ -855,22 +860,36 @@
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B4" onchange="updateSelectAllState()"> B4: Trajectory Localization</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B5" onchange="toggleBenchmarkExtra('B5'); updateSelectAllState()"> B5: Time-to-Event Prediction</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B6" onchange="toggleBenchmarkExtra('B6'); updateSelectAllState()"> B6: Motion State Segmentation</label>
+            </div>
+
+            <!-- GROUP B: B7 -->
+            <div id="group-b7" style="opacity: 0.5; pointer-events: none;">
+              <h4 style="font-size: 13px; color: #58a6ff; margin-bottom: 8px;">B7 Benchmark</h4>
               <label class="checkbox-label" id="b7-wrapper">
-                <input type="checkbox" class="benchmark-cb" data-group="single" value="B7" id="benchmark-B7" onchange="handleB7Click(this); updateSelectAllState()"> 
-                <span style="color: #8b949e;">B7: Accel/Decel (WIP)</span>
+                <input type="checkbox" class="benchmark-cb" data-group="b7" value="B7" id="benchmark-B7" onchange="handleB7Click(this); updateSelectAllState()"> 
+                <span>B7: Accelerated Motion Analysis</span>
               </label>
-              <div id="b7-message" class="hidden" style="font-size: 11px; color: #f0883e; margin: -5px 0 10px 25px;">
-                B7 is currently under development.
+              <div id="b7-message" class="hidden" style="font-size: 11px; color: #58a6ff; margin: -5px 0 10px 25px;">
+                B7 enabled: acceleration sampling active for generation.
+              </div>
+              <div style="margin: 8px 0 6px 25px;">
+                <label class="param-label" style="display: block; margin-bottom: 6px;">Acceleration Range (m/s²)</label>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <input type="number" id="benchmark_accel_min" value="-3.5" step="0.1" min="-8.0" max="0.0" style="width: 110px;">
+                  <span style="color: #8b949e;">to</span>
+                  <input type="number" id="benchmark_accel_max" value="2.5" step="0.1" min="0.0" max="8.0" style="width: 110px;">
+                </div>
               </div>
             </div>
 
-            <!-- GROUP B: MULTI VEHICLE -->
+            <!-- GROUP C: MULTI VEHICLE -->
             <div id="group-multi" style="opacity: 0.5; pointer-events: none;">
               <h4 style="font-size: 13px; color: #58a6ff; margin-bottom: 8px;">Multi Vehicle Benchmarks</h4>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="multi" value="B8" onchange="updateSelectAllState()" disabled> B8: Multi-Object Resolution</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="multi" value="B10" onchange="updateSelectAllState()" disabled> B10: Source Identity Recognition</label>
             </div>
 
+            <!-- GROUP D: INTERSECTION -->
             <div id="group-intersection" class="hidden" style="opacity: 0.5; pointer-events: none;">
               <h4 style="font-size: 13px; color: #58a6ff; margin-bottom: 8px;">Intersection benchmark</h4>
               <p class="param-label" style="margin-bottom: 10px;">Plus-shaped intersection at the origin; observer offset into quadrant II.</p>
@@ -903,7 +922,6 @@
                   <input type="number" id="benchmark_cpa_window" value="1.0" step="0.1" min="0.1" max="5.0">
               </div>
           </div>
-
         </div>
       </div>
 
@@ -1296,6 +1314,10 @@
           <option value="">Loading vehicles...</option>
         </select>
       </div>
+      <div class="param-group">
+        <label class="param-label" for="specMaxFreq">Maximum Y-axis Frequency (Hz)</label>
+        <input type="number" id="specMaxFreq" value="2500" min="100" step="100">
+      </div>
 
       <div style="text-align: center; margin: 20px 0;">
         <button class="btn" onclick="generateSpectrogram()" style="padding: 12px 30px; background-color: #58a6ff;">
@@ -1308,6 +1330,39 @@
       <div id="specResult"
         style="text-align: center; min-height: 200px; padding: 20px; background: #0d1117; border-radius: 8px; border: 1px solid #30363d;">
         <p class="param-label">Generated spectrogram will appear here.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUDIO COMPARISON MODE -->
+  <div id="compareMode" style="display:none;">
+    <div class="section">
+      <h3 class="section-title">Audio Comparison</h3>
+      <p class="param-label">Upload two clips to compare spectrograms, amplitude envelopes, and overlap metrics.</p>
+      <div class="grid-2">
+        <div class="param-group">
+          <label class="param-label" for="compareFileA">Audio Clip A (.wav, .mp3)</label>
+          <input type="file" id="compareFileA" accept=".wav,.mp3,.ogg,.flac" style="width: 100%;">
+        </div>
+        <div class="param-group">
+          <label class="param-label" for="compareFileB">Audio Clip B (.wav, .mp3)</label>
+          <input type="file" id="compareFileB" accept=".wav,.mp3,.ogg,.flac" style="width: 100%;">
+        </div>
+      </div>
+      <div class="param-group" style="max-width: 280px;">
+        <label class="param-label" for="compareMaxFreq">Maximum Y-axis Frequency (Hz)</label>
+        <input type="number" id="compareMaxFreq" value="2500" min="100" step="100">
+      </div>
+      <div style="text-align: center; margin: 20px 0;">
+        <button class="btn" onclick="analyzeAudioComparison()" style="padding: 12px 30px; background-color: #58a6ff;">
+          Run Comparative Analysis
+        </button>
+      </div>
+    </div>
+    <div class="section">
+      <div id="compareResult"
+        style="text-align: center; min-height: 220px; padding: 20px; background: #0d1117; border-radius: 8px; border: 1px solid #30363d;">
+        <p class="param-label">Comparison output will appear here.</p>
       </div>
     </div>
   </div>
@@ -1509,20 +1564,33 @@
         </div>
 
         <div class="method-section">
-          <h4>Dual Microphone Mode</h4>
+          <h4>Environmental Air Noise (Single Only)</h4>
           <div class="param-group">
             <label class="checkbox-label">
-              <input type="checkbox" id="enableDualMic" onchange="toggleDualMicMode()">
-              Enable Dual Microphone Mode
+              <input type="checkbox" id="add_air_noise" name="add_air_noise" form="main-form" onchange="toggleAirNoiseControls()">
+              Add subtle ambient air noise
             </label>
           </div>
-          <div id="dualMicDistanceGroup" class="param-group" style="display:none;">
-            <label class="param-label" for="micSeparation">Distance Between Microphones (meters):</label>
-            <input type="number" id="micSeparation" step="0.5" value="10" min="0.1" max="200" oninput="drawPath()">
+          <div class="param-group">
+            <label class="param-label" for="air_noise_strength">Air Noise Strength:</label>
+            <input
+              type="range"
+              id="air_noise_strength"
+              name="air_noise_strength"
+              min="0"
+              max="100"
+              value="8"
+              step="1"
+              form="main-form"
+              oninput="updateAirNoiseStrengthLabel()"
+              disabled
+            >
+            <div style="margin-top: 6px; color: #8b949e;">
+              <span id="air_noise_strength_value">8%</span> (kept subtle by default)
+            </div>
           </div>
           <div class="method-info">
-            <strong>Dual Microphone:</strong> Places two microphones symmetrically at M1(-D/2, 0) and M2(+D/2, 0) for
-            stereo simulation with independent Doppler calculations.
+            Adds a light broadband wind/air layer to single simulation output only.
           </div>
         </div>
 
@@ -1856,6 +1924,7 @@
 
     function switchBenchGroup(group) {
       const singleGroup = document.getElementById('group-single');
+      const b7Group = document.getElementById('group-b7');
       const multiGroup = document.getElementById('group-multi');
       const intersectionGroup = document.getElementById('group-intersection');
       const master = document.getElementById('selectAllBenchmarks');
@@ -1890,6 +1959,8 @@
         // Enable Single, Disable Multi
         singleGroup.style.opacity = '1';
         singleGroup.style.pointerEvents = 'auto';
+        b7Group.style.opacity = '0.5';
+        b7Group.style.pointerEvents = 'none';
         multiGroup.style.opacity = '0.5';
         multiGroup.style.pointerEvents = 'none';
         intersectionGroup.classList.add('hidden');
@@ -1907,6 +1978,12 @@
           const val = cb.value;
           if (['B8', 'B9'].includes(val)) toggleBenchmarkExtra(val);
         });
+        document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
+          cb.checked = false;
+          cb.disabled = true;
+          toggleBenchmarkExtra('B7');
+          handleB7Click(cb);
+        });
         document.querySelectorAll('.benchmark-cb[data-group="intersection"]').forEach(cb => {
           cb.checked = false;
           cb.disabled = true;
@@ -1915,12 +1992,49 @@
         document.querySelectorAll('.benchmark-cb[data-group="single"]').forEach(cb => {
           cb.disabled = false;
         });
+      } else if (group === 'b7') {
+        // Enable B7 only
+        b7Group.style.opacity = '1';
+        b7Group.style.pointerEvents = 'auto';
+        singleGroup.style.opacity = '0.5';
+        singleGroup.style.pointerEvents = 'none';
+        multiGroup.style.opacity = '0.5';
+        multiGroup.style.pointerEvents = 'none';
+        intersectionGroup.classList.add('hidden');
+        intersectionGroup.style.opacity = '0.5';
+        intersectionGroup.style.pointerEvents = 'none';
+        const busyB7 = document.getElementById('multiBenchSettings');
+        if (busyB7) {
+          busyB7.style.display = 'none';
+          busyB7.style.opacity = '1';
+        }
+
+        document.querySelectorAll('.benchmark-cb[data-group="single"]').forEach(cb => {
+          cb.checked = false;
+          cb.disabled = true;
+          const val = cb.value;
+          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+        });
+        document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
+          cb.checked = false;
+          cb.disabled = true;
+        });
+        document.querySelectorAll('.benchmark-cb[data-group="intersection"]').forEach(cb => {
+          cb.checked = false;
+          cb.disabled = true;
+        });
+        resetIntersectionExtras();
+        document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
+          cb.disabled = false;
+        });
       } else if (group === 'multi') {
         // Enable Multi, Disable Single
         multiGroup.style.opacity = '1';
         multiGroup.style.pointerEvents = 'auto';
         singleGroup.style.opacity = '0.5';
         singleGroup.style.pointerEvents = 'none';
+        b7Group.style.opacity = '0.5';
+        b7Group.style.pointerEvents = 'none';
         intersectionGroup.classList.add('hidden');
         intersectionGroup.style.opacity = '0.5';
         intersectionGroup.style.pointerEvents = 'none';
@@ -1935,6 +2049,12 @@
           cb.disabled = true;
           const val = cb.value;
           if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+        });
+        document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
+          cb.checked = false;
+          cb.disabled = true;
+          toggleBenchmarkExtra('B7');
+          handleB7Click(cb);
         });
         document.querySelectorAll('.benchmark-cb[data-group="intersection"]').forEach(cb => {
           cb.checked = false;
@@ -1952,6 +2072,8 @@
 
         singleGroup.style.opacity = '0.5';
         singleGroup.style.pointerEvents = 'none';
+        b7Group.style.opacity = '0.5';
+        b7Group.style.pointerEvents = 'none';
         multiGroup.style.opacity = '0.5';
         multiGroup.style.pointerEvents = 'none';
 
@@ -1970,6 +2092,12 @@
         document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
           cb.checked = false;
           cb.disabled = true;
+        });
+        document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
+          cb.checked = false;
+          cb.disabled = true;
+          toggleBenchmarkExtra('B7');
+          handleB7Click(cb);
         });
         document.querySelectorAll('.benchmark-cb[data-group="intersection"]').forEach(cb => {
           cb.disabled = false;
@@ -1996,7 +2124,7 @@
         cb.checked = isChecked;
         // Trigger extra sections (B5, B6, B8, B9)
         const val = cb.value;
-        if (['B5', 'B6', 'B8', 'B9'].includes(val)) {
+        if (['B5', 'B6', 'B7', 'B8', 'B9'].includes(val)) {
           toggleBenchmarkExtra(val);
         }
       });
@@ -2029,11 +2157,6 @@
       const msg = document.getElementById('b7-message');
       if (cb.checked) {
         if (msg) msg.classList.remove('hidden');
-        // Revert immediately
-        setTimeout(() => {
-          cb.checked = false;
-          updateSelectAllState();
-        }, 1500); // Give user a moment to see the message
       } else {
          if (msg) msg.classList.add('hidden');
       }
@@ -2100,6 +2223,12 @@
       const tempMax = Math.max(tempMinRaw, tempMaxRaw);
       const humMin = Math.min(humMinRaw, humMaxRaw);
       const humMax = Math.max(humMinRaw, humMaxRaw);
+      const selectedBenchmarkValues = Array.from(document.querySelectorAll('.benchmark-cb:checked')).map(cb => cb.value);
+      const b7Enabled = selectedBenchmarkValues.includes('B7');
+      const b7MinInput = parseFloat(document.getElementById('benchmark_accel_min')?.value);
+      const b7MaxInput = parseFloat(document.getElementById('benchmark_accel_max')?.value);
+      const accMin = Number.isFinite(b7MinInput) ? b7MinInput : -3.5;
+      const accMax = Number.isFinite(b7MaxInput) ? b7MaxInput : 2.5;
 
       const benchMode = (document.querySelector('input[name="benchMode"]:checked') || {}).value || 'single';
 
@@ -2144,6 +2273,11 @@
           hum_min: humMin,
           hum_max: humMax
         },
+        acceleration: {
+          randomize: b7Enabled,
+          min: Math.min(accMin, accMax),
+          max: Math.max(accMin, accMax)
+        },
         batch: {
           total_clips: parseInt(document.getElementById('totalClips').value),
           mode: document.querySelector('input[name="distMode"]:checked').value,
@@ -2151,8 +2285,9 @@
         },
         benchmarks: {
           enabled: document.getElementById('enableBenchmarks').checked,
-          selected: Array.from(document.querySelectorAll('.benchmark-cb:checked')).map(cb => cb.value),
+          selected: selectedBenchmarkValues,
           params: {
+            enable_acceleration: b7Enabled,
             cpa_time: parseFloat(document.getElementById('benchmark_cpa_time').value),
             cpa_window: parseFloat(document.getElementById('benchmark_cpa_window').value),
 
@@ -2414,6 +2549,9 @@
     async function generateSpectrogram() {
       const mode = document.getElementById('specMode').value;
       const resultContainer = document.getElementById('specResult');
+      const maxFreqInput = document.getElementById('specMaxFreq');
+      const maxFreqRaw = parseFloat(maxFreqInput?.value);
+      const max_y_freq = Number.isFinite(maxFreqRaw) && maxFreqRaw > 0 ? maxFreqRaw : 2500;
       resultContainer.innerHTML = '<p class="param-label status-loading">Generating spectrogram... <span class="loading-spinner"></span></p>';
 
       try {
@@ -2428,7 +2566,7 @@
           response = await fetch('/api/generate_spectrogram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ vehicle_name, source })
+            body: JSON.stringify({ vehicle_name, source, max_y_freq })
           });
         } else {
           const fileInput = document.getElementById('specUploadFile');
@@ -2438,6 +2576,7 @@
           }
           const formData = new FormData();
           formData.append('file', fileInput.files[0]);
+          formData.append('max_y_freq', String(max_y_freq));
           response = await fetch('/api/upload_generate_spectrogram', {
             method: 'POST',
             body: formData
@@ -2458,6 +2597,69 @@
             </div>
           `;
         }
+      } catch (err) {
+        resultContainer.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+      }
+    }
+
+    async function analyzeAudioComparison() {
+      const fileA = document.getElementById('compareFileA')?.files?.[0];
+      const fileB = document.getElementById('compareFileB')?.files?.[0];
+      const maxFreqRaw = parseFloat(document.getElementById('compareMaxFreq')?.value);
+      const max_y_freq = Number.isFinite(maxFreqRaw) && maxFreqRaw > 0 ? maxFreqRaw : 2500;
+      const resultContainer = document.getElementById('compareResult');
+
+      if (!fileA || !fileB) {
+        alert('Please select both audio clips.');
+        return;
+      }
+
+      resultContainer.innerHTML = '<p class="param-label status-loading">Running comparative analysis... <span class="loading-spinner"></span></p>';
+
+      try {
+        const formData = new FormData();
+        formData.append('file_a', fileA);
+        formData.append('file_b', fileB);
+        formData.append('max_y_freq', String(max_y_freq));
+
+        const response = await fetch('/api/compare_audio_clips', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+
+        if (data.error) {
+          resultContainer.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+          return;
+        }
+
+        const metrics = data.metrics || {};
+        const metricCards = [
+          ['Duration A (s)', metrics.duration_a_sec],
+          ['Duration B (s)', metrics.duration_b_sec],
+          ['Dominant Freq A (Hz)', metrics.dominant_freq_a_hz],
+          ['Dominant Freq B (Hz)', metrics.dominant_freq_b_hz],
+          ['Envelope Correlation (%)', metrics.envelope_correlation_percent],
+          ['Spectral Overlap (%)', metrics.spectral_overlap_percent],
+          ['Overall Match (%)', metrics.overall_similarity_percent]
+        ].map(([label, val]) => `
+          <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px;">
+            <div style="font-size:12px;color:#8b949e;">${label}</div>
+            <div style="font-size:18px;color:#c9d1d9;font-weight:700;">${(typeof val === 'number' && Number.isFinite(val)) ? val.toFixed(2) : val}</div>
+          </div>
+        `).join('');
+
+        resultContainer.innerHTML = `
+          <img src="${data.comparison_plot_url}" alt="Audio Comparison" class="path-plot" style="max-width: 100%; margin-top: 10px; border-radius: 4px;">
+          <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; text-align:left;">
+            ${metricCards}
+          </div>
+          <div style="margin-top: 15px;">
+            <a href="${data.comparison_plot_url}" download="audio_comparison.png" class="btn" style="background-color: #30363d;">
+              Download Comparison PNG
+            </a>
+          </div>
+        `;
       } catch (err) {
         resultContainer.innerHTML = `<p class="error">Error: ${err.message}</p>`;
       }
@@ -2625,19 +2827,6 @@
       updateDistance();
       drawPath();
     }
-
-    function toggleDualMicMode() {
-      const checkbox = document.getElementById('enableDualMic');
-      const distanceGroup = document.getElementById('dualMicDistanceGroup');
-
-      if (checkbox && distanceGroup) {
-        distanceGroup.style.display = checkbox.checked ? 'block' : 'none';
-      }
-
-      // Redraw path to show/hide dual microphones
-      drawPath();
-    }
-
 
     function loadPresetProfile(presetName) {
       const preset = PRESET_PROFILES[presetName];
@@ -2991,43 +3180,6 @@
       ctx.textAlign = "left";
       ctx.fillText("Observer", centerX + 10, centerY + 5);
 
-      // Draw dual microphones if enabled
-      const dualMicCheckbox = document.getElementById('enableDualMic');
-      const micSeparationInput = document.getElementById('micSeparation');
-
-      if (dualMicCheckbox && dualMicCheckbox.checked && micSeparationInput) {
-        const micSeparation = parseFloat(micSeparationInput.value) || 10;
-        const halfSep = micSeparation / 2;
-
-        // M1 position (-D/2, 0)
-        const m1X = centerX - halfSep * scale;
-        const m1Y = centerY;
-
-        // M2 position (+D/2, 0)
-        const m2X = centerX + halfSep * scale;
-        const m2Y = centerY;
-
-        // Draw M1 (purple)
-        ctx.fillStyle = "#a371f7";
-        ctx.beginPath();
-        ctx.arc(m1X, m1Y, 6, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.fillStyle = "#c9d1d9";
-        ctx.font = "12px Arial";
-        ctx.textAlign = "right";
-        ctx.fillText("M1", m1X - 10, m1Y + 5);
-
-        // Draw M2 (cyan)
-        ctx.fillStyle = "#39c5cf";
-        ctx.beginPath();
-        ctx.arc(m2X, m2Y, 6, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.fillStyle = "#c9d1d9";
-        ctx.textAlign = "left";
-        ctx.fillText("M2", m2X + 10, m2Y + 5);
-      }
-
-
       const pathElement = document.getElementById("path");
       const durationElement = document.getElementById("audio_duration");
       const modeElement = document.getElementById("acceleration_mode");
@@ -3358,41 +3510,6 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Draw lines to both microphones if dual mode is enabled
-        const dualMicCheckbox = document.getElementById('enableDualMic');
-        const micSeparationInput = document.getElementById('micSeparation');
-
-        if (dualMicCheckbox && dualMicCheckbox.checked && micSeparationInput) {
-          const micSeparation = parseFloat(micSeparationInput.value) || 10;
-          const halfSep = micSeparation / 2;
-
-          const m1X = centerX - halfSep * scale;
-          const m1Y = centerY;
-          const m2X = centerX + halfSep * scale;
-          const m2Y = centerY;
-
-          const dotX = centerX + currentX * scale;
-          const dotY = centerY - currentY * scale;
-
-          // Line to M1 (purple)
-          ctx.strokeStyle = "#a371f7";
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.beginPath();
-          ctx.moveTo(m1X, m1Y);
-          ctx.lineTo(dotX, dotY);
-          ctx.stroke();
-
-          // Line to M2 (cyan)
-          ctx.strokeStyle = "#39c5cf";
-          ctx.beginPath();
-          ctx.moveTo(m2X, m2Y);
-          ctx.lineTo(dotX, dotY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-
-
         ctx.fillStyle = "#ff79c6";
         ctx.beginPath();
         ctx.arc(centerX + currentX * scale, centerY - currentY * scale, 8, 0, 2 * Math.PI);
@@ -3554,31 +3671,14 @@
       showStatusMessage("Generating Doppler audio simulation...", "status-loading");
 
       try {
-        // Check if dual microphone mode is enabled
-        const dualMicCheckbox = document.getElementById('enableDualMic');
-        const isDualMode = dualMicCheckbox && dualMicCheckbox.checked;
-
-        if (isDualMode) {
-          // Add microphone separation to form data
-          const micSeparation = document.getElementById('micSeparation');
-          if (micSeparation) {
-            formData.append('mic_separation', micSeparation.value);
-          }
-        }
-
-        // Choose endpoint based on mode
-        const endpoint = isDualMode ? '/simulate_dual' : '/simulate';
-
-        const response = await fetch(endpoint, {
+        const response = await fetch('/simulate', {
           method: 'POST',
           body: formData
         });
 
-        // Check if response is JSON (error or dual mode) or audio blob (single mode success)
         const contentType = response.headers.get('content-type');
 
         if (!response.ok) {
-          // Try to parse as JSON error
           if (contentType && contentType.includes('application/json')) {
             const errorData = await response.json();
             throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
@@ -3588,56 +3688,39 @@
           }
         }
 
-        if (isDualMode) {
-          // Dual mode returns JSON with file paths and physics data
-          const dualData = await response.json();
+        const audioBlob = await response.blob();
+        currentAudioBlob = audioBlob;
 
-          // Store dual mode data globally
-          window.currentDualData = dualData;
+        currentAudio = new Audio(URL.createObjectURL(audioBlob));
+        currentAudio.addEventListener('loadeddata', () => {
+          isPlaying = true;
+          currentAudio.play();
+          const audioDuration = currentAudio.duration || 3;
+          animateSource(audioDuration);
 
-          // Show dual microphone controls
-          showDualMicrophoneControls(dualData);
+          const formatSelect = document.getElementById('format-select');
+          if (formatSelect && formatSelect.value === 'mp4') {
+            startVideoRecording();
+          }
 
+          submitButton.value = "Stop Playback";
           submitButton.disabled = false;
-          submitButton.value = "Simulate Doppler Audio";
-          showStatusMessage("Dual microphone simulation complete!", "status-playing");
+          showStatusMessage("Playing Doppler simulation...", "status-playing");
+          showAudioControls();
+        });
 
-        } else {
-          // Single mode returns audio blob
-          const audioBlob = await response.blob();
-          currentAudioBlob = audioBlob;
+        currentAudio.addEventListener('ended', async () => {
+          if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            await stopVideoRecording();
+          }
+          stopPlayback();
+        });
 
-          currentAudio = new Audio(URL.createObjectURL(audioBlob));
-          currentAudio.addEventListener('loadeddata', () => {
-            isPlaying = true;
-            currentAudio.play();
-            const audioDuration = currentAudio.duration || 3;
-            animateSource(audioDuration);
-
-            const formatSelect = document.getElementById('format-select');
-            if (formatSelect && formatSelect.value === 'mp4') {
-              startVideoRecording();
-            }
-
-            submitButton.value = "Stop Playback";
-            submitButton.disabled = false;
-            showStatusMessage("Playing Doppler simulation...", "status-playing");
-            showAudioControls();
-          });
-
-          currentAudio.addEventListener('ended', async () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-              await stopVideoRecording();
-            }
-            stopPlayback();
-          });
-
-          currentAudio.addEventListener('error', (e) => {
-            console.error('Audio playback error:', e);
-            showStatusMessage("Audio playback error occurred", "status-error");
-            stopPlayback();
-          });
-        }
+        currentAudio.addEventListener('error', (e) => {
+          console.error('Audio playback error:', e);
+          showStatusMessage("Audio playback error occurred", 'status-error');
+          stopPlayback();
+        });
 
       } catch (error) {
         console.error('Error:', error);
@@ -3647,180 +3730,6 @@
         setTimeout(() => hideStatusMessage(), 5000);
       }
     }
-
-    function showDualMicrophoneControls(dualData) {
-      let controlsDiv = document.getElementById('dual-mic-controls');
-      if (!controlsDiv) {
-        controlsDiv = document.createElement('div');
-        controlsDiv.id = 'dual-mic-controls';
-        controlsDiv.className = 'audio-controls';
-        const rightSection = document.querySelector('#singleMode .right-section');
-        if (rightSection) {
-          rightSection.appendChild(controlsDiv);
-        }
-      }
-
-      controlsDiv.innerHTML = `
-        <h4 style="color: #58a6ff; margin-bottom: 10px;">Dual Microphone Playback</h4>
-        <div style="margin-bottom: 15px;">
-          <button onclick="playDualChannel('m1')" class="btn" style="margin: 5px;">Play M1 (Left)</button>
-          <button onclick="playDualChannel('m2')" class="btn" style="margin: 5px;">Play M2 (Right)</button>
-          <button onclick="playDualChannel('stereo')" class="btn" style="margin: 5px;">Play Stereo</button>
-          <button onclick="stopDualPlayback()" class="btn" style="margin: 5px; background-color: #f85149;">Stop</button>
-        </div>
-        <div style="margin-bottom: 15px;">
-          <button onclick="downloadDualChannel('m1')" class="download-button" style="margin: 5px;">Download M1</button>
-          <button onclick="downloadDualChannel('m2')" class="download-button" style="margin: 5px;">Download M2</button>
-          <button onclick="downloadDualChannel('stereo')" class="download-button" style="margin: 5px;">Download Stereo</button>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
-          <div style="background: #161b22; padding: 10px; border-radius: 4px;">
-            <strong style="color: #a371f7;">M1 (Left)</strong>
-            <div id="m1-readout">Distance: --<br>Velocity: --<br>Frequency: --</div>
-          </div>
-          <div style="background: #161b22; padding: 10px; border-radius: 4px;">
-            <strong style="color: #39c5cf;">M2 (Right)</strong>
-            <div id="m2-readout">Distance: --<br>Velocity: --<br>Frequency: --</div>
-          </div>
-        </div>
-      `;
-
-      // Auto-play stereo with animation
-      setTimeout(() => playDualChannel('stereo'), 100);
-    }
-
-    function playDualChannel(channel) {
-      if (!window.currentDualData) return;
-
-      const audioUrl = window.currentDualData.files[channel];
-      if (!audioUrl) return;
-
-      // Stop any currently playing audio
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-      }
-
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-      }
-
-      currentAudio = new Audio(audioUrl);
-      isPlaying = true;
-
-      currentAudio.addEventListener('loadeddata', () => {
-        currentAudio.play();
-        const audioDuration = currentAudio.duration || 10;
-
-        // Start animation with dual mic stats update
-        animateDualMicrophone(audioDuration);
-
-        showStatusMessage(`Playing ${channel.toUpperCase()}...`, "status-playing");
-      });
-
-      currentAudio.addEventListener('ended', () => {
-        isPlaying = false;
-        if (animationId) {
-          cancelAnimationFrame(animationId);
-          animationId = null;
-        }
-        drawPath();
-        showStatusMessage(`${channel.toUpperCase()} playback complete`, "status-playing");
-      });
-
-      currentAudio.addEventListener('error', (e) => {
-        console.error('Dual audio playback error:', e);
-        stopDualPlayback();
-      });
-    }
-
-    function stopDualPlayback() {
-      isPlaying = false;
-
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-      }
-
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-      }
-
-      drawPath();
-      showStatusMessage("Playback stopped", "status-playing");
-    }
-
-    function animateDualMicrophone(duration) {
-      const startTime = Date.now();
-
-      function animate() {
-        if (!isPlaying) return;
-
-        const elapsed = (Date.now() - startTime) / 1000;
-        const progress = Math.min(elapsed / duration, 1.0);
-
-        // Draw path with vehicle at current position
-        drawPath(progress);
-
-        // Update stats for both microphones
-        updateDualMicrophoneStats(progress);
-
-        if (progress < 1.0) {
-          animationId = requestAnimationFrame(animate);
-        } else {
-          isPlaying = false;
-          drawPath();
-        }
-      }
-
-      animate();
-    }
-
-    function updateDualMicrophoneStats(progress) {
-      if (!window.currentDualData) return;
-
-      const physics = window.currentDualData.physics;
-      const m1Data = physics.m1;
-      const m2Data = physics.m2;
-
-      const index = Math.floor(progress * (m1Data.distances.length - 1));
-
-      // Update M1 readout
-      const m1Readout = document.getElementById('m1-readout');
-      if (m1Readout) {
-        const dist = m1Data.distances[index].toFixed(2);
-        const vel = m1Data.velocities[index].toFixed(2);
-        const freq = m1Data.freq_ratios[index].toFixed(3);
-        m1Readout.innerHTML = `Distance: ${dist}m<br>Velocity: ${vel}m/s<br>Frequency: ${freq}x`;
-      }
-
-      // Update M2 readout
-      const m2Readout = document.getElementById('m2-readout');
-      if (m2Readout) {
-        const dist = m2Data.distances[index].toFixed(2);
-        const vel = m2Data.velocities[index].toFixed(2);
-        const freq = m2Data.freq_ratios[index].toFixed(3);
-        m2Readout.innerHTML = `Distance: ${dist}m<br>Velocity: ${vel}m/s<br>Frequency: ${freq}x`;
-      }
-    }
-
-    function downloadDualChannel(channel) {
-      if (!window.currentDualData) return;
-
-      const audioUrl = window.currentDualData.files[channel];
-      if (!audioUrl) return;
-
-      const link = document.createElement('a');
-      link.href = audioUrl;
-      link.download = `doppler_${channel}.wav`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
 
     function stopPlayback() {
       isPlaying = false;
@@ -3866,7 +3775,7 @@
           <label for="filename-input">Filename: </label>
           <input type="text" id="filename-input" placeholder="doppler_simulation" style="width: 140px; padding: 3px;">
           <select id="format-select" style="margin-left: 5px; padding: 3px;">
-            <option value="mp3">MP3 (Audio Only)</option>
+            <option value="wav">WAV (Audio Only)</option>
             <option value="mp4">MP4 (Video + Audio)</option>
           </select>
         </div>
@@ -3879,7 +3788,7 @@
 
     async function downloadAudio(useDefault = false) {
       const formatSelect = document.getElementById('format-select');
-      const format = formatSelect ? formatSelect.value : 'mp3';
+      const format = formatSelect ? formatSelect.value : 'wav';
 
       let filename;
 
@@ -3893,7 +3802,7 @@
           customName = 'doppler_simulation';
         }
 
-        customName = customName.replace(/\.(mp3|mp4|wav)$/i, '');
+        customName = customName.replace(/\.(wav|mp4)$/i, '');
         filename = `${customName}.${format}`;
       }
 
@@ -3938,6 +3847,20 @@
         }
         showStatusMessage("Replaying Doppler simulation...", "status-playing");
       }
+    }
+
+    function toggleAirNoiseControls() {
+      const checkbox = document.getElementById('add_air_noise');
+      const slider = document.getElementById('air_noise_strength');
+      if (!checkbox || !slider) return;
+      slider.disabled = !checkbox.checked;
+    }
+
+    function updateAirNoiseStrengthLabel() {
+      const slider = document.getElementById('air_noise_strength');
+      const label = document.getElementById('air_noise_strength_value');
+      if (!slider || !label) return;
+      label.textContent = `${slider.value}%`;
     }
 
     function showStatusMessage(message, className) {
@@ -4006,6 +3929,7 @@
       const btnBatch = document.getElementById('modeBatch');
       const btnOverlap = document.getElementById('modeOverlap');
       const btnSpectrogram = document.getElementById('modeSpectrogram');
+      const btnCompare = document.getElementById('modeCompare');
       const btnSingle = document.getElementById('modeSingle');
       const btnMap = document.getElementById('modeMap');
       const btnIntersection = document.getElementById('modeIntersection');
@@ -4013,18 +3937,19 @@
       const batchMode = document.getElementById('batchMode');
       const overlapMode = document.getElementById('overlapMode');
       const spectrogramMode = document.getElementById('spectrogramMode');
+      const compareMode = document.getElementById('compareMode');
       const singleMode = document.getElementById('singleMode');
       const mapMode = document.getElementById('mapMode');
       const intersectionMode = document.getElementById('intersectionMode');
 
-      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnSingle || !btnMap || !btnIntersection ||
-        !batchMode || !overlapMode || !spectrogramMode || !singleMode || !mapMode || !intersectionMode) return;
+      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnMap || !btnIntersection ||
+        !batchMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !mapMode || !intersectionMode) return;
 
       function switchTo(activeBtn, showMode) {
-        [btnBatch, btnOverlap, btnSpectrogram, btnSingle, btnMap, btnIntersection].forEach(b => b.classList.remove('active'));
+        [btnBatch, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnMap, btnIntersection].forEach(b => b.classList.remove('active'));
         activeBtn.classList.add('active');
 
-        [batchMode, overlapMode, spectrogramMode, singleMode, mapMode, intersectionMode].forEach(m => {
+        [batchMode, overlapMode, spectrogramMode, compareMode, singleMode, mapMode, intersectionMode].forEach(m => {
           m.classList.add('hidden');
           setTimeout(() => {
             if (m === showMode) {
@@ -4040,6 +3965,7 @@
       btnBatch.addEventListener('click', () => switchTo(btnBatch, batchMode));
       btnOverlap.addEventListener('click', () => switchTo(btnOverlap, overlapMode));
       btnSpectrogram.addEventListener('click', () => switchTo(btnSpectrogram, spectrogramMode));
+      btnCompare.addEventListener('click', () => switchTo(btnCompare, compareMode));
       btnSingle.addEventListener('click', () => {
         switchTo(btnSingle, singleMode);
         setTimeout(resizeCanvas, 350);

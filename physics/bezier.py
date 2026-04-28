@@ -30,10 +30,65 @@ def _cubic_bezier_derivative(t, p0, p1, p2, p3):
            3 * (t**2) * (p3 - p2)
 
 
+def _rotate_point_xy(x, y, angle_deg):
+    if angle_deg == 0.0 or angle_deg == 0:
+        return x, y
+    theta = np.deg2rad(float(angle_deg))
+    cos_t, sin_t = np.cos(theta), np.sin(theta)
+    return x * cos_t - y * sin_t, x * sin_t + y * cos_t
+
+
+def _rotate_vector_xy(vx, vy, angle_deg):
+    if angle_deg == 0.0 or angle_deg == 0:
+        return vx, vy
+    theta = np.deg2rad(float(angle_deg))
+    cos_t, sin_t = np.cos(theta), np.sin(theta)
+    return vx * cos_t - vy * sin_t, vx * sin_t + vy * cos_t
+
+
+def _scaled_bezier_geometry(speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_s, n_samples):
+    """Build scaled Bezier geometry exactly as used by Doppler physics."""
+    n_samples = max(4, int(n_samples))
+    t = np.linspace(0.0, duration_s, n_samples, endpoint=False)
+    T = float(duration_s)
+    if T <= 0:
+        T = 1.0
+    tau = t / T
+
+    dx_dtau_init = _cubic_bezier_derivative(tau, x0, x1, x2, x3)
+    dy_dtau_init = _cubic_bezier_derivative(tau, y0, y1, y2, y3)
+    vx_init = dx_dtau_init / T
+    vy_init = dy_dtau_init / T
+    speed_init = np.sqrt(vx_init**2 + vy_init**2)
+    mean_speed_init = np.mean(speed_init) if speed_init.size > 0 else 1.0
+    phys_scale = speed_mps / mean_speed_init
+
+    xs0, xs1, xs2, xs3 = x0 * phys_scale, x1 * phys_scale, x2 * phys_scale, x3 * phys_scale
+    ys0, ys1, ys2, ys3 = y0 * phys_scale, y1 * phys_scale, y2 * phys_scale, y3 * phys_scale
+
+    x = _cubic_bezier(tau, xs0, xs1, xs2, xs3)
+    y = _cubic_bezier(tau, ys0, ys1, ys2, ys3)
+    dx_dtau = _cubic_bezier_derivative(tau, xs0, xs1, xs2, xs3)
+    dy_dtau = _cubic_bezier_derivative(tau, ys0, ys1, ys2, ys3)
+    vx = dx_dtau / T
+    vy = dy_dtau / T
+    return x, y, vx, vy
+
+
+def sample_bezier_path_xy(speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_s, n_points, angle_deg=0.0):
+    """(x, y) samples that match calculate_bezier_doppler geometry."""
+    x, y, _vx, _vy = _scaled_bezier_geometry(
+        speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_s, n_points
+    )
+    if angle_deg:
+        x, y = _rotate_point_xy(x, y, angle_deg)
+    return x, y
+
+
 def calculate_bezier_doppler(speed_mps,
                              x0, x1, x2, x3,
                              y0, y1, y2, y3,
-                             duration_s, c_sound=343.0, angle_deg=0.0):
+                             duration_s, c_sound=343.0, angle_deg=0.0, accel_mps2=0.0):
     """
     Cubic Bezier path with near-field-safe amplitude.
 
@@ -66,49 +121,41 @@ def calculate_bezier_doppler(speed_mps,
     if num_samples < 4:
         num_samples = 4
 
-    t = np.linspace(0.0, duration_s, num_samples, endpoint=False)
+    # Use scaled Bezier control points, then apply acceleration-aware timing.
+    n = num_samples
+    T = float(duration_s) if float(duration_s) > 0 else 1.0
+    t = np.linspace(0.0, T, n, endpoint=False)
+    dt = max(1e-9, T / max(1, n))
 
-    # Parameter tau in [0,1]
-    T = float(duration_s)
-    if T <= 0:
-        T = 1.0
-    tau = t / T
-
-    # Bezier position
-    x = _cubic_bezier(tau, x0, x1, x2, x3)
-    y = _cubic_bezier(tau, y0, y1, y2, y3)
-
-    # Bezier derivative w.r.t. tau
-    dx_dtau = _cubic_bezier_derivative(tau, x0, x1, x2, x3)
-    dy_dtau = _cubic_bezier_derivative(tau, y0, y1, y2, y3)
-
-    # Solve for spatial scale to match speed_mps
-    # v_actual = (1/T) * dB/dtau
-    vx_init = dx_dtau / T
-    vy_init = dy_dtau / T
+    dx_dtau_init = _cubic_bezier_derivative(t / T, x0, x1, x2, x3)
+    dy_dtau_init = _cubic_bezier_derivative(t / T, y0, y1, y2, y3)
+    vx_init = dx_dtau_init / T
+    vy_init = dy_dtau_init / T
     speed_init = np.sqrt(vx_init**2 + vy_init**2)
     mean_speed_init = np.mean(speed_init) if speed_init.size > 0 else 1.0
-    phys_scale = speed_mps / mean_speed_init
+    phys_scale = speed_mps / max(1e-6, mean_speed_init)
 
-    # Re-calculate position and velocity with scaled control points
-    # (This ensures x(t) and v(t) are kinematically consistent)
-    x = _cubic_bezier(tau, x0*phys_scale, x1*phys_scale, x2*phys_scale, x3*phys_scale)
-    y = _cubic_bezier(tau, y0*phys_scale, y1*phys_scale, y2*phys_scale, y3*phys_scale)
-    dx_dtau = _cubic_bezier_derivative(tau, x0*phys_scale, x1*phys_scale, x2*phys_scale, x3*phys_scale)
-    dy_dtau = _cubic_bezier_derivative(tau, y0*phys_scale, y1*phys_scale, y2*phys_scale, y3*phys_scale)
+    xs0, xs1, xs2, xs3 = x0 * phys_scale, x1 * phys_scale, x2 * phys_scale, x3 * phys_scale
+    ys0, ys1, ys2, ys3 = y0 * phys_scale, y1 * phys_scale, y2 * phys_scale, y3 * phys_scale
 
-    vx_raw = dx_dtau / T
-    vy_raw = dy_dtau / T
+    # B7 constant-acceleration speed law + integrated progression.
+    v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
+    s_t = np.cumsum(v_t) * dt
+    total_s = max(1e-9, float(s_t[-1]))
+    tau = np.clip(s_t / total_s, 0.0, 1.0)
+    dtaudt = v_t / total_s
+
+    x = _cubic_bezier(tau, xs0, xs1, xs2, xs3)
+    y = _cubic_bezier(tau, ys0, ys1, ys2, ys3)
+    dx_dtau = _cubic_bezier_derivative(tau, xs0, xs1, xs2, xs3)
+    dy_dtau = _cubic_bezier_derivative(tau, ys0, ys1, ys2, ys3)
+    vx_raw = dx_dtau * dtaudt
+    vy_raw = dy_dtau * dtaudt
 
     # Rotate path if angle is non-zero
-    if angle_deg != 0:
-        theta = np.deg2rad(angle_deg)
-        cos_t, sin_t = np.cos(theta), np.sin(theta)
-        x_rot = x * cos_t - y * sin_t
-        y_rot = x * sin_t + y * cos_t
-        vx_rot = vx_raw * cos_t - vy_raw * sin_t
-        vy_rot = vx_raw * sin_t + vy_raw * cos_t
-        x, y, vx_raw, vy_raw = x_rot, y_rot, vx_rot, vy_rot
+    if angle_deg:
+        x, y = _rotate_point_xy(x, y, angle_deg)
+        vx_raw, vy_raw = _rotate_vector_xy(vx_raw, vy_raw, angle_deg)
 
     # Distance to observer
     r = np.sqrt(x**2 + y**2)
@@ -138,116 +185,3 @@ def calculate_bezier_doppler(speed_mps,
     amplitudes = apply_distance_fade(amplitudes, fade_duration_s=1.0)
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)
-
-
-def calculate_bezier_doppler_dual(speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, 
-                                   duration_s, mic_separation_m, c_sound=343.0, angle_deg=0.0):
-    """
-    Cubic Bezier path with dual microphones placed symmetrically along X-axis.
-    
-    Microphones are placed at:
-        M1 at (-mic_separation_m/2, 0)
-        M2 at (+mic_separation_m/2, 0)
-    
-    Parameters
-    ----------
-    speed_mps : float
-        Desired average speed along the Bezier curve (m/s).
-    x0..x3, y0..y3 : float
-        Control points for the cubic Bezier in meters.
-    duration_s : float
-        Total duration (seconds).
-    mic_separation_m : float
-        Distance between the two microphones (meters).
-    
-    Returns
-    -------
-    dict with keys:
-        'm1': dict with 'freq_ratios', 'amplitudes', 'distances', 'velocities'
-        'm2': dict with 'freq_ratios', 'amplitudes', 'distances', 'velocities'
-    """
-    # Number of samples and time axis
-    num_samples = int(round(SR * duration_s))
-    if num_samples < 4:
-        num_samples = 4
-    
-    t = np.linspace(0.0, duration_s, num_samples, endpoint=False)
-    
-    # Parameter tau in [0,1]
-    T = float(duration_s)
-    if T <= 0:
-        T = 1.0
-    tau = t / T
-    
-    # Bezier position
-    x = _cubic_bezier(tau, x0, x1, x2, x3)
-    y = _cubic_bezier(tau, y0, y1, y2, y3)
-    
-    # Bezier derivative w.r.t. tau
-    dx_dtau = _cubic_bezier_derivative(tau, x0, x1, x2, x3)
-    dy_dtau = _cubic_bezier_derivative(tau, y0, y1, y2, y3)
-    
-    # Convert derivative from param-space to physical time
-    vx_raw = dx_dtau / T
-    vy_raw = dy_dtau / T
-    
-    # Rescale so that mean |v| ≈ speed_mps
-    speed_raw = np.sqrt(vx_raw**2 + vy_raw**2)
-    mean_speed_raw = np.mean(speed_raw) if speed_raw.size > 0 else 0.0
-    if mean_speed_raw < 1e-6:
-        scale = 0.0
-    else:
-        scale = speed_mps / mean_speed_raw
-    
-    vx = vx_raw * scale
-    vy = vy_raw * scale
-    
-    # Rotate path if angle is non-zero
-    if angle_deg != 0:
-        theta = np.deg2rad(angle_deg)
-        cos_t, sin_t = np.cos(theta), np.sin(theta)
-        x_rot = x * cos_t - y * sin_t
-        y_rot = x * sin_t + y * cos_t
-        vx_rot = vx * cos_t - vy * sin_t
-        vy_rot = vx * sin_t + vy * cos_t
-        x, y, vx, vy = x_rot, y_rot, vx_rot, vy_rot
-
-    # Microphone positions
-    half_sep = mic_separation_m / 2.0
-    mic1_pos = np.array([-half_sep, 0.0])  # M1
-    mic2_pos = np.array([half_sep, 0.0])   # M2
-    
-    eps = 1e-9
-    
-    # Calculate for M1
-    r1 = np.sqrt((x - mic1_pos[0])**2 + (y - mic1_pos[1])**2)
-    max_vr = min(0.9 * c_sound, 1.2 * abs(speed_mps))
-    v_r1 = np.clip((vx * (x - mic1_pos[0]) + vy * (y - mic1_pos[1])) / np.maximum(r1, 1e-9), -max_vr, max_vr)
-    freq_ratios_m1 = c_sound / (c_sound + v_r1)
-    amplitudes_m1 = (10.0 * (1.0 / np.sqrt(r1**2 + NEAR_FIELD_RADIUS**2)) * (c_sound / (c_sound + v_r1))**2)**0.7
-    
-    # Calculate for M2
-    r2 = np.sqrt((x - mic2_pos[0])**2 + (y - mic2_pos[1])**2)
-    v_r2 = np.clip((vx * (x - mic2_pos[0]) + vy * (y - mic2_pos[1])) / np.maximum(r2, 1e-9), -max_vr, max_vr)
-    freq_ratios_m2 = c_sound / (c_sound + v_r2)
-    amplitudes_m2 = (10.0 * (1.0 / np.sqrt(r2**2 + NEAR_FIELD_RADIUS**2)) * (c_sound / (c_sound + v_r2))**2)**0.7
-    
-    # Smooth fade-in/out to prevent abrupt spawning
-    amplitudes_m1 = apply_distance_fade(amplitudes_m1, fade_duration_s=1.0)
-    amplitudes_m2 = apply_distance_fade(amplitudes_m2, fade_duration_s=1.0)
-    
-    return {
-        'm1': {
-            'freq_ratios': freq_ratios_m1.astype(np.float32),
-            'amplitudes': amplitudes_m1.astype(np.float32),
-            'distances': r1.astype(np.float32),
-            'velocities': v_r1.astype(np.float32)
-        },
-        'm2': {
-            'freq_ratios': freq_ratios_m2.astype(np.float32),
-            'amplitudes': amplitudes_m2.astype(np.float32),
-            'distances': r2.astype(np.float32),
-            'velocities': v_r2.astype(np.float32)
-        }
-    }
-

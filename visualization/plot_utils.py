@@ -12,6 +12,9 @@ import librosa
 import librosa.display
 
 from audio.audio_utils import SR
+from physics.map_trajectory import sample_map_path_xy
+from physics.parabola import sample_parabola_path_xy
+from physics.bezier import sample_bezier_path_xy
 
 
 def compute_path_points(path_type, params, n_points=200, **kwargs):
@@ -85,22 +88,19 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
             closest = (cx, cy)
 
     elif path_type == 'parabola':
-        v = params['speed']
-        a = params['a']
-        h = params['h']
-
-        t = np.linspace(0.0, duration, n_points)
-        t0 = duration / 2.0
-        dt = t - t0
-
-        x = v * dt
-        y = a * x**2 + h
-
+        # Must match calculate_parabola_doppler: τ ∈ [-1,1], half-span refinement, y = a·x² + h, then angle_deg about origin
+        v = float(params['speed'])
+        a = float(params['a'])
+        h = float(params['h'])
+        angle_deg = float(params.get('angle_deg', 0.0))
+        x, y = sample_parabola_path_xy(v, a, h, float(duration), n_points, angle_deg=angle_deg)
         if is_absolute:
             x = x + obs_pos[0]
+            y = y + obs_pos[1]
         closest = None
 
     elif path_type == 'bezier':
+        speed = float(params.get('speed', 20.0))
         x0 = float(params.get('x0', 0))
         x1 = float(params.get('x1', 0))
         x2 = float(params.get('x2', 0))
@@ -109,27 +109,25 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
         y1 = float(params.get('y1', 0))
         y2 = float(params.get('y2', 0))
         y3 = float(params.get('y3', 0))
+        angle_deg = float(params.get('angle_deg', 0.0))
+        # Match calculate_bezier_doppler geometry: speed-rescaled control points
+        # and optional angle_deg rotation about the origin.
+        x, y = sample_bezier_path_xy(
+            speed, x0, x1, x2, x3, y0, y1, y2, y3, float(duration), n_points, angle_deg=angle_deg
+        )
 
-        u = np.linspace(0.0, 1.0, n_points)
-        x = ((1 - u) ** 3) * x0 + 3 * ((1 - u) ** 2) * u * x1 + 3 * (1 - u) * (u ** 2) * x2 + (u ** 3) * x3
-        y = ((1 - u) ** 3) * y0 + 3 * ((1 - u) ** 2) * u * y1 + 3 * (1 - u) * (u ** 2) * y2 + (u ** 3) * y3
-
-        if not is_absolute:
+        if is_absolute:
+            x = x + obs_pos[0]
+            y = y + obs_pos[1]
+        else:
             x = x - obs_pos[0]
             y = y - obs_pos[1]
         closest = None
 
-    elif path_type == 'map_path':
+    elif path_type in ('map_path', 'map_trajectory'):
         points = np.array(params['points'])
-        # Sample points to match n_points
-        dists = np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1))
-        cumulative_dist = np.insert(np.cumsum(dists), 0, 0)
-        total_path_len = cumulative_dist[-1]
-        
-        query_dist = np.linspace(0, total_path_len, n_points)
-        x = np.interp(query_dist, cumulative_dist, points[:, 0])
-        y = np.interp(query_dist, cumulative_dist, points[:, 1])
-        
+        speed = float(params.get('speed', 30.0))
+        x, y = sample_map_path_xy(points, speed, duration, n_points)
         if not is_absolute:
             x = x - obs_pos[0]
             y = y - obs_pos[1]
@@ -141,6 +139,7 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
         closest = None
 
     # --- APPLY GLOBAL ROAD CURVATURE (Realistic Roads Fix) ---
+    y_in = np.asarray(y, dtype=float).copy()
     road_curve_a = kwargs.get('road_curve_a', 0.0)
     curve_blend = float(params.get('road_curve_blend', 1.0))
     global_curve_scale = float(params.get('global_curve_scale', 1.0))
@@ -149,9 +148,32 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
     if path_curve_a != 0:
         # In absolute mode, the curve is centered on the observer's X position
         x_ref = x - obs_pos[0] if is_absolute else x
-        y = y + path_curve_a * (x_ref ** 2)
+        road_y0 = float(kwargs.get('road_y_center', 0.0))
+        y_road = road_y0 + path_curve_a * (x_ref ** 2)
+        # Shallow-road / monotonic-x refit (not a true Frenet parallel offset, which would
+        # be constant d along arclength in the normal; here y is a Cartesian "lane" model):
+        #   y = y_road + y_in - chord(y_road),  chord = (1-t)r0 + t*r1 on x in [x0, x1].
+        # = y_road + w + (1-t)δ0 + t*δ1 with w = y_in - chord(y_in) and δi = y_in[i] - y_road[i]
+        # at the ends, so wobble w is kept and end offsets δ match the old intrinsic path.
+        # Avoids stacking a second x² (intrinsic + a_road) that would fight the centerline.
+        use_refit = (
+            kwargs.get('refit_to_road', True)
+            and is_absolute
+            and path_type in ('parabola', 'bezier')
+            and len(x) > 1
+        )
+        if use_refit:
+            # Stable lane-relative refit:
+            # keep each vehicle's median offset from the road centerline, plus
+            # its local wobble around its own median. This avoids large mid-span
+            # over/under-shoot that can violate boundaries.
+            lane_rel = float(np.median(y_in - y_road))
+            wobble = y_in - float(np.median(y_in))
+            y = y_road + lane_rel + wobble
+        else:
+            y = y_in + path_curve_a * (x_ref ** 2)
 
-    # --- APPLY GLOBAL ROAD TILT ---
+    # --- APPLY GLOBAL ROAD TILT (pivot about road_y_center; same for all path types) ---
     road_angle = float(kwargs.get('road_angle', 0.0))
     road_angle += float(params.get('road_angle_offset', 0.0))
     if road_angle != 0:
@@ -167,6 +189,8 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
 
     # --- ABSOLUTE PLOT SAFETY CLAMP (keeps trajectories inside road band) ---
     if is_absolute and kwargs.get('clamp_to_road_band', False):
+        # lane_width is single-lane half-road width in generation flow.
+        # Clamp to full strip road band: center ± lane_width.
         lane_width = float(kwargs.get('lane_width', 4.0))
         road_y_center = float(kwargs.get('road_y_center', 0.0))
         road_curve_clamp = kwargs.get('road_curve_a', 0.0)
@@ -231,6 +255,9 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
     """
     Save a PNG graph with all vehicle paths in a scene.
     Focuses on clear trajectory visualization and readable axis scaling.
+
+    kwargs ``lane_width`` is interpreted as single-lane width / half-road-width
+    in strip-road mode, so road edges are drawn at centerline ± lane_width.
     """
     try:
         plot_path = os.path.join(output_dir, f"{base_name}_combined_path.png")
@@ -240,9 +267,9 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         road_curve_a = float(kwargs.get('road_curve_a', 0.0))
         plot_kwargs = dict(kwargs)
         plot_kwargs['road_curve_a'] = road_curve_a
-        # Clamp plotted trajectories to the road band (visual safety; avoids
-        # global road curvature + tilt pushing paths outside lane edges).
-        plot_kwargs['clamp_to_road_band'] = not intersection_mode
+        # Keep plotting physics-faithful: do not apply a visual-only clamp here,
+        # otherwise displayed paths can diverge from trajectories used in audio.
+        plot_kwargs['clamp_to_road_band'] = False
         
         fig, ax = plt.subplots(figsize=(12, 8))
 
@@ -253,12 +280,12 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
             sampled_paths.append((i, path_type, params, vehicle_name, x, y))
 
         # --- MINIMAL ROAD GUIDES (no decorative background) ---
-        lane_width = kwargs.get('lane_width', 4.0)
+        lane_width = float(kwargs.get('lane_width', 4.0))
+        lane_half = lane_width
         road_y_center = kwargs.get('road_y_center', 0.0)
         road_angle = kwargs.get('road_angle', 0.0)
 
         if intersection_mode:
-            lane_half = float(lane_width) / 2.0
             half_arm = float(kwargs.get('intersection_half_arm', 90.0))
             int_angle = float(kwargs.get('intersection_angle', 90.0))
             # Primary road (E-W): horizontal
@@ -328,16 +355,16 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
             else:
                 y_median = np.full_like(x_road, road_y_center, dtype=float)
 
-            # Offset road edges along local normal so the edge distance == lane_width.
+            # Edges at ±lane_width along local normal (lane_width is half-road-width here).
             dy_dx = np.gradient(y_median, x_road)
             denom = np.sqrt(1.0 + dy_dx ** 2)
             n_x = -dy_dx / denom
             n_y = 1.0 / denom
 
-            x_upper = x_road + lane_width * n_x
-            y_upper = y_median + lane_width * n_y
-            x_lower = x_road - lane_width * n_x
-            y_lower = y_median - lane_width * n_y
+            x_upper = x_road + lane_half * n_x
+            y_upper = y_median + lane_half * n_y
+            x_lower = x_road - lane_half * n_x
+            y_lower = y_median - lane_half * n_y
             x_med = x_road
             y_med = y_median
 
@@ -362,6 +389,7 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
             ax.plot(x_med, y_med, color='#888888', linestyle='--', linewidth=0.9, label='Median', zorder=1)
 
         # --- PLOT VEHICLE PATHS ---
+        dotted_extension_m = float(kwargs.get('dotted_extension_m', 22.0))
         for i, path_type, params, vehicle_name, x, y in sampled_paths:
             # Determine arrow based on directional intent in UNROTATED frame
             # For straight/parabola it's usually speed/direction, for bezier it's x3 > x0
@@ -376,7 +404,44 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
                 is_forward = False
                 
             arrow = " →" if is_forward else " ←"
-            ax.plot(x, y, linewidth=1.4, label=f"V{i+1}: {vehicle_name}{arrow}", alpha=0.95, zorder=5)
+            line, = ax.plot(x, y, linewidth=1.4, label=f"V{i+1}: {vehicle_name}{arrow}", alpha=0.95, zorder=5)
+
+            # Add small dotted extrapolations before/after the solid segment so
+            # each trajectory visually continues beyond the active span.
+            if len(x) >= 2 and dotted_extension_m > 0.0:
+                x0, y0 = float(x[0]), float(y[0])
+                x1, y1 = float(x[1]), float(y[1])
+                xn_1, yn_1 = float(x[-2]), float(y[-2])
+                xn, yn = float(x[-1]), float(y[-1])
+
+                start_dx, start_dy = x1 - x0, y1 - y0
+                end_dx, end_dy = xn - xn_1, yn - yn_1
+                start_norm = max(1e-9, np.hypot(start_dx, start_dy))
+                end_norm = max(1e-9, np.hypot(end_dx, end_dy))
+
+                ux_s, uy_s = start_dx / start_norm, start_dy / start_norm
+                ux_e, uy_e = end_dx / end_norm, end_dy / end_norm
+
+                n_ext = 24
+                t = np.linspace(0.0, 1.0, n_ext)
+                x_pre = x0 - ux_s * dotted_extension_m * t
+                y_pre = y0 - uy_s * dotted_extension_m * t
+                x_post = xn + ux_e * dotted_extension_m * t
+                y_post = yn + uy_e * dotted_extension_m * t
+
+                ext_color = line.get_color()
+                ax.plot(
+                    x_pre, y_pre,
+                    linestyle='--', dashes=(2.0, 2.0),
+                    linewidth=1.0, color=ext_color, alpha=0.70,
+                    zorder=4, label='_nolegend_'
+                )
+                ax.plot(
+                    x_post, y_post,
+                    linestyle='--', dashes=(2.0, 2.0),
+                    linewidth=1.0, color=ext_color, alpha=0.70,
+                    zorder=4, label='_nolegend_'
+                )
 
         # Observer
         ax.scatter([obs_pos[0]], [obs_pos[1]], marker='.', s=30, color='red', label='Observer', zorder=10)
@@ -398,7 +463,7 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         y_all.extend(y_lower)
         y_all.extend(y_med)
         if intersection_mode:
-            lh = float(lane_width) / 2.0
+            lh = lane_half
             ha = float(kwargs.get('intersection_half_arm', 90.0))
             # Primary road extents
             x_all.extend([-ha, ha])
@@ -471,26 +536,147 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         return None
 
 
-def save_spectrogram_to_file(y, sr, title, out_path):
+def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_amplitude_bar=False):
     """
     Generate and save a high-resolution spectrogram PNG to a specific path.
     """
     try:
-        fig, ax = plt.subplots(figsize=(10, 4))
+        if include_amplitude_bar:
+            fig, (ax, ax_amp) = plt.subplots(
+                2, 1, figsize=(12, 6.5), sharex=True,
+                gridspec_kw={'height_ratios': [4, 1], 'hspace': 0.12}
+            )
+        else:
+            fig, ax = plt.subplots(figsize=(12, 4.8))
 
-        # High resolution: n_fft=4096, hop_length=256
-        stft = librosa.stft(y, n_fft=4096, hop_length=256)
-        D = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+        # Use denser STFT sampling to avoid blocky appearance while preserving
+        # clear time-frequency structure.
+        n_fft = 4096
+        hop_length = 64
+        win_length = 4096
+        window = "hann"
+        stft = librosa.stft(
+            y, n_fft=n_fft, hop_length=hop_length, win_length=win_length, window=window
+        )
+        S_power = np.abs(stft) ** 2
+        D = librosa.power_to_db(S_power, ref=np.max)
 
-        librosa.display.specshow(D, sr=sr, x_axis='time', y_axis='hz', ax=ax, hop_length=256)
-        ax.set_ylim(0, 2500) # Zoom in to 0-2500 Hz
+        # Improve contrast so tonal structure is more visible and less "muddy".
+        vmax = float(np.max(D))
+        vmin = vmax - 80.0
+        librosa.display.specshow(
+            D,
+            sr=sr,
+            hop_length=hop_length,
+            x_axis='time',
+            y_axis='hz',
+            ax=ax,
+            cmap='magma',
+            shading='gouraud',
+            rasterized=True,
+            vmin=vmin,
+            vmax=vmax
+        )
+        max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
+        if max_y_freq <= 0:
+            max_y_freq = 2500.0
+        ax.set_ylim(0, max_y_freq)
+        # Keep 5 equal y-axis portions regardless of selected max.
+        y_ticks = np.linspace(0, max_y_freq, 6)
+        ax.set_yticks(y_ticks)
         ax.set_title(title)
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
 
-        fig.savefig(out_path, dpi=120, bbox_inches="tight")
+        if include_amplitude_bar:
+            # Frame-wise RMS amplitude bars aligned to the same time axis.
+            rms = librosa.feature.rms(y=y, frame_length=n_fft, hop_length=hop_length, center=True)[0]
+            times = librosa.times_like(rms, sr=sr, hop_length=hop_length)
+            if len(times) > 1:
+                bar_width = float(times[1] - times[0]) * 0.9
+            else:
+                bar_width = float(hop_length) / float(sr)
+            ax_amp.bar(times, rms, width=bar_width, color='#58a6ff', edgecolor='none', alpha=0.9)
+            ax_amp.set_ylabel('Amp')
+            ax_amp.set_xlabel('Time (s)')
+            ax_amp.set_ylim(0, max(1e-6, float(np.max(rms)) * 1.15))
+            ax_amp.grid(True, axis='y', linestyle=':', alpha=0.35)
+
+        fig.savefig(out_path, dpi=240, bbox_inches="tight")
         plt.close(fig)
         return True
     except Exception as e:
         print(f"Failed to save spectrogram to {out_path}: {e}")
+        return False
+
+
+def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_freq=2500):
+    """
+    Save a side-by-side comparative plot:
+    - Top row: spectrogram A and B
+    - Bottom row: amplitude bar graph A and B
+    """
+    try:
+        fig, axes = plt.subplots(
+            2, 2, figsize=(14, 7), sharex='row',
+            gridspec_kw={'height_ratios': [4, 1], 'hspace': 0.18, 'wspace': 0.14}
+        )
+        ax_spec_a, ax_spec_b = axes[0]
+        ax_amp_a, ax_amp_b = axes[1]
+
+        n_fft = 4096
+        hop_length = 64
+        win_length = 4096
+        window = "hann"
+        max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
+        if max_y_freq <= 0:
+            max_y_freq = 2500.0
+
+        def _draw_spectrogram(ax, y, title):
+            stft = librosa.stft(
+                y, n_fft=n_fft, hop_length=hop_length, win_length=win_length, window=window
+            )
+            s_power = np.abs(stft) ** 2
+            d_db = librosa.power_to_db(s_power, ref=np.max)
+            vmax = float(np.max(d_db))
+            vmin = vmax - 80.0
+            librosa.display.specshow(
+                d_db,
+                sr=sr,
+                hop_length=hop_length,
+                x_axis='time',
+                y_axis='hz',
+                ax=ax,
+                cmap='magma',
+                shading='gouraud',
+                rasterized=True,
+                vmin=vmin,
+                vmax=vmax
+            )
+            ax.set_ylim(0, max_y_freq)
+            ax.set_yticks(np.linspace(0, max_y_freq, 6))
+            ax.set_title(title)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Frequency (Hz)')
+
+        def _draw_amplitude(ax, y, color):
+            rms = librosa.feature.rms(y=y, frame_length=n_fft, hop_length=hop_length, center=True)[0]
+            times = librosa.times_like(rms, sr=sr, hop_length=hop_length)
+            bar_width = (float(times[1] - times[0]) * 0.9) if len(times) > 1 else (float(hop_length) / float(sr))
+            ax.bar(times, rms, width=bar_width, color=color, edgecolor='none', alpha=0.9)
+            ax.set_ylabel('Amp')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylim(0, max(1e-6, float(np.max(rms)) * 1.15))
+            ax.grid(True, axis='y', linestyle=':', alpha=0.35)
+
+        _draw_spectrogram(ax_spec_a, y_a, title_a)
+        _draw_spectrogram(ax_spec_b, y_b, title_b)
+        _draw_amplitude(ax_amp_a, y_a, '#58a6ff')
+        _draw_amplitude(ax_amp_b, y_b, '#f0883e')
+
+        fig.savefig(out_path, dpi=220, bbox_inches="tight")
+        plt.close(fig)
+        return True
+    except Exception as e:
+        print(f"Failed to save audio comparison plot to {out_path}: {e}")
         return False

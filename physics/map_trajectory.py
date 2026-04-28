@@ -3,39 +3,55 @@ from audio.audio_utils import SR, apply_distance_fade
 
 NEAR_FIELD_RADIUS = 2.0
 
+
+def sample_map_path_xy(points, speed_mps, duration_s, n_points):
+    """
+    (x, y) samples on the polyline at constant speed ``speed_mps`` along arclength.
+    s(t) = min(speed_mps * t, L); t ∈ [0, duration) with n_points steps (endpoint=False),
+    same law as :func:`calculate_map_trajectory_doppler`.
+    """
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 2 or points.shape[0] < 1:
+        raise ValueError("points must be an (N, 2) array with N >= 1")
+
+    speed_mps = float(speed_mps)
+    if speed_mps < 0.0:
+        speed_mps = 0.0
+    duration_s = float(duration_s)
+    if duration_s <= 0:
+        duration_s = 1.0
+    n_points = max(2, int(n_points))
+
+    if len(points) == 1:
+        return np.full(n_points, points[0, 0]), np.full(n_points, points[0, 1])
+
+    dists = np.sqrt(np.sum(np.diff(points, axis=0) ** 2, axis=1))
+    cumulative_dist = np.insert(np.cumsum(dists), 0, 0.0)
+    total_path_len = float(cumulative_dist[-1])
+    if total_path_len < 1e-9:
+        return np.full(n_points, points[0, 0]), np.full(n_points, points[0, 1])
+
+    t = np.linspace(0.0, duration_s, n_points, endpoint=False)
+    query_dist = np.minimum(speed_mps * t, total_path_len)
+    px = np.interp(query_dist, cumulative_dist, points[:, 0])
+    py = np.interp(query_dist, cumulative_dist, points[:, 1])
+    return px, py
+
+
 def calculate_map_trajectory_doppler(points, speed_mps, duration_s, observer_pos=(0, 0), c_sound=343.0):
     """
     Calculate Doppler shift for a custom trajectory defined by point list.
-    Points are (x, y) in meters. 
-    
-    The speed_mps is the target average speed. 
-    The trajectory is sampled to fit the duration.
+    Points are (x, y) in meters.
+
+    The source moves at constant speed ``speed_mps`` along the polyline (in order of
+    the points). Arclength as a function of time is s(t) = min(speed_mps * t, L) where
+    L is the total path length. If the path is shorter than speed_mps * duration_s,
+    the source stays at the final point for the remainder of the clip.
     """
-    points = np.array(points) # (N, 2)
-    
-    # Calculate cumulative distance along path
-    dists = np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1))
-    cumulative_dist = np.insert(np.cumsum(dists), 0, 0)
-    total_path_len = cumulative_dist[-1]
-    
-    # Time axis
+    # Time axis: one sample per audio frame
     num_samples = int(round(SR * duration_s))
-    t = np.linspace(0.0, duration_s, num_samples, endpoint=False)
-    
-    # Interpolate positions based on constant speed
-    # Average speed = total_path_len / duration_s
-    # We use user-provided speed_mps to scale time or path
-    effective_duration = total_path_len / speed_mps
-    
-    # Map t to the path distance
-    # If speed_mps is used, we might finish path early or need to loop. 
-    # For simplicity, we stretch/compress path to fit duration at average speed.
-    query_dist = np.linspace(0, total_path_len, num_samples)
-    
-    px = np.interp(query_dist, cumulative_dist, points[:, 0])
-    py = np.interp(query_dist, cumulative_dist, points[:, 1])
-    
-    p = np.vstack([px, py]) # (2, N)
+    px, py = sample_map_path_xy(points, speed_mps, duration_s, num_samples)
+    p = np.vstack([px, py])  # (2, N)
     
     # Observer at custom position
     obs = np.array(observer_pos).reshape(2, 1)

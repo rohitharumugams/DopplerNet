@@ -387,17 +387,62 @@ def batch_generate():
                             assignments.append((fwd_center, fwd_y_min, fwd_y_max, clamp_lo_fwd, clamp_hi_fwd, 1))
                             assignments.append((opp_center, opp_y_min, opp_y_max, clamp_lo_opp, clamp_hi_opp, -1))
 
+                        # Scene-level crossing policy:
+                        # Force one paired crossing in a randomly chosen lane
+                        # whenever that lane has at least two vehicles.
+                        forced_cross_lane = random.choice([1, -1]) if half >= 2 else None
+
+                        # Spread vehicles across discrete lateral slots per lane so
+                        # trajectories are visually and physically separated.
+                        per_lane_total = {1: half, -1: half}
+                        per_lane_seen = {1: 0, -1: 0}
+                        # Target cadence: ~1 in 3 paths intersect per lane, with
+                        # randomized phase so it is not always the same slot index.
+                        lane_cross_phase = {1: random.randint(0, 2), -1: random.randint(0, 2)}
+                        # Keep one pending "cross partner" per lane so two nearby
+                        # vehicles can form an actual intersection/overtake pair.
+                        lane_cross_anchor = {1: None, -1: None}
+
+                        def _lane_slot(clamp_lo, clamp_hi, direction):
+                            total = max(1, per_lane_total[direction])
+                            idx = per_lane_seen[direction]
+                            per_lane_seen[direction] += 1
+                            width = max(0.2, clamp_hi - clamp_lo)
+                            # Keep at least ~0.9 m center-to-center when possible.
+                            nominal_gap = 0.9
+                            max_slots_fit = max(1, int(width / nominal_gap))
+                            n_slots = min(total, max_slots_fit)
+                            if n_slots <= 1:
+                                y_slot = 0.5 * (clamp_lo + clamp_hi) + random.uniform(-0.06, 0.06)
+                                return y_slot, idx, total
+                            # If too many vehicles for available width, wrap on slots
+                            # and add tiny noise so paths are still distinguishable.
+                            slot_idx = idx % n_slots
+                            frac = (slot_idx + 0.5) / n_slots
+                            y_slot = clamp_lo + frac * width
+                            return y_slot + random.uniform(-0.05, 0.05), idx, total
+
                         for s_idx, (lane_center, lane_y_min, lane_y_max, clamp_lo, clamp_hi, direction) in enumerate(assignments):
                             v_name = random.choice(config.get('vehicles', {}).get('selected', [vehicle_name]))
                             s_min = int(config.get('speed', {}).get('min', 15))
                             s_max = int(config.get('speed', {}).get('max', 35))
                             speed = random.randint(s_min, s_max)
 
-                            # All vehicles in the same lane share the lane center;
-                            # lateral variety comes from the path shape, not offset.
-                            lane_offset = lane_center + random.uniform(-0.15, 0.15)
+                            # Assign a lane slot (with small jitter) to avoid overlap.
+                            lane_offset_raw, lane_idx, lane_total = _lane_slot(clamp_lo, clamp_hi, direction)
+                            lane_offset = max(clamp_lo, min(clamp_hi, lane_offset_raw))
 
-                            p_type = random.choices(['parabola', 'bezier'], weights=[0.30, 0.70])[0]
+                            # Prefer road-following trajectories; keep parabola very rare.
+                            p_type = random.choices(['parabola', 'bezier'], weights=[0.05, 0.95])[0]
+                            is_forced_cross_pair = (
+                                forced_cross_lane is not None
+                                and direction == forced_cross_lane
+                                and lane_idx in (0, 1)
+                                and lane_total >= 2
+                            )
+                            if is_forced_cross_pair:
+                                # Crossing pair must be Bezier so paths can intersect.
+                                p_type = 'bezier'
 
                             road_limit = 100.0
                             max_dur = (2.0 * road_limit) / speed
@@ -419,54 +464,108 @@ def batch_generate():
                                 half_span = max(1.0, span / 2.0)
                                 available_down = lane_offset - clamp_lo
                                 available_up = clamp_hi - lane_offset
-                                a_val = random.uniform(0.0002, 0.0006)
-                                if direction == -1:
-                                    max_a = available_down / max(1.0, half_span ** 2)
-                                    v_params['a'] = -min(a_val, max(0, max_a))
+                                # Keep vertical sag very small (realistic lane-following),
+                                # unlike aggressive U-shapes that drift toward median.
+                                target_dev = min(0.7, max(0.15, usable_half * 0.28))
+                                desired_mag = target_dev / max(1.0, half_span ** 2)
+                                max_a_up = max(0.0, available_up) / max(1.0, half_span ** 2)
+                                max_a_down = max(0.0, available_down) / max(1.0, half_span ** 2)
+                                up_cap = min(desired_mag * random.uniform(0.4, 1.0), max_a_up)
+                                down_cap = min(desired_mag * random.uniform(0.4, 1.0), max_a_down)
+                                if up_cap > 0 and down_cap > 0:
+                                    v_params['a'] = up_cap if random.random() < 0.5 else -down_cap
+                                elif up_cap > 0:
+                                    v_params['a'] = up_cap
+                                elif down_cap > 0:
+                                    v_params['a'] = -down_cap
                                 else:
-                                    max_a = available_up / max(1.0, half_span ** 2)
-                                    v_params['a'] = min(a_val, max(0, max_a))
-                                min_mag = 0.10 * max_a if max_a > 0 else 1e-6
-                                if abs(v_params['a']) < min_mag:
-                                    v_params['a'] = min_mag if v_params['a'] >= 0 else -min_mag
+                                    v_params['a'] = 0.0
 
                             elif p_type == 'bezier':
-                                # Choose a maneuver style for natural lane-sharing.
-                                maneuver = random.choices(
-                                    ['lane_follow', 'overtake', 'weave'],
-                                    weights=[0.35, 0.40, 0.25],
-                                )[0]
-
-                                if maneuver == 'overtake':
-                                    # Start on one side of the lane, swing to the other, return.
-                                    start_y = lane_center + random.uniform(-usable_half * 0.3, usable_half * 0.3)
-                                    swing = random.choice([-1, 1]) * random.uniform(usable_half * 0.5, usable_half * 0.9)
-                                    v_params['y0'] = start_y
-                                    v_params['y1'] = lane_center + swing
-                                    v_params['y2'] = lane_center + swing * random.uniform(0.4, 0.8)
-                                    v_params['y3'] = start_y + random.uniform(-0.2, 0.2)
-                                elif maneuver == 'weave':
-                                    # S-curve across the lane width.
-                                    v_params['y0'] = lane_center + random.uniform(-usable_half * 0.6, usable_half * 0.6)
-                                    v_params['y3'] = lane_center + random.uniform(-usable_half * 0.6, usable_half * 0.6)
-                                    side = random.choice([-1, 1])
-                                    v_params['y1'] = lane_center + side * random.uniform(usable_half * 0.4, usable_half * 0.9)
-                                    v_params['y2'] = lane_center - side * random.uniform(usable_half * 0.4, usable_half * 0.9)
+                                # Mostly lane-following trajectories with minor deviations.
+                                forced_cross = is_forced_cross_pair
+                                crossing_event = forced_cross or (
+                                    lane_total >= 2
+                                    and ((lane_idx + lane_cross_phase[direction]) % 3 == 0)
+                                )
+                                if forced_cross:
+                                    maneuver = 'cross'
                                 else:
-                                    # Gentle follow near lane center with small drift.
-                                    v_params['y0'] = lane_center + random.uniform(-usable_half * 0.4, usable_half * 0.4)
-                                    v_params['y3'] = lane_center + random.uniform(-usable_half * 0.4, usable_half * 0.4)
-                                    v_params['y1'] = lane_center + random.uniform(-usable_half * 0.5, usable_half * 0.5)
-                                    v_params['y2'] = lane_center + random.uniform(-usable_half * 0.5, usable_half * 0.5)
+                                    maneuver = random.choices(
+                                        ['lane_follow', 'overtake', 'weave', 'cross'],
+                                        weights=[0.66, 0.17, 0.09, 0.08] if crossing_event else [0.88, 0.05, 0.07, 0.0],
+                                    )[0]
+                                # Longitudinal staggering based on lane occupancy and lane width:
+                                # - more vehicles in lane => tighter but still separated spacing
+                                # - wider lane => allow slightly larger staggering envelope
+                                half_span = min(100.0, (speed * duration) / 2.0)
+                                lane_center_idx = 0.5 * (lane_total - 1)
+                                spacing_gain = max(0.6, (lane_width / 4.0) ** 0.5)
+                                travel_span = max(20.0, 2.0 * half_span * 0.80)
+                                x_spacing = (travel_span / max(1, lane_total)) * spacing_gain
+                                x_spacing = max(6.0, min(30.0, x_spacing))
+                                x_jitter = random.uniform(-0.12 * x_spacing, 0.12 * x_spacing)
+                                x_shift = (lane_idx - lane_center_idx) * x_spacing + x_jitter
+                                # Max lateral drift from lane center in meters.
+                                drift = min(0.65, max(0.12, usable_half * 0.22))
+                                if crossing_event:
+                                    drift = min(usable_half * 0.80, drift * 1.35)
+                                # Use per-vehicle lane slot baseline so vehicles in the same
+                                # lane do not collapse onto the same trajectory.
+                                base_y = lane_offset
+
+                                if maneuver == 'cross':
+                                    # Smooth lane-change style arc that can intersect another path
+                                    # without introducing sharp turns.
+                                    amp = min(usable_half * 0.90, max(0.24, drift * 1.25))
+                                    anchor = lane_cross_anchor[direction]
+                                    if anchor is None:
+                                        side = random.choice([-1, 1])
+                                        lane_cross_anchor[direction] = {
+                                            'side': side,
+                                            'x_shift': x_shift,
+                                        }
+                                    else:
+                                        # Pair with previous cross vehicle in this lane:
+                                        # opposite sweep direction + nearly same x-shift so
+                                        # trajectories overlap and intersect near mid-clip.
+                                        side = -anchor['side']
+                                        x_shift = anchor['x_shift'] + random.uniform(-0.08 * x_spacing, 0.08 * x_spacing)
+                                        lane_cross_anchor[direction] = None
+
+                                    v_params['y0'] = base_y - side * amp * 0.70
+                                    v_params['y1'] = base_y - side * amp * 0.22
+                                    v_params['y2'] = base_y + side * amp * 0.22
+                                    v_params['y3'] = base_y + side * amp * 0.70
+                                elif maneuver == 'overtake':
+                                    # Mild overtake-like arc that stays lane-local.
+                                    start_y = base_y + random.uniform(-drift * 0.5, drift * 0.5)
+                                    swing = random.choice([-1, 1]) * random.uniform(drift * 0.45, drift * 0.80)
+                                    v_params['y0'] = start_y
+                                    v_params['y1'] = base_y + swing
+                                    v_params['y2'] = base_y + swing * random.uniform(0.35, 0.70)
+                                    v_params['y3'] = start_y + random.uniform(-drift * 0.2, drift * 0.2)
+                                elif maneuver == 'weave':
+                                    # Gentle S-curve around lane center.
+                                    v_params['y0'] = base_y + random.uniform(-drift * 0.5, drift * 0.5)
+                                    v_params['y3'] = base_y + random.uniform(-drift * 0.5, drift * 0.5)
+                                    side = random.choice([-1, 1])
+                                    v_params['y1'] = base_y + side * random.uniform(drift * 0.35, drift * 0.75)
+                                    v_params['y2'] = base_y - side * random.uniform(drift * 0.30, drift * 0.65)
+                                else:
+                                    # Default: follow lane with very minor steering variation.
+                                    v_params['y0'] = base_y + random.uniform(-drift * 0.35, drift * 0.35)
+                                    v_params['y3'] = base_y + random.uniform(-drift * 0.35, drift * 0.35)
+                                    v_params['y1'] = base_y + random.uniform(-drift * 0.55, drift * 0.55)
+                                    v_params['y2'] = base_y + random.uniform(-drift * 0.55, drift * 0.55)
 
                                 for key in ['y0', 'y1', 'y2', 'y3']:
                                     v_params[key] = max(clamp_lo, min(clamp_hi, v_params[key]))
 
-                                half_span = min(100.0, (speed * duration) / 2.0)
                                 if direction == 1:
-                                    v_params['x0'], v_params['x3'] = -half_span, half_span
+                                    v_params['x0'], v_params['x3'] = -half_span + x_shift, half_span + x_shift
                                 else:
-                                    v_params['x0'], v_params['x3'] = half_span, -half_span
+                                    v_params['x0'], v_params['x3'] = half_span + x_shift, -half_span + x_shift
                                 v_params['x1'] = v_params['x0'] + (v_params['x3'] - v_params['x0']) * 0.33
                                 v_params['x2'] = v_params['x0'] + (v_params['x3'] - v_params['x0']) * 0.66
 

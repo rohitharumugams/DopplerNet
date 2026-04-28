@@ -495,6 +495,44 @@ def apply_doppler_to_audio_fixed_advanced(original_audio, freq_ratios, amplitude
     result = apply_phase_modulation_doppler(original_audio, freq_ratios, amplitudes)
     return result
 
+
+def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=343.0):
+    """
+    Apply observer-time alignment using a retarded-time approximation:
+    t_obs = t_emit + (r - r_cpa)/c.
+    """
+    freq = np.asarray(freq_ratios, dtype=np.float32)
+    amp = np.asarray(amplitudes, dtype=np.float32)
+    dist = np.asarray(distances, dtype=np.float32)
+    n = min(len(freq), len(amp), len(dist))
+    if n < 3:
+        return freq, amp
+
+    freq = freq[:n]
+    amp = amp[:n]
+    dist = np.maximum(dist[:n], 1e-6)
+    dt = 1.0 / float(SR)
+    t_emit = np.arange(n, dtype=np.float32) * dt
+    r_cpa = float(np.min(dist))
+    t_obs = t_emit + (dist - r_cpa) / max(1e-6, float(c_sound))
+
+    order = np.argsort(t_obs)
+    t_obs = t_obs[order]
+    freq = freq[order]
+    amp = amp[order]
+
+    # Deduplicate possible equal timestamps for stable interpolation.
+    t_unique, unique_idx = np.unique(t_obs, return_index=True)
+    freq_unique = freq[unique_idx]
+    amp_unique = amp[unique_idx]
+    if len(t_unique) < 3:
+        return freq_ratios, amplitudes
+
+    out_t = np.linspace(float(t_unique[0]), float(t_unique[-1]), n, endpoint=False, dtype=np.float32)
+    freq_corr = np.interp(out_t, t_unique, freq_unique).astype(np.float32)
+    amp_corr = np.interp(out_t, t_unique, amp_unique).astype(np.float32)
+    return freq_corr, amp_corr
+
 def normalize_amplitudes(amplitudes):
     """Normalize amplitudes to [0, 1] range"""
     if amplitudes:
@@ -512,40 +550,6 @@ def save_audio(audio_data, output_path):
     audio_data = np.clip(audio_data, -1.0, 1.0)
     sf.write(output_path, audio_data, SR)
     return len(audio_data) / SR
-
-
-def save_stereo_audio(audio_left, audio_right, output_path):
-    """
-    Save stereo audio data to file (left and right channels).
-    
-    Parameters
-    ----------
-    audio_left : np.ndarray
-        Left channel audio data
-    audio_right : np.ndarray
-        Right channel audio data
-    output_path : str
-        Path to save the stereo audio file
-        
-    Returns
-    -------
-    float
-        Duration in seconds
-    """
-    # Ensure both channels have the same length
-    min_len = min(len(audio_left), len(audio_right))
-    audio_left = audio_left[:min_len]
-    audio_right = audio_right[:min_len]
-    
-    # Clip to valid range
-    audio_left = np.clip(audio_left, -1.0, 1.0)
-    audio_right = np.clip(audio_right, -1.0, 1.0)
-    
-    # Stack into stereo array (samples x 2)
-    stereo_audio = np.column_stack((audio_left, audio_right))
-    
-    sf.write(output_path, stereo_audio, SR)
-    return min_len / SR
 
 
 def analyze_doppler_effect(original_audio, processed_audio, freq_ratios):

@@ -2,24 +2,61 @@ import os
 import numpy as np
 import librosa
 import traceback
+import io
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, send_file
+import soundfile as sf
+from scipy import signal
 
 from audio.audio_utils import (
     apply_doppler_to_audio_fixed,
     save_audio,
     extend_audio_with_overlap,
-    save_stereo_audio,
     SR
 )
-from physics.straight_line import calculate_straight_line_doppler, calculate_straight_line_doppler_dual
-from physics.parabola import calculate_parabola_doppler, calculate_parabola_doppler_dual
-from physics.bezier import calculate_bezier_doppler, calculate_bezier_doppler_dual
 from core.config import UPLOAD_FOLDER, DRONE_SOUNDS_FOLDER, SINGLE_OUTPUT_FOLDER
 from audio.generation import generate_single_clip
 
 simulate_bp = Blueprint('simulate', __name__)
+
+def _apply_subtle_air_noise(audio, sr, strength_pct):
+    """
+    Add a light, natural air-noise layer.
+    strength_pct in [0, 100], intentionally mapped to a gentle mix.
+    """
+    if audio is None or len(audio) == 0:
+        return audio
+
+    strength = float(np.clip(strength_pct, 0.0, 100.0))
+    if strength <= 0.0:
+        return audio
+
+    n = len(audio)
+    white = np.random.normal(0.0, 1.0, n).astype(np.float32)
+
+    # Band-limit to a soft broadband "air" texture.
+    nyq = 0.5 * float(sr)
+    low = max(80.0 / nyq, 1e-4)
+    high = min(7000.0 / nyq, 0.999)
+    if low >= high:
+        return audio
+    b, a = signal.butter(2, [low, high], btype='bandpass')
+    air = signal.filtfilt(b, a, white).astype(np.float32)
+
+    # Very slow amplitude drift for a more natural bed.
+    t = np.linspace(0.0, n / float(sr), n, endpoint=False)
+    drift = 0.88 + 0.12 * np.sin(2.0 * np.pi * 0.12 * t + np.random.uniform(0, 2 * np.pi))
+    air *= drift.astype(np.float32)
+
+    rms = np.sqrt(np.mean(air**2) + 1e-12)
+    air /= rms
+
+    # Keep the layer intentionally subtle. Use a curved mapping so low-mid slider
+    # values stay gentle, and even 100% remains a light ambience layer.
+    mix_gain = 0.03 * ((strength / 100.0) ** 1.6)
+    mixed = audio.astype(np.float32) + (mix_gain * air)
+    return np.clip(mixed, -1.0, 1.0)
 
 
 @simulate_bp.route('/simulate', methods=['POST'])
@@ -41,7 +78,9 @@ def simulate_single():
 
         # Common parameters
         params = {
-            'duration': duration
+            'duration': duration,
+            # Avoid leading silence in single-sim downloads/playback.
+            'apply_propagation_delay': False
         }
 
         # Path-specific parameters (manual mode – you control signs here)
@@ -101,11 +140,35 @@ def simulate_single():
             config=config
         )
 
-        file_path = os.path.join(SINGLE_OUTPUT_FOLDER, result['filename'])
-        if not os.path.exists(file_path):
+        # generate_single_clip stores outputs inside sample_<id>/Common.
+        sample_dir = result.get('sample_dir')
+        file_path = None
+        if sample_dir:
+            candidate = os.path.join(SINGLE_OUTPUT_FOLDER, sample_dir, 'Common', result['filename'])
+            if os.path.exists(candidate):
+                file_path = candidate
+
+        # Fallback for any legacy layout that writes directly to SINGLE_OUTPUT_FOLDER.
+        if file_path is None:
+            candidate = os.path.join(SINGLE_OUTPUT_FOLDER, result['filename'])
+            if os.path.exists(candidate):
+                file_path = candidate
+
+        if file_path is None:
             return jsonify({'error': 'Audio generation failed - output file not created'}), 500
 
-        return send_file(file_path, mimetype='audio/wav')
+        add_air_noise = str(request.form.get('add_air_noise', '')).lower() in ('1', 'true', 'on', 'yes')
+        air_noise_strength = float(request.form.get('air_noise_strength', 8.0))
+
+        if not add_air_noise:
+            return send_file(file_path, mimetype='audio/wav')
+
+        audio, sr = librosa.load(file_path, sr=SR, mono=True)
+        audio_with_noise = _apply_subtle_air_noise(audio, sr, air_noise_strength)
+        wav_buffer = io.BytesIO()
+        sf.write(wav_buffer, audio_with_noise, sr, format='WAV', subtype='PCM_16')
+        wav_buffer.seek(0)
+        return send_file(wav_buffer, mimetype='audio/wav', download_name='single_simulation.wav')
 
     except FileNotFoundError as e:
         return jsonify({'error': f'Audio file not found: {str(e)}'}), 404
@@ -114,176 +177,6 @@ def simulate_single():
     except Exception as e:
         return jsonify({'error': f'Simulation error: {str(e)}'}), 500
 
-
-@simulate_bp.route('/simulate_dual', methods=['POST'])
-def simulate_dual():
-    """
-    Dual microphone Doppler simulation endpoint.
-    Returns JSON with paths to stereo file and two mono files, plus physics data for both mics.
-    """
-    try:
-        # Basic inputs from form
-        path_type = request.form.get('path', 'straight')
-        vehicle_type = request.form.get('vehicle_type', 'car')
-        mic_separation = float(request.form.get('mic_separation', 10.0))
-
-        # Validate microphone separation
-        if mic_separation <= 0:
-            return jsonify({'error': 'Microphone separation must be greater than 0'}), 400
-
-        # FORCE all single-clip simulations to 10 seconds
-        duration = 10.0
-
-        # Use lower-case name to match uploaded vehicle files
-        vehicle_name = vehicle_type.lower()
-
-        # Common parameters
-        params = {
-            'duration': duration,
-            'mic_separation': mic_separation
-        }
-
-        # Path-specific parameters
-        if path_type == 'straight':
-            speed = float(request.form.get('speed', 20.0))
-            h = float(request.form.get('h', 10.0))
-            angle = float(request.form.get('angle', 0.0))
-
-            params['speed'] = speed
-            params['distance'] = h
-            params['angle'] = angle
-
-        elif path_type == 'parabola':
-            speed = float(request.form.get('speed', 15.0))
-            a = float(request.form.get('a', 0.1))
-            h = float(request.form.get('h', 10.0))
-
-            params['speed'] = speed
-            params['a'] = a
-            params['h'] = h
-            params['distance'] = h
-
-        elif path_type == 'bezier':
-            speed = float(request.form.get('speed', 20.0))
-
-            params['speed'] = speed
-            params['x0'] = float(request.form.get('x0', -30))
-            params['y0'] = float(request.form.get('y0', 20))
-            params['x1'] = float(request.form.get('x1', -10))
-            params['y1'] = float(request.form.get('y1', 5))
-            params['x2'] = float(request.form.get('x2', 10))
-            params['y2'] = float(request.form.get('y2', 5))
-            params['x3'] = float(request.form.get('x3', 30))
-            params['y3'] = float(request.form.get('y3', 20))
-            params['distance'] = 10.0
-
-        else:
-            return jsonify({'error': f'Unknown path type: {path_type}'}), 400
-
-        # Generate dual microphone audio
-        single_id = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-
-        vehicle_file = None
-        folders_to_check = [UPLOAD_FOLDER, DRONE_SOUNDS_FOLDER]
-
-        for folder in folders_to_check:
-            for ext in ['.wav', '.mp3', '.ogg', '.flac']:
-                test_path = os.path.join(folder, f'{vehicle_name}{ext}')
-                if os.path.exists(test_path):
-                    vehicle_file = test_path
-                    break
-            if vehicle_file:
-                break
-
-        if not vehicle_file:
-            return jsonify({'error': f'Audio file for {vehicle_name} not found'}), 404
-
-        audio_full, sr = librosa.load(vehicle_file, sr=SR, mono=True)
-        audio = extend_audio_with_overlap(audio_full, duration, SR)
-
-        # Calculate dual microphone physics
-        if path_type == 'straight':
-            dual_data = calculate_straight_line_doppler_dual(
-                params['speed'], params['distance'], params.get('angle', 0),
-                duration, mic_separation
-            )
-        elif path_type == 'parabola':
-            dual_data = calculate_parabola_doppler_dual(
-                params['speed'], params['a'], params['h'], duration, mic_separation
-            )
-        elif path_type == 'bezier':
-            dual_data = calculate_bezier_doppler_dual(
-                params['speed'], params['x0'], params['x1'], params['x2'], params['x3'],
-                params['y0'], params['y1'], params['y2'], params['y3'],
-                duration, mic_separation
-            )
-        else:
-            return jsonify({'error': 'Invalid path type'}), 400
-
-        # Generate audio for both microphones
-        target_samples = int(SR * duration)
-
-        audio_m1 = apply_doppler_to_audio_fixed(
-            audio, dual_data['m1']['freq_ratios'], dual_data['m1']['amplitudes']
-        )
-        audio_m2 = apply_doppler_to_audio_fixed(
-            audio, dual_data['m2']['freq_ratios'], dual_data['m2']['amplitudes']
-        )
-
-        # Ensure exact length for both
-        audio_m1 = audio_m1[:target_samples] if len(audio_m1) > target_samples else np.pad(audio_m1, (0, target_samples - len(audio_m1)))
-        audio_m2 = audio_m2[:target_samples] if len(audio_m2) > target_samples else np.pad(audio_m2, (0, target_samples - len(audio_m2)))
-
-        # Save files
-        base_name = f"{vehicle_name}_{path_type}_dual_{single_id}"
-
-        m1_filename = f"{base_name}_M1.wav"
-        m2_filename = f"{base_name}_M2.wav"
-        stereo_filename = f"{base_name}_stereo.wav"
-
-        m1_path = os.path.join(SINGLE_OUTPUT_FOLDER, m1_filename)
-        m2_path = os.path.join(SINGLE_OUTPUT_FOLDER, m2_filename)
-        stereo_path = os.path.join(SINGLE_OUTPUT_FOLDER, stereo_filename)
-
-        save_audio(audio_m1, m1_path)
-        save_audio(audio_m2, m2_path)
-        save_stereo_audio(audio_m1, audio_m2, stereo_path)
-
-        # Prepare response with physics data
-        response = {
-            'success': True,
-            'files': {
-                'm1': f'/static/single_outputs/{m1_filename}',
-                'm2': f'/static/single_outputs/{m2_filename}',
-                'stereo': f'/static/single_outputs/{stereo_filename}'
-            },
-            'physics': {
-                'm1': {
-                    'distances': dual_data['m1']['distances'].tolist(),
-                    'velocities': dual_data['m1']['velocities'].tolist(),
-                    'freq_ratios': dual_data['m1']['freq_ratios'].tolist()
-                },
-                'm2': {
-                    'distances': dual_data['m2']['distances'].tolist(),
-                    'velocities': dual_data['m2']['velocities'].tolist(),
-                    'freq_ratios': dual_data['m2']['freq_ratios'].tolist()
-                }
-            },
-            'mic_positions': {
-                'm1': [-mic_separation / 2.0, 0.0],
-                'm2': [mic_separation / 2.0, 0.0]
-            }
-        }
-
-        return jsonify(response)
-
-    except FileNotFoundError as e:
-        return jsonify({'error': f'Audio file not found: {str(e)}'}), 404
-    except ValueError as e:
-        return jsonify({'error': f'Invalid parameter value: {str(e)}'}), 400
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({'error': f'Simulation error: {str(e)}'}), 500
 
 @simulate_bp.route('/api/simulate_intersection', methods=['POST'])
 def simulate_intersection():

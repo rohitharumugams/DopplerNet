@@ -2,12 +2,13 @@ import os
 import uuid
 import time
 import librosa
+import numpy as np
 
 from flask import Blueprint, request, jsonify
 
 from audio.audio_utils import SR
 from core.config import UPLOAD_FOLDER, DRONE_SOUNDS_FOLDER, SPECTROGRAM_FOLDER
-from visualization.plot_utils import save_spectrogram_to_file
+from visualization.plot_utils import save_spectrogram_to_file, save_audio_comparison_plot
 
 import soundfile as sf
 
@@ -136,6 +137,9 @@ def generate_spectrogram():
         config = request.get_json()
         vehicle_name = config.get('vehicle_name')
         source = config.get('source', 'all')
+        max_y_freq = float(config.get('max_y_freq', 2500))
+        if max_y_freq <= 0:
+            max_y_freq = 2500
 
         if not vehicle_name:
             return jsonify({'error': 'No vehicle name provided'}), 400
@@ -170,7 +174,10 @@ def generate_spectrogram():
         plot_filename = f"spectrogram_{file_id}.png"
         plot_path = os.path.join(SPECTROGRAM_FOLDER, plot_filename)
 
-        save_spectrogram_to_file(y, sr, f'Spectrogram: {vehicle_name}', plot_path)
+        save_spectrogram_to_file(
+            y, sr, f'Spectrogram: {vehicle_name}', plot_path,
+            max_y_freq=max_y_freq, include_amplitude_bar=True
+        )
 
         return jsonify({
             'success': True,
@@ -193,6 +200,12 @@ def upload_generate_spectrogram():
         file = request.files['file']
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
+        try:
+            max_y_freq = float(request.form.get('max_y_freq', 2500))
+        except (TypeError, ValueError):
+            max_y_freq = 2500
+        if max_y_freq <= 0:
+            max_y_freq = 2500
 
         # Save temporarily
         temp_filename = f"upload_{int(time.time())}_{uuid.uuid4().hex[:8]}.wav"
@@ -205,7 +218,10 @@ def upload_generate_spectrogram():
         plot_filename = f"spectrogram_{int(time.time())}.png"
         plot_path = os.path.join(SPECTROGRAM_FOLDER, plot_filename)
 
-        save_spectrogram_to_file(y, sr, f'Spectrogram: {file.filename}', plot_path)
+        save_spectrogram_to_file(
+            y, sr, f'Spectrogram: {file.filename}', plot_path,
+            max_y_freq=max_y_freq, include_amplitude_bar=True
+        )
 
         # Clean up temp file
         if os.path.exists(temp_path):
@@ -220,3 +236,123 @@ def upload_generate_spectrogram():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@vehicle_bp.route('/api/compare_audio_clips', methods=['POST'])
+def compare_audio_clips():
+    """Upload two clips and return side-by-side comparative analysis."""
+    temp_paths = []
+    try:
+        file_a = request.files.get('file_a')
+        file_b = request.files.get('file_b')
+        if file_a is None or file_b is None:
+            return jsonify({'error': 'Please upload both file_a and file_b'}), 400
+        if file_a.filename == '' or file_b.filename == '':
+            return jsonify({'error': 'Both files must be selected'}), 400
+
+        try:
+            max_y_freq = float(request.form.get('max_y_freq', 2500))
+        except (TypeError, ValueError):
+            max_y_freq = 2500
+        if max_y_freq <= 0:
+            max_y_freq = 2500
+
+        temp_a = os.path.join(SPECTROGRAM_FOLDER, f"cmp_a_{int(time.time())}_{uuid.uuid4().hex[:8]}.wav")
+        temp_b = os.path.join(SPECTROGRAM_FOLDER, f"cmp_b_{int(time.time())}_{uuid.uuid4().hex[:8]}.wav")
+        file_a.save(temp_a)
+        file_b.save(temp_b)
+        temp_paths.extend([temp_a, temp_b])
+
+        y_a, _ = librosa.load(temp_a, sr=SR, mono=True)
+        y_b, _ = librosa.load(temp_b, sr=SR, mono=True)
+        if len(y_a) == 0 or len(y_b) == 0:
+            return jsonify({'error': 'One of the uploaded files appears empty or unreadable'}), 400
+
+        n_fft = 2048
+        hop_length = 256
+
+        rms_a = librosa.feature.rms(y=y_a, frame_length=n_fft, hop_length=hop_length)[0]
+        rms_b = librosa.feature.rms(y=y_b, frame_length=n_fft, hop_length=hop_length)[0]
+        n_env = min(len(rms_a), len(rms_b))
+        rms_a = rms_a[:n_env]
+        rms_b = rms_b[:n_env]
+
+        rms_a_norm = rms_a / (np.max(rms_a) + 1e-9)
+        rms_b_norm = rms_b / (np.max(rms_b) + 1e-9)
+        amp_overlap = float(np.sum(np.minimum(rms_a_norm, rms_b_norm)) / (np.sum(np.maximum(rms_a_norm, rms_b_norm)) + 1e-9) * 100.0)
+
+        if n_env > 1 and (np.std(rms_a_norm) > 1e-9) and (np.std(rms_b_norm) > 1e-9):
+            env_corr = float(np.corrcoef(rms_a_norm, rms_b_norm)[0, 1])
+        else:
+            env_corr = 0.0
+        env_corr_pct = float(np.clip((env_corr + 1.0) * 50.0, 0.0, 100.0))
+
+        stft_a = np.abs(librosa.stft(y_a, n_fft=n_fft, hop_length=hop_length))
+        stft_b = np.abs(librosa.stft(y_b, n_fft=n_fft, hop_length=hop_length))
+        spec_a = np.mean(stft_a, axis=1)
+        spec_b = np.mean(stft_b, axis=1)
+        spec_a_norm = spec_a / (np.sum(spec_a) + 1e-9)
+        spec_b_norm = spec_b / (np.sum(spec_b) + 1e-9)
+        spectral_overlap = float(np.sum(np.minimum(spec_a_norm, spec_b_norm)) * 100.0)
+
+        zcr_a = float(np.mean(librosa.feature.zero_crossing_rate(y_a)))
+        zcr_b = float(np.mean(librosa.feature.zero_crossing_rate(y_b)))
+        centroid_a = float(np.mean(librosa.feature.spectral_centroid(y=y_a, sr=SR)))
+        centroid_b = float(np.mean(librosa.feature.spectral_centroid(y=y_b, sr=SR)))
+        peak_a = float(np.max(np.abs(y_a)))
+        peak_b = float(np.max(np.abs(y_b)))
+        rms_global_a = float(np.sqrt(np.mean(y_a ** 2)))
+        rms_global_b = float(np.sqrt(np.mean(y_b ** 2)))
+
+        freqs = librosa.fft_frequencies(sr=SR, n_fft=n_fft)
+        dom_freq_a = float(freqs[int(np.argmax(spec_a))]) if len(spec_a) else 0.0
+        dom_freq_b = float(freqs[int(np.argmax(spec_b))]) if len(spec_b) else 0.0
+
+        overall_similarity = float(np.clip((spectral_overlap * 0.55) + (amp_overlap * 0.30) + (env_corr_pct * 0.15), 0.0, 100.0))
+
+        plot_filename = f"comparison_{int(time.time())}_{uuid.uuid4().hex[:6]}.png"
+        plot_path = os.path.join(SPECTROGRAM_FOLDER, plot_filename)
+        ok = save_audio_comparison_plot(
+            y_a, y_b, SR,
+            f"A: {file_a.filename}",
+            f"B: {file_b.filename}",
+            plot_path,
+            max_y_freq=max_y_freq
+        )
+        if not ok:
+            return jsonify({'error': 'Failed to generate comparison plot'}), 500
+
+        return jsonify({
+            'success': True,
+            'comparison_plot_url': f'/static/spectrograms/{plot_filename}',
+            'metrics': {
+                'duration_a_sec': float(len(y_a) / SR),
+                'duration_b_sec': float(len(y_b) / SR),
+                'rms_a': rms_global_a,
+                'rms_b': rms_global_b,
+                'peak_a': peak_a,
+                'peak_b': peak_b,
+                'zcr_a': zcr_a,
+                'zcr_b': zcr_b,
+                'spectral_centroid_a_hz': centroid_a,
+                'spectral_centroid_b_hz': centroid_b,
+                'dominant_freq_a_hz': dom_freq_a,
+                'dominant_freq_b_hz': dom_freq_b,
+                'spectral_overlap_percent': spectral_overlap,
+                'amplitude_overlap_percent': amp_overlap,
+                'envelope_correlation_percent': env_corr_pct,
+                'overall_similarity_percent': overall_similarity
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        for p in temp_paths:
+            if p and os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
