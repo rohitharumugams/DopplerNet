@@ -761,6 +761,46 @@
             </div>
           </div>
         </div>
+
+        <div style="margin-top: 16px; border-top: 1px solid #30363d; padding-top: 14px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="batchAddAirNoise" onchange="toggleBatchAirNoiseControls()">
+            Add subtle ambient air noise to batch clips
+          </label>
+          <div class="grid-2" style="margin-top: 10px;">
+            <div class="param-group">
+              <label class="param-label" for="batchAirNoiseStrength">Air Noise Strength (%)</label>
+              <input
+                type="range"
+                id="batchAirNoiseStrength"
+                min="0"
+                max="100"
+                step="1"
+                value="8"
+                oninput="updateBatchAirNoiseStrengthLabel()"
+                disabled
+              >
+              <div style="margin-top: 6px; color: #8b949e;">
+                <span id="batchAirNoiseStrengthValue">8%</span> (kept subtle by default)
+              </div>
+            </div>
+            <div class="param-group">
+              <label class="param-label" for="batchAirNoiseFrequencyHz">Air Noise Frequency (Hz)</label>
+              <input
+                type="number"
+                id="batchAirNoiseFrequencyHz"
+                min="80"
+                max="5000"
+                step="10"
+                value="1200"
+                disabled
+              >
+              <div style="margin-top: 6px; color: #8b949e;">
+                Center frequency for soft environmental hiss/wind bed.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="section" id="benchmarkSection">
@@ -922,6 +962,45 @@
                   <input type="number" id="benchmark_cpa_window" value="1.0" step="0.1" min="0.1" max="5.0">
               </div>
           </div>
+        </div>
+      </div>
+
+      <div class="section" id="linearOverlapSection">
+        <h3 class="section-title">Linear Overlap Mode</h3>
+        <label class="checkbox-label" style="font-weight: bold; color: #58a6ff; margin-bottom: 12px;">
+          <input type="checkbox" id="enableLinearOverlap">
+          Enable Linear Overlap Mode
+        </label>
+        <p class="param-label" style="margin-bottom: 12px;">
+          Vehicles move on the same straight line (0 degree), one behind another, with random delays. Uses fixed 10s clips and fixed speed pool.
+        </p>
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label">Vehicles to Overlap (Min - Max)</label>
+            <div class="input-row">
+              <input type="number" id="linearNumVehiclesMin" value="3" min="2" max="27" step="1">
+              <span>to</span>
+              <input type="number" id="linearNumVehiclesMax" value="5" min="2" max="27" step="1">
+            </div>
+          </div>
+          <div class="param-group">
+            <label class="param-label">Inter-vehicle Delay Range (s)</label>
+            <div class="input-row">
+              <input type="number" id="linearDelayMin" value="0.3" min="0" max="9.5" step="0.1">
+              <span>to</span>
+              <input type="number" id="linearDelayMax" value="2.0" min="0" max="9.5" step="0.1">
+            </div>
+          </div>
+          <div class="param-group">
+            <label class="param-label" for="linearObserverDistance">Observer Distance (m, constant)</label>
+            <input type="number" id="linearObserverDistance" value="18" min="0.1" max="300" step="0.1">
+          </div>
+        </div>
+        <div class="param-group" style="margin-top: 10px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="linearGeneratePngSpectrograms">
+            Generate PNG spectrogram previews (slower). Default saves only `.npy` spectrogram arrays.
+          </label>
         </div>
       </div>
 
@@ -1474,7 +1553,7 @@
             <h4>Audio Duration</h4>
             <div class="param-group">
               <label class="param-label" for="audio_duration">Output Duration (seconds):</label>
-              <input name="audio_duration" type="number" id="audio_duration" step="0.5" value="5" min="1" max="20"
+              <input name="audio_duration" type="number" id="audio_duration" step="any" value="5" min="1" max="20"
                 oninput="updateDistance(); drawPath();">
             </div>
             <div class="method-info">
@@ -1587,6 +1666,23 @@
             >
             <div style="margin-top: 6px; color: #8b949e;">
               <span id="air_noise_strength_value">8%</span> (kept subtle by default)
+            </div>
+          </div>
+          <div class="param-group">
+            <label class="param-label" for="air_noise_frequency_hz">Air Noise Frequency (Hz):</label>
+            <input
+              type="number"
+              id="air_noise_frequency_hz"
+              name="air_noise_frequency_hz"
+              min="80"
+              max="5000"
+              step="10"
+              value="1200"
+              form="main-form"
+              disabled
+            >
+            <div style="margin-top: 6px; color: #8b949e;">
+              Center frequency for soft environmental hiss/wind bed.
             </div>
           </div>
           <div class="method-info">
@@ -2199,8 +2295,10 @@
       const speedMaxRaw = clamp(document.getElementById('speedMax').value, 1, 100, 50);
       const distanceMinRaw = clamp(document.getElementById('distanceMin').value, 1, 1000, 5);
       const distanceMaxRaw = clamp(document.getElementById('distanceMax').value, 1, 1000, 100);
-      const durationMinRaw = 10.0; // Fixed duration
-      const durationMaxRaw = 10.0;
+      // Follow "Output Duration" field (was hardcoded 10 s and ignored user input).
+      const durationUser = clamp(document.getElementById('audio_duration')?.value, 0.5, 120, 10);
+      const durationMinRaw = durationUser;
+      const durationMaxRaw = durationUser;
       const angleMinRaw = clamp(document.getElementById('angleMin').value, -45, 45, -45);
       const angleMaxRaw = clamp(document.getElementById('angleMax').value, -45, 45, 45);
 
@@ -2224,6 +2322,7 @@
       const humMin = Math.min(humMinRaw, humMaxRaw);
       const humMax = Math.max(humMinRaw, humMaxRaw);
       const selectedBenchmarkValues = Array.from(document.querySelectorAll('.benchmark-cb:checked')).map(cb => cb.value);
+      const linearOverlapEnabled = !!document.getElementById('enableLinearOverlap')?.checked;
       const b7Enabled = selectedBenchmarkValues.includes('B7');
       const b7MinInput = parseFloat(document.getElementById('benchmark_accel_min')?.value);
       const b7MaxInput = parseFloat(document.getElementById('benchmark_accel_max')?.value);
@@ -2271,7 +2370,10 @@
           temp_min: tempMin,
           temp_max: tempMax,
           hum_min: humMin,
-          hum_max: humMax
+          hum_max: humMax,
+          add_air_noise: !!document.getElementById('batchAddAirNoise')?.checked,
+          air_noise_strength: parseFloat(document.getElementById('batchAirNoiseStrength')?.value || '8'),
+          air_noise_frequency_hz: parseFloat(document.getElementById('batchAirNoiseFrequencyHz')?.value || '1200')
         },
         acceleration: {
           randomize: b7Enabled,
@@ -2305,6 +2407,15 @@
             intersection_angle_max: parseFloat(document.getElementById('benchIntersectionAngleMax').value),
             intersection_half_arm: 90.0
           }
+        },
+        linear_overlap: {
+          enabled: linearOverlapEnabled,
+          vehicle_min: Math.max(2, Math.min(27, parseInt(document.getElementById('linearNumVehiclesMin')?.value || '3'))),
+          vehicle_max: Math.max(2, Math.min(27, parseInt(document.getElementById('linearNumVehiclesMax')?.value || '5'))),
+          delay_min: clamp(document.getElementById('linearDelayMin')?.value, 0, 9.5, 0.3),
+          delay_max: clamp(document.getElementById('linearDelayMax')?.value, 0, 9.5, 2.0),
+          observer_distance: clamp(document.getElementById('linearObserverDistance')?.value, 0.1, 300, 18),
+          generate_png_spectrograms: !!document.getElementById('linearGeneratePngSpectrograms')?.checked
         }
       };
 
@@ -2330,7 +2441,7 @@
         return;
       }
 
-      if (config.paths.selected.length === 0) {
+      if (!config.linear_overlap.enabled && config.paths.selected.length === 0) {
         alert('Please select at least one path type.');
         return;
       }
@@ -2650,7 +2761,7 @@
         `).join('');
 
         resultContainer.innerHTML = `
-          <img src="${data.comparison_plot_url}" alt="Audio Comparison" class="path-plot" style="max-width: 100%; margin-top: 10px; border-radius: 4px;">
+          <img src="${data.comparison_plot_url}" alt="Audio Comparison" class="path-plot" style="max-width: 75%; margin-top: 10px; border-radius: 4px;">
           <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; text-align:left;">
             ${metricCards}
           </div>
@@ -3852,13 +3963,34 @@
     function toggleAirNoiseControls() {
       const checkbox = document.getElementById('add_air_noise');
       const slider = document.getElementById('air_noise_strength');
+      const freqInput = document.getElementById('air_noise_frequency_hz');
       if (!checkbox || !slider) return;
       slider.disabled = !checkbox.checked;
+      if (freqInput) {
+        freqInput.disabled = !checkbox.checked;
+      }
     }
 
     function updateAirNoiseStrengthLabel() {
       const slider = document.getElementById('air_noise_strength');
       const label = document.getElementById('air_noise_strength_value');
+      if (!slider || !label) return;
+      label.textContent = `${slider.value}%`;
+    }
+
+    function toggleBatchAirNoiseControls() {
+      const checkbox = document.getElementById('batchAddAirNoise');
+      const slider = document.getElementById('batchAirNoiseStrength');
+      const freqInput = document.getElementById('batchAirNoiseFrequencyHz');
+      if (!checkbox || !slider || !freqInput) return;
+      const enabled = checkbox.checked;
+      slider.disabled = !enabled;
+      freqInput.disabled = !enabled;
+    }
+
+    function updateBatchAirNoiseStrengthLabel() {
+      const slider = document.getElementById('batchAirNoiseStrength');
+      const label = document.getElementById('batchAirNoiseStrengthValue');
       if (!slider || !label) return;
       label.textContent = `${slider.value}%`;
     }
@@ -4831,6 +4963,8 @@
       initSingleClipUI();
       initModeToggle();
       toggleDistribution();
+      toggleBatchAirNoiseControls();
+      updateBatchAirNoiseStrengthLabel();
     });
 
     window.addEventListener('resize', resizeCanvas);

@@ -2,7 +2,7 @@ import numpy as np
 from audio.audio_utils import SR, apply_distance_fade
 
 C_SOUND_STANDARD = 343.0  # m/s
-NEAR_FIELD_RADIUS = 2.0  # m – effective source size for 1/R damping
+NEAR_FIELD_RADIUS = 6.0  # m – broader near-field to avoid sharp CPA peaks
 
 
 def calculate_straight_line_doppler(speed_mps, min_distance_m, angle_deg, duration_s, c_sound=343.0):
@@ -60,7 +60,7 @@ def calculate_straight_line_accelerated_doppler(speed_v0_mps, accel_mps2, min_di
     
     freq_ratios = c_sound / (c_sound + v_r)
     spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-    convective_amp = (c_sound / (c_sound + v_r))**2
+    convective_amp = (c_sound / (c_sound + v_r))**1.1
     amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
     
     # Smooth fade-in/out to prevent abrupt spawning

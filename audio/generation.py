@@ -4,6 +4,8 @@ import shutil
 import random
 import numpy as np
 import librosa
+from scipy import signal
+from scipy.ndimage import uniform_filter1d
 
 from audio.audio_utils import (
     apply_doppler_to_audio_fixed,
@@ -24,6 +26,512 @@ from physics.intersection import calculate_intersection_doppler
 from core.config import DEFAULT_RANGES, UPLOAD_FOLDER, DRONE_SOUNDS_FOLDER
 from core.sampler import SAMPLERS, CyclicIntegerSampler
 from visualization.plot_utils import save_path_plot
+
+
+# ============================================================
+# SPECTRAL ENRICHMENT HELPERS
+# ============================================================
+
+def _preflight_vehicle_spectrum(y, sr):
+    """
+    Vehicle WAVs are often rumble-heavy; STFT peak bin then sits ~40–80 Hz while field recordings
+    often peak ~120–220 Hz (motor + tire band). Gentle HP + motor-band emphasis shifts centroid up
+    without replacing the Doppler core.
+    """
+    x = np.asarray(y, dtype=np.float32)
+    if len(x) < 64:
+        return x
+    nyq = sr / 2.0
+    hp_hz = 45.0
+    try:
+        sos_hp = signal.butter(2, hp_hz, btype='high', output='sos', fs=float(sr))
+        x_hp = signal.sosfilt(sos_hp, x)
+        # Less raw sub bleed — roadside captures usually sound “fuller” ~120–200 Hz than library WAVs.
+        x_mix = 0.86 * x_hp + 0.14 * x
+    except TypeError:
+        try:
+            sos_hp = signal.butter(2, min(0.99, hp_hz / nyq), btype='high', output='sos')
+            x_hp = signal.sosfilt(sos_hp, x)
+            x_mix = 0.86 * x_hp + 0.14 * x
+        except ValueError:
+            x_mix = x.copy()
+    except ValueError:
+        x_mix = x.copy()
+    lo_hz, hi_hz = 95.0, min(440.0, sr / 2.0 - 1.0)
+    if hi_hz > lo_hz + 20.0:
+        try:
+            sos_b = signal.butter(2, [lo_hz, hi_hz], btype='band', output='sos', fs=float(sr))
+            band = signal.sosfilt(sos_b, x_mix)
+            x_mix = x_mix + 0.30 * band.astype(np.float32)
+        except TypeError:
+            try:
+                sos_b = signal.butter(2, [lo_hz / nyq, hi_hz / nyq], btype='band', output='sos')
+                band = signal.sosfilt(sos_b, x_mix)
+                x_mix = x_mix + 0.30 * band.astype(np.float32)
+            except ValueError:
+                pass
+        except ValueError:
+            pass
+    # Typical handheld pass-by: extra energy in ~110–260 Hz (engine/exhaust body vs thin sub line).
+    road_lo, road_hi = 110.0, min(260.0, sr / 2.0 - 2.0)
+    if road_hi > road_lo + 25.0:
+        try:
+            sos_r = signal.butter(2, [road_lo, road_hi], btype='band', output='sos', fs=float(sr))
+            road_body = signal.sosfilt(sos_r, x_mix)
+            x_mix = x_mix + 0.16 * road_body.astype(np.float32)
+        except (TypeError, ValueError):
+            try:
+                sos_r = signal.butter(
+                    2, [road_lo / nyq, road_hi / nyq], btype='band', output='sos'
+                )
+                road_body = signal.sosfilt(sos_r, x_mix)
+                x_mix = x_mix + 0.16 * road_body.astype(np.float32)
+            except ValueError:
+                pass
+    return np.clip(x_mix, -2.0, 2.0).astype(np.float32)
+
+
+def _pink_noise(n_samples, rng):
+    """Generate approximate pink noise using low-order IIR filtering."""
+    white = rng.standard_normal(n_samples).astype(np.float32)
+    # Simple Paul Kellet style approximation.
+    b = np.array([0.049922, -0.095993, 0.050612, -0.004408], dtype=np.float32)
+    a = np.array([1.0, -2.494956, 2.017265, -0.522190], dtype=np.float32)
+    pink = signal.lfilter(b, a, white)
+    peak = np.max(np.abs(pink)) + 1e-8
+    return (pink / peak).astype(np.float32)
+
+
+def _apply_subtle_air_noise(audio, sr, strength_pct, center_freq_hz=1200.0):
+    """
+    Add a subtle broadband environmental air-noise bed.
+    Used by batch generation when enabled in Atmosphere settings.
+    """
+    x = np.asarray(audio, dtype=np.float32)
+    if len(x) == 0:
+        return x
+
+    strength = float(np.clip(strength_pct, 0.0, 100.0))
+    if strength <= 0.0:
+        return x
+
+    n = len(x)
+    white = np.random.normal(0.0, 1.0, n).astype(np.float32)
+    nyq = 0.5 * float(sr)
+    center_hz = float(np.clip(center_freq_hz, 80.0, min(5000.0, nyq * 0.95)))
+    freqs = np.fft.rfftfreq(n, d=1.0 / float(sr))
+    spectrum = np.fft.rfft(white)
+
+    sigma_hz = max(250.0, 0.32 * center_hz)
+    peak = np.exp(-0.5 * ((freqs - center_hz) / sigma_hz) ** 2)
+    broad_floor = 0.42 + 0.20 * np.sqrt(np.clip(freqs / max(nyq, 1e-6), 0.0, 1.0))
+    profile = broad_floor + 0.60 * peak
+    natural_rolloff = 1.0 / np.sqrt(1.0 + (freqs / 10000.0) ** 2)
+    profile = np.clip(profile * natural_rolloff, 0.0, None)
+
+    air = np.fft.irfft(spectrum * profile, n=n).astype(np.float32)
+    t = np.linspace(0.0, n / float(sr), n, endpoint=False)
+    drift = 0.88 + 0.12 * np.sin(2.0 * np.pi * 0.12 * t + np.random.uniform(0.0, 2.0 * np.pi))
+    air *= drift.astype(np.float32)
+
+    rms = np.sqrt(np.mean(air ** 2) + 1e-12)
+    air /= rms
+
+    mix_gain = 0.07 * ((strength / 100.0) ** 1.25)
+    mixed = x + (mix_gain * air)
+    return np.clip(mixed, -1.0, 1.0).astype(np.float32)
+
+
+def _apply_harmonic_jitter(audio, sr, rng, amount=1.0):
+    """
+    Apply subtle low-frequency jitter to playback rate.
+    Full-sample warp is accurate but very slow on long clips; we use a cheap mix:
+    short clips keep warping, long clips use slow wow/flutter + light tremolo only.
+    """
+    n = len(audio)
+    if n < 4:
+        return audio
+
+    t = np.arange(n, dtype=np.float32) / float(sr)
+    amount = float(np.clip(amount, 0.0, 1.0))
+    jitter_hz = rng.uniform(1.0, 5.0)
+    # Keep shallow: deep tremolo reads as ripple on short-time RMS / envelope plots.
+    base_depth = rng.uniform(0.0025, 0.009) if n > 96_000 else rng.uniform(0.004, 0.014)
+    jitter_depth = amount * base_depth
+    phase = rng.uniform(0.0, 2.0 * np.pi)
+    # Slow wow/flutter (no per-sample noise — that drove huge interp cost).
+    rate_curve = 1.0 + jitter_depth * np.sin(2.0 * np.pi * jitter_hz * t + phase)
+    rate_curve += 0.35 * jitter_depth * np.sin(2.0 * np.pi * (jitter_hz * 2.1) * t + phase * 1.3)
+    rate_curve = np.clip(rate_curve, 0.985, 1.015).astype(np.float64)
+
+    # Long clips: skip O(n) interp warp (main CPU bottleneck); tremolo is negligible cost.
+    if n > 96_000:
+        wobble = rate_curve.astype(np.float32)
+        return (audio.astype(np.float32) * wobble).astype(np.float32)
+
+    src_pos = np.cumsum(rate_curve)
+    src_pos -= src_pos[0]
+    if src_pos[-1] > (n - 1):
+        src_pos *= (n - 1) / max(src_pos[-1], 1e-8)
+    src_pos = np.clip(src_pos, 0.0, n - 1.0)
+    x_idx = np.arange(n, dtype=np.float64)
+    return np.interp(src_pos, x_idx, np.asarray(audio, dtype=np.float64)).astype(np.float32)
+
+
+def _apply_distance_dependent_lowpass(audio, envelope, sr):
+    """
+    High frequencies attenuate more at larger distance (far = darker).
+    Fast path: blend two IIR lowpasses by envelope instead of STFT (which was a major bottleneck).
+    Near pass-by uses a higher corner so spectrograms keep mid/high “splash” when CPA is close.
+    """
+    x = np.asarray(audio, dtype=np.float32)
+    env = np.clip(np.asarray(envelope, dtype=np.float32), 0.0, 1.0)
+    # Sublinear mix: “far” frames still carry more mid content (less all-bass average spectrum).
+    env_w = np.power(env, 0.52).astype(np.float32)
+    nyq = sr / 2.0
+    # Far: not pure sub; near: full air band.
+    w_far = min(0.99, 1280.0 / nyq)
+    w_near = min(0.99, 7200.0 / nyq)
+    sos_lo = signal.butter(2, w_far, btype='low', output='sos')
+    sos_hi = signal.butter(2, w_near, btype='low', output='sos')
+    x_far = signal.sosfilt(sos_lo, x)
+    x_near = signal.sosfilt(sos_hi, x)
+    out = (1.0 - env_w) * x_far + env_w * x_near
+    return out.astype(np.float32)
+
+
+def _smooth_short_term_level(out, sr, win_fast_ms=8.0, win_slow_ms=220.0, max_gain=1.14):
+    """
+    Reduce jagged amplitude traces: additive noise and wow/flutter create fast RMS swings.
+    Gently pull short-term RMS toward a slower envelope (similar to visualizing Hilbert / long STFT).
+    Wider slow window ≈ field-recorded “broad hump” vs coherent LF ripple in short-time RMS plots.
+    """
+    x = np.asarray(out, dtype=np.float64)
+    wf = max(3, int((win_fast_ms * 1e-3) * sr))
+    ws = max(wf + 1, int((win_slow_ms * 1e-3) * sr))
+    p_fast = uniform_filter1d(x * x, size=wf, mode='nearest')
+    p_slow = uniform_filter1d(x * x, size=ws, mode='nearest')
+    r_fast = np.sqrt(p_fast + 1e-16)
+    r_slow = np.sqrt(p_slow + 1e-16)
+    gain = r_slow / (r_fast + 1e-8)
+    gain = np.clip(gain, 1.0 / max_gain, max_gain)
+    wg = max(3, int(0.022 * sr))
+    gain = uniform_filter1d(gain, size=wg, mode='nearest')
+    return (x * gain).astype(np.float32)
+
+
+def _shape_start_envelope(env, sr, hold_s=0.9, ramp_s=1.6, knee=0.07):
+    """
+    Make early approach flatter (as in field recordings) before the rise becomes obvious.
+    """
+    e = np.clip(np.asarray(env, dtype=np.float32), 0.0, None)
+    if hold_s <= 0.0 and ramp_s <= 0.0 and knee <= 0.0:
+        peak = np.max(e) + 1e-8
+        return (e / peak).astype(np.float32)
+    n = len(e)
+    if n < 8:
+        return e
+    e = e / (np.max(e) + 1e-8)
+
+    hold_n = int(max(0.0, hold_s) * sr)
+    ramp_n = int(max(1e-3, ramp_s) * sr)
+    hold_n = min(hold_n, n)
+    ramp_end = min(n, hold_n + ramp_n)
+
+    out = e.copy()
+    if hold_n > 0:
+        base = float(np.mean(out[: max(1, hold_n)]))
+        out[:hold_n] = base
+    if ramp_end > hold_n:
+        t = np.linspace(0.0, 1.0, ramp_end - hold_n, endpoint=False, dtype=np.float32)
+        s = t * t * (3.0 - 2.0 * t)  # smoothstep
+        out[hold_n:ramp_end] = (1.0 - s) * out[hold_n] + s * out[hold_n:ramp_end]
+
+    # Keep very low levels near floor from rising too quickly.
+    k = float(np.clip(knee, 0.0, 0.4))
+    out = np.maximum(out - k, 0.0) / max(1e-8, (1.0 - k))
+    out = uniform_filter1d(out, size=max(3, int(0.05 * sr)), mode='nearest')
+    return np.clip(out, 0.0, 1.0).astype(np.float32)
+
+
+def _stabilize_cpa_hump(out, env, sr, strength=0.30, win_fast_ms=30.0, win_slow_ms=360.0):
+    """
+    Stabilize RMS ripple near CPA where coherent harmonics are strongest.
+    This applies extra slow-vs-fast leveling only near the envelope peak so
+    tails keep their natural texture.
+    """
+    x = np.asarray(out, dtype=np.float64)
+    e = np.clip(np.asarray(env, dtype=np.float64), 0.0, 1.0)
+    if len(x) < 8 or len(e) != len(x):
+        return x.astype(np.float32)
+
+    wf = max(3, int((win_fast_ms * 1e-3) * sr))
+    ws = max(wf + 1, int((win_slow_ms * 1e-3) * sr))
+    p_fast = uniform_filter1d(x * x, size=wf, mode='nearest')
+    p_slow = uniform_filter1d(x * x, size=ws, mode='nearest')
+    r_fast = np.sqrt(p_fast + 1e-16)
+    r_slow = np.sqrt(p_slow + 1e-16)
+
+    # Only act strongly around CPA; leave approach/recede mostly untouched.
+    cpa_mask = np.power(e, 2.4)
+    cpa_mask = uniform_filter1d(cpa_mask, size=max(3, int(0.12 * sr)), mode='nearest')
+    raw_gain = r_slow / (r_fast + 1e-8)
+    blended_gain = 1.0 + strength * cpa_mask * (raw_gain - 1.0)
+    # Tighter limits + slower control reduce audible pumping near peak.
+    blended_gain = np.clip(blended_gain, 0.90, 1.12)
+    w_g = max(3, int(0.08 * sr))
+    blended_gain = uniform_filter1d(blended_gain, size=w_g, mode='nearest')
+    return (x * blended_gain).astype(np.float32)
+
+
+def _add_light_reverb(audio, sr, rng, amount=1.0):
+    """Add 2-3 short roadside reflections (10-50 ms)."""
+    amount = float(np.clip(amount, 0.0, 1.0))
+    if amount <= 1e-4:
+        return audio.astype(np.float32)
+    n = len(audio)
+    out = audio.astype(np.float32).copy()
+    n_taps = int(rng.integers(2, 4))
+    for _ in range(n_taps):
+        delay_ms = rng.uniform(10.0, 50.0)
+        gain = amount * rng.uniform(0.08, 0.22)
+        d = int(delay_ms * 1e-3 * sr)
+        if d <= 0 or d >= n:
+            continue
+        out[d:] += gain * audio[:-d]
+    return out
+
+
+def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
+    """
+    Add realism layers while preserving primary Doppler kinematics.
+    Tuned for field-recording-like level (lower peak than raw synthesis) and CPA broadband energy.
+    Optional params: mic_peak_target, envelope_smooth_fast_ms, envelope_smooth_slow_ms,
+    envelope_smooth_max_gain, realism_broadband_scale (multiplier on textured noise layers),
+    cpa_hump_stabilize_strength, start_flat_hold_s, start_flat_ramp_s, start_flat_knee,
+    wow_flutter_amount, roadside_reverb_amount.
+    """
+    p = params or {}
+    # Typical handheld roadside peaks ~0.04–0.07 in normalized plots; match real A/B dashboards.
+    target_peak = float(p.get('mic_peak_target', 0.056))
+    bb_scale = float(np.clip(float(p.get('realism_broadband_scale', 1.0)), 0.25, 3.0))
+    env_fast = float(p.get('envelope_smooth_fast_ms', 8.0))
+    env_slow = float(p.get('envelope_smooth_slow_ms', 220.0))
+    env_max = float(p.get('envelope_smooth_max_gain', 1.14))
+    wow_flutter_amount = float(np.clip(float(p.get('wow_flutter_amount', 0.38)), 0.0, 1.0))
+    roadside_reverb_amount = float(np.clip(float(p.get('roadside_reverb_amount', 0.42)), 0.0, 1.0))
+    # Keep a realistic pass-by contour by default:
+    # flatter onset, gradual rise, and less early over-activation.
+    cpa_hump_stabilize_strength = float(np.clip(float(p.get('cpa_hump_stabilize_strength', 0.0)), 0.0, 1.0))
+    start_flat_hold_s = float(p.get('start_flat_hold_s', 0.95))
+    start_flat_ramp_s = float(p.get('start_flat_ramp_s', 1.7))
+    start_flat_knee = float(p.get('start_flat_knee', 0.06))
+
+    n = len(doppler_audio)
+    if n == 0:
+        return doppler_audio
+
+    nyq = sr / 2.0
+
+    # Envelope proxy from physics amplitude — smooth so additive noise does not shred the pass-by shape.
+    env = np.asarray(amplitudes, dtype=np.float32)
+    if len(env) != n:
+        env = np.interp(np.linspace(0, len(env) - 1, n), np.arange(len(env)), env)
+    env = np.clip(env, 0.0, None)
+    env = env / (np.max(env) + 1e-8)
+    sg_w = 101 if n >= 101 else max(5, (n // 2) * 2 + 1)
+    env = signal.savgol_filter(env, sg_w, 2, mode='interp')
+    env = np.clip(env, 0.0, 1.0).astype(np.float32)
+    env = _shape_start_envelope(
+        env, sr, hold_s=start_flat_hold_s, ramp_s=start_flat_ramp_s, knee=start_flat_knee
+    )
+    env_sq = (env * env).astype(np.float32)
+    # Sharper CPA weighting for broadband splash (still smooth — env already Savitzky–Golay filtered).
+    env_splash = np.power(env, 1.65).astype(np.float32)
+
+    out = doppler_audio.astype(np.float32).copy()
+
+    # Body emphasis (~100–450 Hz): closer to real roadside spectra than bass-only synthesis.
+    try:
+        sos_body = signal.butter(
+            2,
+            [max(30.0 / nyq, 1e-5), min(450.0 / nyq, 0.99)],
+            btype='band',
+            output='sos',
+        )
+        body = signal.sosfilt(sos_body, out)
+        out = out + rng.uniform(0.11, 0.19) * body.astype(np.float32)
+    except ValueError:
+        pass
+
+    # (1) Coarse engine/road texture (mostly stays with tonal path through distance color).
+    white = rng.standard_normal(n).astype(np.float32)
+    lo_f = 50.0 / nyq
+    hi_f = min(2400.0 / nyq, 0.99)
+    if hi_f > lo_f:
+        b_bp, a_bp = signal.butter(4, [lo_f, hi_f], btype='bandpass')
+        band_noise = signal.lfilter(b_bp, a_bp, white).astype(np.float32)
+        band_noise /= (np.max(np.abs(band_noise)) + 1e-8)
+        texture_level = bb_scale * rng.uniform(0.055, 0.11)
+        out += texture_level * env * band_noise
+
+    # (2) Wow/flutter before distance-dependent coloring (kinematics on sustained spectrum).
+    out = _apply_harmonic_jitter(out, sr, rng, amount=wow_flutter_amount)
+
+    # (3) Near/far on core signal only — do NOT lowpass the CPA broadband layers added next,
+    # or the vertical “splash” in the spectrogram disappears.
+    out = _apply_distance_dependent_lowpass(out, env, sr)
+
+    # (4) “Orangish” mid fill: pink-ish band 180–2200 Hz — persistent road body + scatter (scene brightness).
+    mid_lo = 180.0 / nyq
+    mid_hi = min(2200.0 / nyq, 0.99)
+    if mid_hi > mid_lo:
+        b_mid, a_mid = signal.butter(3, [mid_lo, mid_hi], btype='bandpass')
+        mid_noise = signal.lfilter(b_mid, a_mid, _pink_noise(n, rng)).astype(np.float32)
+        mid_noise /= (np.max(np.abs(mid_noise)) + 1e-8)
+        out += bb_scale * rng.uniform(0.12, 0.20) * (0.28 + 0.72 * env) * mid_noise
+
+    # (5) CPA broadband air / tire / wind — peaks at closest approach; fills 0.3–8 kHz in the plot.
+    for lo_hz, hi_hz, gain_lo, gain_hi in (
+        (240.0, 2600.0, 0.19, 0.33),
+        (1600.0, min(8500.0, nyq * 0.98), 0.14, 0.26),
+    ):
+        lo_b = lo_hz / nyq
+        hi_b = min(hi_hz / nyq, 0.99)
+        if hi_b <= lo_b:
+            continue
+        b_a, a_a = signal.butter(3, [lo_b, hi_b], btype='bandpass')
+        layer = signal.lfilter(b_a, a_a, rng.standard_normal(n).astype(np.float32))
+        layer /= (np.max(np.abs(layer)) + 1e-8)
+        g = bb_scale * rng.uniform(gain_lo, gain_hi)
+        out += g * env_splash * layer.astype(np.float32)
+
+    # (6) Scene noise floor — real mics show textured grain across the band, not empty purple.
+    floor_db = rng.uniform(-44.0, -34.0)
+    floor_amp = 10.0 ** (floor_db / 20.0)
+    ambient = (0.35 * rng.standard_normal(n).astype(np.float32) + 0.65 * _pink_noise(n, rng))
+    ambient /= (np.max(np.abs(ambient)) + 1e-8)
+    out += bb_scale * floor_amp * ambient
+
+    # (7) Light reverberation (spreads energy slightly in time/frequency).
+    out = _add_light_reverb(out, sr, rng, amount=roadside_reverb_amount)
+
+    # (8) Level stability: noise + tremolo create fast RMS spikes; gentle slow-vs-fast leveling.
+    out = _smooth_short_term_level(
+        out, sr, win_fast_ms=env_fast, win_slow_ms=env_slow, max_gain=env_max
+    )
+    if cpa_hump_stabilize_strength > 1e-4:
+        out = _stabilize_cpa_hump(
+            out, env, sr, strength=cpa_hump_stabilize_strength, win_fast_ms=26.0, win_slow_ms=340.0
+        )
+
+    # Match typical recorded mic peak (~0.05–0.12) unless overridden.
+    peak = np.max(np.abs(out)) + 1e-8
+    out = out * (target_peak / peak)
+    return np.clip(out, -1.0, 1.0).astype(np.float32)
+
+
+def _broaden_doppler_curves(freq_ratios, amplitudes, broaden_factor=1.3):
+    """
+    Spread Doppler change over more time (slower approach/recede transition).
+    broaden_factor > 1.0 makes the Doppler sweep wider in time.
+    """
+    fr = np.asarray(freq_ratios, dtype=np.float32)
+    amp = np.asarray(amplitudes, dtype=np.float32)
+    n = min(len(fr), len(amp))
+    if n < 8 or broaden_factor <= 1.0:
+        return fr, amp
+
+    fr = fr[:n]
+    amp = amp[:n]
+
+    # Stronger, deterministic broadening:
+    # 1) smooth in time,
+    # 2) flatten the CPA peak slightly.
+    # This preserves overall shape while avoiding a narrow, spiky pass-by.
+    win = int(max(9, (broaden_factor * n * 0.06)))
+    if win % 2 == 0:
+        win += 1
+    win = min(win, n - 1 if (n - 1) % 2 == 1 else n - 2)
+    if win < 5:
+        return fr, amp
+
+    fr_s = signal.savgol_filter(fr, window_length=win, polyorder=2, mode='interp').astype(np.float32)
+    amp_s = signal.savgol_filter(amp, window_length=win, polyorder=2, mode='interp').astype(np.float32)
+
+    # Gentle compression widens perceived envelope around CPA.
+    amp_s = np.clip(amp_s, 0.0, None)
+    amp_max = np.max(amp_s) + 1e-8
+    amp_n = amp_s / amp_max
+    # Keep close to linear so early approach does not jump up too quickly.
+    gamma = 0.98  # <1 broadens/softens; values near 1 preserve a natural gradual onset
+    amp_b = np.power(amp_n, gamma) * amp_max
+
+    # Slow envelope smoothing (~350 ms) — uniform_filter1d is O(n); direct convolve was O(n * window).
+    smooth_len = int(max(9, min(0.35 * SR, n)))
+    if smooth_len > n:
+        smooth_len = n
+    amp_b = uniform_filter1d(amp_b.astype(np.float32), size=max(1, smooth_len), mode='nearest')
+
+    # Keep frequency ratios physically plausible and close to baseline range.
+    fr_lo = float(np.min(fr))
+    fr_hi = float(np.max(fr))
+    fr_b = np.clip(fr_s, fr_lo, fr_hi).astype(np.float32)
+    return fr_b, amp_b.astype(np.float32)
+
+
+def _enforce_passby_envelope_shape(
+    amplitudes,
+    strength=0.82,
+    attack_gamma=1.9,
+    release_gamma=1.45,
+    edge_floor=0.09,
+):
+    """
+    Enforce a realistic pass-by amplitude contour:
+    near-flat start, gradual rise to CPA, gradual fall, near-flat tail.
+    """
+    amp = np.asarray(amplitudes, dtype=np.float32)
+    n = len(amp)
+    if n < 8:
+        return amp
+
+    amp = np.clip(amp, 0.0, None)
+    amax = float(np.max(amp))
+    if amax <= 1e-8:
+        return amp
+
+    s = float(np.clip(strength, 0.0, 1.0))
+    atk_g = float(np.clip(attack_gamma, 1.05, 3.5))
+    rel_g = float(np.clip(release_gamma, 1.05, 3.5))
+    floor = float(np.clip(edge_floor, 0.0, 0.35))
+
+    a_norm = amp / amax
+    peak_idx = int(np.argmax(a_norm))
+    peak_idx = int(np.clip(peak_idx, 1, n - 2))
+
+    i = np.arange(n, dtype=np.float32)
+    left_len = float(max(1, peak_idx))
+    right_len = float(max(1, (n - 1) - peak_idx))
+
+    left_t = np.clip(i / left_len, 0.0, 1.0)
+    right_t = np.clip((i - peak_idx) / right_len, 0.0, 1.0)
+
+    attack = np.power(left_t, atk_g)
+    release = np.power(1.0 - right_t, rel_g)
+    target = np.where(i <= peak_idx, attack, release)
+
+    # Keep boundaries slightly above zero while still mostly flat.
+    target = floor + (1.0 - floor) * target
+    target = np.clip(target, 0.0, 1.0).astype(np.float32)
+
+    # Stabilize tiny local bumps while preserving broad shape.
+    win = max(5, (n // 120) * 2 + 1)
+    target = signal.savgol_filter(target, window_length=win, polyorder=2, mode='interp').astype(np.float32)
+    target = np.clip(target, 0.0, 1.0)
+
+    shaped = (1.0 - s) * a_norm + s * target
+    return (np.clip(shaped, 0.0, 1.0) * amax).astype(np.float32)
 
 
 # ============================================================
@@ -131,8 +639,20 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
     else:
         params['distance'] = clamp(int(config['distance'].get('value', 30)), dmin, dmax)
 
-    # -------- FIXED DURATION --------
-    params['duration'] = 10.0
+    # -------- DURATION (batch / UI; do not override with a fixed 10 s) --------
+    dur_cfg = config.get('duration', 10.0)
+    if isinstance(dur_cfg, dict):
+        if dur_cfg.get('randomize', False):
+            d_lo = float(dur_cfg.get('min', 5.0))
+            d_hi = float(dur_cfg.get('max', 15.0))
+            if d_lo > d_hi:
+                d_lo, d_hi = d_hi, d_lo
+            params['duration'] = float(random.uniform(d_lo, d_hi))
+        else:
+            params['duration'] = float(dur_cfg.get('value', dur_cfg.get('min', 10.0)))
+    else:
+        params['duration'] = float(dur_cfg)
+    params['duration'] = max(0.5, min(300.0, params['duration']))
 
     # -------- STRAIGHT --------
     if path_type == 'straight':
@@ -224,9 +744,11 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
         
         # B5: Time-to-Event Prediction (Target CPA Time)
         if 'B5' in selected_benchmarks:
-            params['target_cpa_time'] = bench_params.get('cpa_time', 5.0)
-            # Adjust duration if target CPA is very late
-            params['duration'] = max(10.0, params['target_cpa_time'] + 2.0)
+            params['target_cpa_time'] = float(bench_params.get('cpa_time', 5.0))
+            # Clip must span CPA + margin; extend user duration only when necessary.
+            # (Old max(10, cpa+2) overwrote e.g. 9.5 s with 10 s whenever B5 was on.)
+            min_duration_for_cpa = params['target_cpa_time'] + 2.0
+            params['duration'] = float(max(float(params['duration']), min_duration_for_cpa))
             
         # B6: Motion State Segmentation (CPA Window)
         if 'B6' in selected_benchmarks:
@@ -399,6 +921,17 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
 
     # Force tonal separation among identical vehicle models
     freq_ratios = freq_ratios * pitch_shift
+    # Moderate broadening: enough to avoid spiky CPA, without lifting early approach too much.
+    doppler_broaden = float(params.get('doppler_broaden', 1.12))
+    freq_ratios, amplitudes = _broaden_doppler_curves(freq_ratios, amplitudes, doppler_broaden)
+    # Enforce a realistic pass-by contour (flatter onset/tail + gradual attack/release).
+    amplitudes = _enforce_passby_envelope_shape(
+        amplitudes,
+        strength=float(params.get('passby_envelope_strength', 0.82)),
+        attack_gamma=float(params.get('passby_attack_gamma', 1.9)),
+        release_gamma=float(params.get('passby_release_gamma', 1.45)),
+        edge_floor=float(params.get('passby_edge_floor', 0.09)),
+    )
 
     if method == 'spectral':
         doppler_audio = apply_doppler_to_audio_fixed_alternative(audio, freq_ratios, amplitudes)
@@ -473,6 +1006,16 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
         padded = np.zeros(target_samples)
         padded[:len(doppler_audio)] = doppler_audio
         doppler_audio = padded
+
+    # Shift spectral centroid toward roadside/engine band (vehicle WAVs often peak ~40–80 Hz otherwise).
+    if bool(params.get('balance_vehicle_spectrum', True)):
+        doppler_audio = _preflight_vehicle_spectrum(doppler_audio, SR)
+
+    # Spectral realism enrichment while preserving Doppler macro-structure.
+    # Per-source variability comes from clip-local randomized enrichment levels.
+    seed = int(np.random.randint(0, 2**31 - 1))
+    rng = np.random.default_rng(seed)
+    doppler_audio = _enrich_spectral_realism(doppler_audio, amplitudes, SR, rng, params)
 
     return doppler_audio, freq_ratios, amplitudes
 
@@ -806,6 +1349,11 @@ def save_benchmark_datasets(sample_dir, features, labels, params, config):
 def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, index, config, custom_filename=None):
     """Generate a single clip: organized into Common/, Essential/, and Benchmark folders"""
     doppler_audio, freq_ratios, amplitudes = get_doppler_audio_array(vehicle_name, path_type, params)
+    atm_cfg = config.get('atmosphere', {}) if isinstance(config, dict) else {}
+    if bool(atm_cfg.get('add_air_noise', False)):
+        noise_strength = float(atm_cfg.get('air_noise_strength', 8.0))
+        noise_freq_hz = float(atm_cfg.get('air_noise_frequency_hz', 1200.0))
+        doppler_audio = _apply_subtle_air_noise(doppler_audio, SR, noise_strength, noise_freq_hz)
 
     # ── Create per-sample folder and sub-folders ─────────────────────────────
     sample_dir = os.path.join(output_dir, f'sample_{index:07d}')
@@ -1145,6 +1693,11 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
 
     # Mix audio
     mixed_audio = mix_audio_clips(clips_with_delays)
+    atm_cfg = config.get('atmosphere', {}) if isinstance(config, dict) else {}
+    if bool(atm_cfg.get('add_air_noise', False)):
+        noise_strength = float(atm_cfg.get('air_noise_strength', 8.0))
+        noise_freq_hz = float(atm_cfg.get('air_noise_frequency_hz', 1200.0))
+        mixed_audio = _apply_subtle_air_noise(mixed_audio, SR, noise_strength, noise_freq_hz)
 
     # -- Filename & Identification ---------------------------------------------
     meta_name = f"multi_object_{index:07d}"

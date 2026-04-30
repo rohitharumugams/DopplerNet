@@ -1,7 +1,7 @@
 import numpy as np
 from audio.audio_utils import SR, apply_distance_fade
 
-NEAR_FIELD_RADIUS = 2.0  # m – effective source size for 1/R damping
+NEAR_FIELD_RADIUS = 6.0  # m – broader near-field for smoother pass-by envelope
 
 def calculate_intersection_doppler(vehicles, observer_pos=(10, 10), duration_s=10.0, c_sound=343.0):
     """
@@ -74,7 +74,7 @@ def calculate_intersection_doppler(vehicles, observer_pos=(10, 10), duration_s=1
         
         freq_ratios = c_sound / (c_sound + v_r)
         spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-        convective_amp = (c_sound / (c_sound + v_r))**2
+        convective_amp = (c_sound / (c_sound + v_r))**1.1
         amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
         
         # Smooth fade-in/out to prevent abrupt spawning (per vehicle)

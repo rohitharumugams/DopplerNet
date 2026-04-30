@@ -118,7 +118,6 @@ def generate_test_batch(num_samples=5, batch_name="test_batch", force_crossing=F
             path_type = random.choice(paths)
             try:
                 params = generate_random_parameters(config, vehicle, path_type)
-                params['duration'] = 10.0 
                 print(f"[{i}/{num_samples}] Generating {vehicle} on {path_type} path as '{custom_name}'...")
                 
                 result = generate_single_clip(vehicle, path_type, params, str(audio_dir), batch_name, i, config, custom_filename=custom_name)

@@ -20,7 +20,7 @@ from audio.generation import generate_single_clip
 
 simulate_bp = Blueprint('simulate', __name__)
 
-def _apply_subtle_air_noise(audio, sr, strength_pct):
+def _apply_subtle_air_noise(audio, sr, strength_pct, center_freq_hz=1200.0):
     """
     Add a light, natural air-noise layer.
     strength_pct in [0, 100], intentionally mapped to a gentle mix.
@@ -35,14 +35,31 @@ def _apply_subtle_air_noise(audio, sr, strength_pct):
     n = len(audio)
     white = np.random.normal(0.0, 1.0, n).astype(np.float32)
 
-    # Band-limit to a soft broadband "air" texture.
+    # Shape noise in frequency-domain with:
+    # 1) broadband floor (fills spectrogram to the top),
+    # 2) user-centered emphasis (so the frequency control remains meaningful).
     nyq = 0.5 * float(sr)
-    low = max(80.0 / nyq, 1e-4)
-    high = min(7000.0 / nyq, 0.999)
-    if low >= high:
-        return audio
-    b, a = signal.butter(2, [low, high], btype='bandpass')
-    air = signal.filtfilt(b, a, white).astype(np.float32)
+    center_hz = float(np.clip(center_freq_hz, 80.0, min(5000.0, nyq * 0.95)))
+    freqs = np.fft.rfftfreq(n, d=1.0 / float(sr))
+    spectrum = np.fft.rfft(white)
+
+    # Wide Gaussian emphasis around user-selected center.
+    sigma_hz = max(250.0, 0.32 * center_hz)
+    peak = np.exp(-0.5 * ((freqs - center_hz) / sigma_hz) ** 2)
+
+    # Broadband floor stays present across nearly all bins, with a tiny high-frequency
+    # boost so upper bins are not visually empty in spectrograms.
+    broad_floor = 0.42 + 0.20 * np.sqrt(np.clip(freqs / max(nyq, 1e-6), 0.0, 1.0))
+
+    # Keep centered control influential, but avoid local-only energy islands.
+    profile = broad_floor + 0.60 * peak
+
+    # Very gentle top-end rolloff for naturalness (not too aggressive).
+    natural_rolloff = 1.0 / np.sqrt(1.0 + (freqs / 10000.0) ** 2)
+    profile *= natural_rolloff
+    profile = np.clip(profile, 0.0, None)
+
+    air = np.fft.irfft(spectrum * profile, n=n).astype(np.float32)
 
     # Very slow amplitude drift for a more natural bed.
     t = np.linspace(0.0, n / float(sr), n, endpoint=False)
@@ -52,9 +69,8 @@ def _apply_subtle_air_noise(audio, sr, strength_pct):
     rms = np.sqrt(np.mean(air**2) + 1e-12)
     air /= rms
 
-    # Keep the layer intentionally subtle. Use a curved mapping so low-mid slider
-    # values stay gentle, and even 100% remains a light ambience layer.
-    mix_gain = 0.03 * ((strength / 100.0) ** 1.6)
+    # Keep subtle, but ensure visible broadband bed at practical strengths.
+    mix_gain = 0.07 * ((strength / 100.0) ** 1.25)
     mixed = audio.astype(np.float32) + (mix_gain * air)
     return np.clip(mixed, -1.0, 1.0)
 
@@ -70,8 +86,13 @@ def simulate_single():
         path_type = request.form.get('path', 'straight')
         vehicle_type = request.form.get('vehicle_type', 'car')
 
-        # FORCE all single-clip simulations to 10 seconds
-        duration = 10.0
+        # Match single-mode UI "Output Duration" (`audio_duration`, default 5 in template).
+        _dur_raw = request.form.get('audio_duration')
+        try:
+            duration = float(_dur_raw) if _dur_raw not in (None, '') else 5.0
+        except (TypeError, ValueError):
+            duration = 5.0
+        duration = float(max(0.5, min(300.0, duration)))
 
         # Use lower-case name to match uploaded vehicle files (car.wav, train.wav, etc.)
         vehicle_name = vehicle_type.lower()
@@ -159,12 +180,15 @@ def simulate_single():
 
         add_air_noise = str(request.form.get('add_air_noise', '')).lower() in ('1', 'true', 'on', 'yes')
         air_noise_strength = float(request.form.get('air_noise_strength', 8.0))
+        air_noise_frequency_hz = float(request.form.get('air_noise_frequency_hz', 1200.0))
 
         if not add_air_noise:
             return send_file(file_path, mimetype='audio/wav')
 
         audio, sr = librosa.load(file_path, sr=SR, mono=True)
-        audio_with_noise = _apply_subtle_air_noise(audio, sr, air_noise_strength)
+        audio_with_noise = _apply_subtle_air_noise(
+            audio, sr, air_noise_strength, air_noise_frequency_hz
+        )
         wav_buffer = io.BytesIO()
         sf.write(wav_buffer, audio_with_noise, sr, format='WAV', subtype='PCM_16')
         wav_buffer.seek(0)

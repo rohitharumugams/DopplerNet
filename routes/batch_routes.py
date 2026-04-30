@@ -8,6 +8,7 @@ import base64
 import csv
 from collections import Counter
 import numpy as np
+import librosa
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, send_from_directory
@@ -32,6 +33,277 @@ from audio.audio_utils import save_audio, SR
 
 batch_bp = Blueprint('batch', __name__)
 
+LINEAR_OVERLAP_SPEEDS_MPS = [
+    8.6, 9.7, 10.6, 11.4, 12.2, 13.1, 13.9, 14.7, 15.3, 16.1,
+    16.9, 17.8, 18.3, 18.9, 19.4, 20.0, 20.3, 21.1, 21.7, 22.2,
+    23.1, 23.9, 24.7, 25.3, 26.1, 26.9, 27.8
+]
+
+
+def _save_spectrogram_npy(audio_array, output_path):
+    """Save a lightweight STFT power spectrogram as .npy (no plotting)."""
+    n_fft = 2048
+    hop_length = 256
+    stft = librosa.stft(audio_array, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window="hann")
+    spec_power = (np.abs(stft) ** 2).astype(np.float32)
+    np.save(output_path, spec_power)
+    return os.path.basename(output_path)
+
+
+def _build_linear_overlap_scene(config, selected_vehicles, clip_index, scene_dir, total_clips=None):
+    from audio.generation import get_doppler_audio_array
+
+    overlap_cfg = config.get('linear_overlap', {}) or {}
+    delay_min = float(overlap_cfg.get('delay_min', 0.3))
+    delay_max = float(overlap_cfg.get('delay_max', 2.0))
+    observer_distance = float(overlap_cfg.get('observer_distance', 18.0))
+    generate_png_spectrograms = bool(overlap_cfg.get('generate_png_spectrograms', False))
+    delay_min, delay_max = min(delay_min, delay_max), max(delay_min, delay_max)
+
+    vehicle_min = int(overlap_cfg.get('vehicle_min', 3))
+    vehicle_max = int(overlap_cfg.get('vehicle_max', 5))
+    vehicle_min, vehicle_max = min(vehicle_min, vehicle_max), max(vehicle_min, vehicle_max)
+    vehicle_min = max(2, vehicle_min)
+    vehicle_max = min(len(LINEAR_OVERLAP_SPEEDS_MPS), vehicle_max)
+    num_vehicles = random.randint(vehicle_min, vehicle_max)
+
+    scene_vehicles = random.sample(selected_vehicles, k=num_vehicles)
+    # Enforce unique speeds and assign in decreasing order.
+    scene_speeds = sorted(random.sample(LINEAR_OVERLAP_SPEEDS_MPS, k=num_vehicles), reverse=True)
+
+    # Sequential delays so each next vehicle starts later than previous.
+    per_vehicle_start_delays = []
+    running_delay = 0.0
+    for i in range(num_vehicles):
+        if i == 0:
+            running_delay = 0.0
+        else:
+            running_delay += random.uniform(delay_min, delay_max)
+        per_vehicle_start_delays.append(running_delay)
+
+    scene_paths_data = []
+    delayed_individual_clips = []
+    vehicles_meta = []
+
+    clip_len_samples = int(10.0 * SR)
+    clip_time_duration = 10.0
+
+    for i, (vehicle_name, speed_value, start_delay) in enumerate(
+        zip(scene_vehicles, scene_speeds, per_vehicle_start_delays), start=1
+    ):
+        base_params = generate_random_parameters(config, vehicle_name, 'straight', force_symmetric=True)
+        params = dict(base_params)
+        params['speed'] = float(speed_value)
+        params['distance'] = float(observer_distance)
+        params['angle'] = 0.0
+        params['duration'] = clip_time_duration
+
+        audio_arr, _, _ = get_doppler_audio_array(vehicle_name, 'straight', params)
+        if len(audio_arr) != clip_len_samples:
+            # Hard guarantee: every output clip is exactly 10s.
+            fixed = np.zeros(clip_len_samples, dtype=np.float32)
+            n = min(len(audio_arr), clip_len_samples)
+            fixed[:n] = audio_arr[:n]
+            audio_arr = fixed
+
+        delay_samples = int(round(start_delay * SR))
+        delayed_audio = np.zeros(clip_len_samples, dtype=np.float32)
+        if delay_samples < clip_len_samples:
+            src_len = clip_len_samples - delay_samples
+            delayed_audio[delay_samples:] = audio_arr[:src_len]
+        delayed_individual_clips.append(delayed_audio)
+
+        v_file = f"vehicle_{i:02d}_{vehicle_name}.wav"
+        v_path = os.path.join(scene_dir, v_file)
+        save_audio(delayed_audio, v_path)
+
+        v_spec_npy_file = f"vehicle_{i:02d}_{vehicle_name}_spec.npy"
+        _save_spectrogram_npy(delayed_audio, os.path.join(scene_dir, v_spec_npy_file))
+        v_spec_png_file = None
+        if generate_png_spectrograms:
+            v_spec_png_file = f"vehicle_{i:02d}_{vehicle_name}_spec.png"
+            save_spectrogram_to_file(
+                delayed_audio,
+                SR,
+                f"Linear Overlap V{i}: {vehicle_name} (delay={start_delay:.2f}s, speed={speed_value:.1f}m/s)",
+                os.path.join(scene_dir, v_spec_png_file)
+            )
+
+        # Plot on global timeline [0, 10] with this source active from its start delay.
+        plot_params = dict(params)
+        plot_params['duration'] = clip_time_duration
+        plot_params['cpa_time'] = float(start_delay) + (clip_time_duration / 2.0)
+        plot_params['plot_t_start'] = float(start_delay)
+        plot_params['plot_t_end'] = clip_time_duration
+        scene_paths_data.append(('straight', plot_params, vehicle_name))
+
+        cpa_time_global = float(plot_params['cpa_time'])
+        x_at_t0 = float(speed_value * (0.0 - cpa_time_global))
+        x_at_t10 = float(speed_value * (clip_time_duration - cpa_time_global))
+        y_const = float(observer_distance)
+        vehicles_meta.append({
+            'id': i,
+            'vehicle': vehicle_name,
+            'audio_file': v_file,
+            'spectrogram_npy_file': v_spec_npy_file,
+            'spectrogram_png_file': v_spec_png_file,
+            'start_delay_s': float(start_delay),
+            'start_time_s': float(start_delay),
+            'speed_mps': float(speed_value),
+            'positions': {
+                't0': {'x_m': x_at_t0, 'y_m': y_const},
+                't10': {'x_m': x_at_t10, 'y_m': y_const}
+            },
+            'parameters': params
+        })
+
+        # Keep UI progress alive during heavy scene generation.
+        if total_clips and total_clips > 0:
+            partial = (clip_index - 1) + (0.92 * (i / max(1, num_vehicles)))
+            save_progress(total_clips, round(partial, 3))
+
+    mixed_audio = np.sum(np.stack(delayed_individual_clips, axis=0), axis=0).astype(np.float32)
+    peak = float(np.max(np.abs(mixed_audio))) if mixed_audio.size else 0.0
+    if peak > 0.98:
+        mixed_audio = mixed_audio * (0.98 / peak)
+
+    mixed_audio_file = "mixed_audio.wav"
+    mixed_audio_path = os.path.join(scene_dir, mixed_audio_file)
+    save_audio(mixed_audio, mixed_audio_path)
+
+    mixed_spec_npy_file = "mixed_audio_spec.npy"
+    _save_spectrogram_npy(mixed_audio, os.path.join(scene_dir, mixed_spec_npy_file))
+    mixed_spec_png_file = None
+    if generate_png_spectrograms:
+        mixed_spec_png_file = "mixed_audio_spec.png"
+        save_spectrogram_to_file(
+            mixed_audio,
+            SR,
+            f"Linear Overlap Scene {clip_index:04d}",
+            os.path.join(scene_dir, mixed_spec_png_file)
+        )
+
+    path_plot_name = save_combined_path_plot(
+        scene_paths_data,
+        scene_dir,
+        "scene",
+        lane_width=4.0,
+        include_opposite=False,
+        road_y_center=observer_distance,
+        observer_pos=(0.0, 0.0),
+        road_shape='straight',
+        absolute=True,
+        show_road_guides=False,
+        path_alpha=0.52,
+        path_linewidth=18.0,
+        fig_width=22.0,
+        fig_height=6.6
+    )
+
+    return {
+        'scene_id': f"{clip_index:04d}",
+        'mode': 'linear_overlap',
+        'clip_duration_s': clip_time_duration,
+        'observer_distance_m': float(observer_distance),
+        'delay_range_s': [float(delay_min), float(delay_max)],
+        'speed_pool_mps': LINEAR_OVERLAP_SPEEDS_MPS,
+        'num_vehicles': len(vehicles_meta),
+        'mixed_audio_file': mixed_audio_file,
+        'mixed_spectrogram_npy_file': mixed_spec_npy_file,
+        'mixed_spectrogram_png_file': mixed_spec_png_file,
+        'path_graph_file': path_plot_name or "scene_combined_path.png",
+        'vehicles': vehicles_meta,
+        'scene_parameters': {
+            'temperature_range_c': [
+                float(config.get('atmosphere', {}).get('temp_min', 15.0)),
+                float(config.get('atmosphere', {}).get('temp_max', 35.0))
+            ],
+            'humidity_range_percent': [
+                float(config.get('atmosphere', {}).get('hum_min', 30.0)),
+                float(config.get('atmosphere', {}).get('hum_max', 70.0))
+            ],
+            'angle_deg_forced': 0.0,
+            'path_type_forced': 'straight'
+        },
+        'timestamp': datetime.now().isoformat()
+    }
+
+
+def _run_linear_overlap_batch(config, start_time):
+    base_output_root = config.get('output', {}).get('path', OUTPUT_FOLDER)
+    os.makedirs(base_output_root, exist_ok=True)
+
+    custom_name = config.get('batch', {}).get('name', '').strip()
+    if custom_name:
+        safe_batch_name = "".join(c for c in custom_name if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_batch_name = safe_batch_name.replace(' ', '_')
+        batch_id = safe_batch_name
+        batch_dir = os.path.join(base_output_root, batch_id)
+    else:
+        batch_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+        batch_dir = os.path.join(base_output_root, f'batch_{batch_id}')
+    os.makedirs(batch_dir, exist_ok=True)
+
+    total_clips = int(config['batch']['total_clips'])
+    selected_vehicles = config.get('vehicles', {}).get('selected', [])
+    overlap_cfg = config.get('linear_overlap', {})
+    requested_vehicle_min = int(overlap_cfg.get('vehicle_min', 3))
+    requested_vehicle_max = int(overlap_cfg.get('vehicle_max', 5))
+    requested_vehicle_min, requested_vehicle_max = min(requested_vehicle_min, requested_vehicle_max), max(requested_vehicle_min, requested_vehicle_max)
+    if not selected_vehicles:
+        return jsonify({'error': 'No vehicles selected'}), 400
+
+    if requested_vehicle_min < 2:
+        return jsonify({'error': 'Linear Overlap Mode needs min vehicles >= 2.'}), 400
+    if requested_vehicle_max > len(LINEAR_OVERLAP_SPEEDS_MPS):
+        return jsonify({'error': f'Linear Overlap Mode supports at most {len(LINEAR_OVERLAP_SPEEDS_MPS)} vehicles (unique speed constraint).'}), 400
+    if len(selected_vehicles) < requested_vehicle_max:
+        return jsonify({'error': f'Select at least {requested_vehicle_max} vehicles for Linear Overlap Mode (max overlap bound).'}), 400
+
+    SAMPLERS.clear()
+    save_progress(total_clips, 0)
+
+    scene_metadata = []
+    for clip_index in range(1, total_clips + 1):
+        scene_id = f"{clip_index:04d}"
+        scene_dir = os.path.join(batch_dir, scene_id)
+        os.makedirs(scene_dir, exist_ok=True)
+
+        meta = _build_linear_overlap_scene(
+            config,
+            selected_vehicles,
+            clip_index,
+            scene_dir,
+            total_clips=total_clips
+        )
+        with open(os.path.join(scene_dir, "metadata.json"), 'w') as f:
+            json.dump(meta, f, indent=2)
+        scene_metadata.append(meta)
+        save_progress(total_clips, clip_index)
+
+    metadata_file = os.path.join(batch_dir, f"metadata_{batch_id}.json")
+    with open(metadata_file, 'w') as f:
+        json.dump({
+            'batch_id': batch_id,
+            'mode': 'linear_overlap',
+            'total_scenes': total_clips,
+            'scenes': scene_metadata
+        }, f, indent=2)
+
+    elapsed_time = time.time() - start_time
+    formatted_time = f"{elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)"
+    return jsonify({
+        'success': True,
+        'batch_id': batch_id,
+        'total_generated': total_clips,
+        'elapsed_time': elapsed_time,
+        'formatted_time': formatted_time,
+        'batch_directory': batch_dir,
+        'metadata_file': metadata_file,
+        'log_file': '',
+        'stats_file': ''
+    })
+
 
 @batch_bp.route('/api/batch_generate', methods=['POST'])
 def batch_generate():
@@ -41,10 +313,23 @@ def batch_generate():
 
         start_time = time.time()
 
+        if bool(config.get('linear_overlap', {}).get('enabled', False)):
+            # Force mode constraints regardless of generic simulator controls.
+            config.setdefault('paths', {})['selected'] = ['straight']
+            config.setdefault('duration', {})['randomize'] = False
+            config['duration']['min'] = 10.0
+            config['duration']['max'] = 10.0
+            config.setdefault('angle', {})['randomize'] = False
+            config['angle']['min'] = 0.0
+            config['angle']['max'] = 0.0
+
         # Validate configuration
         validation_error = validate_batch_config(config)
         if validation_error:
             return jsonify({'error': validation_error}), 400
+
+        if bool(config.get('linear_overlap', {}).get('enabled', False)):
+            return _run_linear_overlap_batch(config, start_time)
 
         # Base output root (respect UI "Save Path" if provided)
         base_output_root = config.get('output', {}).get('path', OUTPUT_FOLDER)

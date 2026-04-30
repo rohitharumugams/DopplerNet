@@ -4,7 +4,7 @@ import numpy as np
 from audio.audio_utils import SR, apply_distance_fade
 
 C_SOUND = 343.0  # m/s
-NEAR_FIELD_RADIUS = 2.0  # m – effective source size for 1/R damping
+NEAR_FIELD_RADIUS = 6.0  # m – broader near-field for smoother pass-by envelope
 
 
 def _cubic_bezier(t, p0, p1, p2, p3):
@@ -178,7 +178,7 @@ def calculate_bezier_doppler(speed_mps,
 
     # Combined amplitude with master gain and gamma compression for audibility
     spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-    convective_amp = (c_sound / (c_sound + v_r))**2
+    convective_amp = (c_sound / (c_sound + v_r))**1.1
     amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
     
     # Smooth fade-in/out to prevent abrupt spawning

@@ -61,9 +61,13 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
             # Pass-by pass logic
             h = params.get('distance', 30.0) # Fallback to 30m if distance missing
             angle = params.get('angle', 0.0)
-
-            t = np.linspace(0.0, duration, n_points)
-            t0 = duration / 2.0
+            # Optional explicit plotting time window for truncated clips.
+            t_start = float(params.get('plot_t_start', 0.0))
+            t_end = float(params.get('plot_t_end', duration))
+            if t_end <= t_start:
+                t_end = t_start + 1e-3
+            t = np.linspace(t_start, t_end, n_points)
+            t0 = float(params.get('cpa_time', duration / 2.0))
             dt = t - t0
 
             theta = np.deg2rad(angle)
@@ -271,7 +275,12 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         # otherwise displayed paths can diverge from trajectories used in audio.
         plot_kwargs['clamp_to_road_band'] = False
         
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig_w = float(kwargs.get('fig_width', 15.5))
+        fig_h = float(kwargs.get('fig_height', 7.0))
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+        show_road_guides = bool(kwargs.get('show_road_guides', True))
+        path_alpha = float(kwargs.get('path_alpha', 0.65))
+        path_linewidth = float(kwargs.get('path_linewidth', 1.8))
 
         # Precompute paths once (used for both rendering and viewport).
         sampled_paths = []
@@ -289,9 +298,10 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
             half_arm = float(kwargs.get('intersection_half_arm', 90.0))
             int_angle = float(kwargs.get('intersection_angle', 90.0))
             # Primary road (E-W): horizontal
-            ax.plot([-half_arm, half_arm], [lane_half, lane_half], color='#666666', linewidth=1.0, label='Road Edge (Primary)', zorder=1)
-            ax.plot([-half_arm, half_arm], [-lane_half, -lane_half], color='#666666', linewidth=1.0, zorder=1)
-            ax.plot([-half_arm, half_arm], [0.0, 0.0], color='#888888', linestyle='--', linewidth=0.9, label='Median (Primary)', zorder=1)
+            if show_road_guides:
+                ax.plot([-half_arm, half_arm], [lane_half, lane_half], color='#666666', linewidth=1.0, label='Road Edge (Primary)', zorder=1)
+                ax.plot([-half_arm, half_arm], [-lane_half, -lane_half], color='#666666', linewidth=1.0, zorder=1)
+                ax.plot([-half_arm, half_arm], [0.0, 0.0], color='#888888', linestyle='--', linewidth=0.9, label='Median (Primary)', zorder=1)
             # Secondary road at intersection_angle from x-axis
             _ia_rad = np.deg2rad(int_angle)
             _ia_cos, _ia_sin = np.cos(_ia_rad), np.sin(_ia_rad)
@@ -303,9 +313,10 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
                 x1 = d_end * _ia_cos - lateral * _ia_sin
                 y1 = d_end * _ia_sin + lateral * _ia_cos
                 return [x0, x1], [y0, y1]
-            ax.plot(*_sec_line(-half_arm, half_arm, lane_half), color='#666666', linewidth=1.0, label='Road Edge (Secondary)', zorder=1)
-            ax.plot(*_sec_line(-half_arm, half_arm, -lane_half), color='#666666', linewidth=1.0, zorder=1)
-            ax.plot(*_sec_line(-half_arm, half_arm, 0.0), color='#888888', linestyle='--', linewidth=0.9, label='Median (Secondary)', zorder=1)
+            if show_road_guides:
+                ax.plot(*_sec_line(-half_arm, half_arm, lane_half), color='#666666', linewidth=1.0, label='Road Edge (Secondary)', zorder=1)
+                ax.plot(*_sec_line(-half_arm, half_arm, -lane_half), color='#666666', linewidth=1.0, zorder=1)
+                ax.plot(*_sec_line(-half_arm, half_arm, 0.0), color='#888888', linestyle='--', linewidth=0.9, label='Median (Secondary)', zorder=1)
             # Dummy series for viewport computation
             x_upper = x_lower = x_med = np.array([-half_arm, half_arm])
             y_upper = np.array([lane_half, lane_half])
@@ -384,9 +395,10 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
                 x_lower, y_lower = rotate(x_lower, y_lower)
                 x_med, y_med = rotate(x_med, y_med)
 
-            ax.plot(x_upper, y_upper, color='#666666', linewidth=1.0, label='Road Edge', zorder=1)
-            ax.plot(x_lower, y_lower, color='#666666', linewidth=1.0, zorder=1)
-            ax.plot(x_med, y_med, color='#888888', linestyle='--', linewidth=0.9, label='Median', zorder=1)
+            if show_road_guides:
+                ax.plot(x_upper, y_upper, color='#666666', linewidth=1.0, label='Road Edge', zorder=1)
+                ax.plot(x_lower, y_lower, color='#666666', linewidth=1.0, zorder=1)
+                ax.plot(x_med, y_med, color='#888888', linestyle='--', linewidth=0.9, label='Median', zorder=1)
 
         # --- PLOT VEHICLE PATHS ---
         dotted_extension_m = float(kwargs.get('dotted_extension_m', 22.0))
@@ -404,7 +416,12 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
                 is_forward = False
                 
             arrow = " →" if is_forward else " ←"
-            line, = ax.plot(x, y, linewidth=1.4, label=f"V{i+1}: {vehicle_name}{arrow}", alpha=0.95, zorder=5)
+            speed_val = params.get('speed', None)
+            dist_val = params.get('distance', params.get('h', params.get('offset', None)))
+            speed_txt = f"{float(speed_val):.1f} m/s" if speed_val is not None else "n/a"
+            dist_txt = f"{abs(float(dist_val)):.1f} m" if dist_val is not None else "n/a"
+            legend_label = f"V{i+1}: {vehicle_name} (v={speed_txt}, d={dist_txt}){arrow}"
+            line, = ax.plot(x, y, linewidth=path_linewidth, label=legend_label, alpha=path_alpha, zorder=5)
 
             # Add small dotted extrapolations before/after the solid segment so
             # each trajectory visually continues beyond the active span.
@@ -433,18 +450,32 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
                 ax.plot(
                     x_pre, y_pre,
                     linestyle='--', dashes=(2.0, 2.0),
-                    linewidth=1.0, color=ext_color, alpha=0.70,
+                    linewidth=1.0, color=ext_color, alpha=max(0.35, path_alpha - 0.25),
                     zorder=4, label='_nolegend_'
                 )
                 ax.plot(
                     x_post, y_post,
                     linestyle='--', dashes=(2.0, 2.0),
-                    linewidth=1.0, color=ext_color, alpha=0.70,
+                    linewidth=1.0, color=ext_color, alpha=max(0.35, path_alpha - 0.25),
                     zorder=4, label='_nolegend_'
                 )
 
         # Observer
         ax.scatter([obs_pos[0]], [obs_pos[1]], marker='.', s=30, color='red', label='Observer', zorder=10)
+
+        observer_distance_m = kwargs.get('observer_distance_m', None)
+        if observer_distance_m is not None:
+            d = float(observer_distance_m)
+            x0 = float(obs_pos[0])
+            y0 = float(obs_pos[1])
+            y1 = y0 + d
+            ax.plot([x0, x0], [y0, y1], linestyle=':', linewidth=1.2, color='#555555', alpha=0.85, zorder=2)
+            ax.text(
+                x0 + 2.5, (y0 + y1) / 2.0,
+                f"Distance = {d:.1f} m",
+                fontsize=10, color='#333333',
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.75, edgecolor='#cccccc')
+            )
 
         # --- ADAPTIVE VIEWPORT ---
         # Scale view from trajectory data so y-axis stays informative.
@@ -617,8 +648,10 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
     - Bottom row: amplitude bar graph A and B
     """
     try:
+        # Do not use sharex='row': that links A and B on the same row, forcing one time span for both
+        # clips (e.g. 0–10 s when A is 10 s and B is 9.6 s). Share x only within each column.
         fig, axes = plt.subplots(
-            2, 2, figsize=(14, 7), sharex='row',
+            2, 2, figsize=(14, 7), sharex=False,
             gridspec_kw={'height_ratios': [4, 1], 'hspace': 0.18, 'wspace': 0.14}
         )
         ax_spec_a, ax_spec_b = axes[0]
@@ -673,6 +706,13 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
         _draw_spectrogram(ax_spec_b, y_b, title_b)
         _draw_amplitude(ax_amp_a, y_a, '#58a6ff')
         _draw_amplitude(ax_amp_b, y_b, '#f0883e')
+
+        ax_amp_a.sharex(ax_spec_a)
+        ax_amp_b.sharex(ax_spec_b)
+        dur_a = float(len(y_a)) / float(sr)
+        dur_b = float(len(y_b)) / float(sr)
+        ax_spec_a.set_xlim(0.0, max(dur_a, 1e-6))
+        ax_spec_b.set_xlim(0.0, max(dur_b, 1e-6))
 
         fig.savefig(out_path, dpi=220, bbox_inches="tight")
         plt.close(fig)

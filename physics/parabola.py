@@ -7,7 +7,7 @@ from audio.audio_utils import SR, apply_distance_fade
 C_SOUND = 343.0
 
 # Minimum effective distance to avoid near-field blowups (meters)
-NEAR_FIELD_RADIUS = 2.0
+NEAR_FIELD_RADIUS = 6.0
 
 
 def _parabola_unrotated_geometry(speed_mps, a, h, duration_s, n_samples):
@@ -156,7 +156,7 @@ def calculate_parabola_doppler(speed_mps, a, h, duration_s, n_steps=None, c_soun
     r_eff = np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
 
     # Combined amplitude with master gain and gamma compression for audibility
-    amplitudes = (10.0 * (1.0 / r_eff) * (c_sound / (c_sound + v_r))**2)**0.7
+    amplitudes = (10.0 * (1.0 / r_eff) * (c_sound / (c_sound + v_r))**1.1)**0.7
     
     # Smooth fade-in/out to prevent abrupt spawning
     amplitudes = apply_distance_fade(amplitudes, fade_duration_s=1.0)
