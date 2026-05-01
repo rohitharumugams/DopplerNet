@@ -38,16 +38,16 @@ PROGRESS_FILE = "generation_progress.json"
 
 DEFAULT_RANGES = {
     'speed': {
-        'car': (15, 50),
-        'train': (20, 55),
-        'drone': (5, 30),
-        'motorcycle': (10, 45),
-        'default': (10, 50)
+        'car': (1, 50),
+        'train': (1, 55),
+        'drone': (1, 30),
+        'motorcycle': (1, 45),
+        'default': (1, 50)
     },
-    'distance': (5, 1000),
+    'distance': (0.5, 1000),
     # duration range is now unused (we force 10s everywhere),
     # but we keep it for reference
-    'duration': (3, 8),
+    'duration': (10, 10),
     'angle': (-45, 45),
     # for Bezier: allow negative x, but y will be kept positive in code
     'bezier_coords': (-150, 150),

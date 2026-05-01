@@ -580,10 +580,9 @@ def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_am
         else:
             fig, ax = plt.subplots(figsize=(12, 4.8))
 
-        # Use denser STFT sampling to avoid blocky appearance while preserving
-        # clear time-frequency structure.
+        # Use a more reasonable hop_length for long clips to avoid memory blowup
         n_fft = 4096
-        hop_length = 64
+        hop_length = 512
         win_length = 4096
         window = "hann"
         stft = librosa.stft(
@@ -603,7 +602,6 @@ def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_am
             y_axis='hz',
             ax=ax,
             cmap='magma',
-            shading='gouraud',
             rasterized=True,
             vmin=vmin,
             vmax=vmax
@@ -633,7 +631,7 @@ def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_am
             ax_amp.set_ylim(0, max(1e-6, float(np.max(rms)) * 1.15))
             ax_amp.grid(True, axis='y', linestyle=':', alpha=0.35)
 
-        fig.savefig(out_path, dpi=240, bbox_inches="tight")
+        fig.savefig(out_path, dpi=120, bbox_inches="tight")
         plt.close(fig)
         return True
     except Exception as e:
@@ -658,7 +656,7 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
         ax_amp_a, ax_amp_b = axes[1]
 
         n_fft = 4096
-        hop_length = 64
+        hop_length = 512
         win_length = 4096
         window = "hann"
         max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
@@ -681,7 +679,6 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
                 y_axis='hz',
                 ax=ax,
                 cmap='magma',
-                shading='gouraud',
                 rasterized=True,
                 vmin=vmin,
                 vmax=vmax
@@ -714,7 +711,7 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
         ax_spec_a.set_xlim(0.0, max(dur_a, 1e-6))
         ax_spec_b.set_xlim(0.0, max(dur_b, 1e-6))
 
-        fig.savefig(out_path, dpi=220, bbox_inches="tight")
+        fig.savefig(out_path, dpi=120, bbox_inches="tight")
         plt.close(fig)
         return True
     except Exception as e:

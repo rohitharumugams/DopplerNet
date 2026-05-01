@@ -643,7 +643,7 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
     dur_cfg = config.get('duration', 10.0)
     if isinstance(dur_cfg, dict):
         if dur_cfg.get('randomize', False):
-            d_lo = float(dur_cfg.get('min', 5.0))
+            d_lo = float(dur_cfg.get('min', 10.0))
             d_hi = float(dur_cfg.get('max', 15.0))
             if d_lo > d_hi:
                 d_lo, d_hi = d_hi, d_lo
@@ -1574,7 +1574,20 @@ def generate_statistics(clips_metadata, config):
     durations = [clip['parameters']['duration'] for clip in clips_metadata if clip.get('parameters') and 'duration' in clip['parameters']]
     format_stats("Duration Statistics", durations, "s")
     stats.append("")
-    
+
+    # Per-clip speed listing
+    stats.append("Per-Clip Speeds:")
+    stats.append("-" * 40)
+    for idx, clip in enumerate(clips_metadata, start=1):
+        params = clip.get('parameters', {})
+        speed = params.get('speed', 'N/A')
+        vehicle = clip.get('vehicle', 'unknown')
+        if isinstance(speed, (int, float)):
+            stats.append(f"  Clip {idx:4d}: {speed:6.1f} m/s  ({vehicle})")
+        else:
+            stats.append(f"  Clip {idx:4d}: {speed}  ({vehicle})")
+    stats.append("")
+
     stats.append("=" * 60)
     return '\n'.join(stats)
 

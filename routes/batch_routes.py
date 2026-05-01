@@ -41,28 +41,40 @@ LINEAR_OVERLAP_SPEEDS_MPS = [
 
 
 def upload_batch_to_gcs():
+    """Upload batch outputs to GCS. Returns True on success, False on failure."""
     import subprocess
     import time
+    import shutil
 
     local_output_dir = "static/batch_outputs"
     if not os.path.isdir(local_output_dir) or not os.listdir(local_output_dir):
         print("No local batch outputs found, skipping GCS upload.")
-        return None
+        return False
+
+    # Check if gsutil is installed
+    if not shutil.which("gsutil"):
+        print("Note: 'gsutil' not found in PATH. Skipping cloud backup. Local outputs are preserved in static/batch_outputs.")
+        return False
 
     run_id = str(int(time.time()))
     destination = f"gs://vehicle_audio_source_sep/batch_outputs/run_{run_id}/"
-    print("Starting batch upload to GCS...")
-    print(f"Upload destination: {destination}")
+    print(f"Starting batch upload to GCS: {destination} ...")
 
-    subprocess.run(
-        [
-            "bash",
-            "-lc",
-            f'gsutil -m cp -r "{local_output_dir}"/* "{destination}"'
-        ],
-        check=False
-    )
-    return destination
+    # Try running gsutil directly (works on Windows/Linux if in PATH)
+    try:
+        result = subprocess.run(
+            ["gsutil", "-m", "cp", "-r", f"{local_output_dir}/*", destination],
+            check=False,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            print(f"GCS upload failed: {result.stderr.strip()}. Local outputs preserved.")
+            return False
+        return True
+    except Exception as e:
+        print(f"Error during GCS upload attempt: {e}. Local outputs preserved.")
+        return False
 
 
 def cleanup_local_outputs():
@@ -327,8 +339,9 @@ def _run_linear_overlap_batch(config, start_time):
     elapsed_time = time.time() - start_time
     formatted_time = f"{elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)"
 
-    upload_batch_to_gcs()
-    cleanup_local_outputs()
+    gcs_ok = upload_batch_to_gcs()
+    if gcs_ok:
+        cleanup_local_outputs()
 
     return jsonify({
         'success': True,
@@ -767,9 +780,8 @@ def batch_generate():
                                 # Crossing pair must be Bezier so paths can intersect.
                                 p_type = 'bezier'
 
-                            road_limit = 100.0
-                            max_dur = (2.0 * road_limit) / speed
-                            duration = min(10.0, max_dur * 0.98)
+                            # Force uniform 10s duration as requested, ignoring road limits
+                            duration = 10.0
 
                             v_params = {
                                 'speed': speed,
@@ -987,8 +999,9 @@ def batch_generate():
         formatted_time = f"{elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)"
         print(f"Batch generation finished in {formatted_time}")
 
-        upload_batch_to_gcs()
-        cleanup_local_outputs()
+        gcs_ok = upload_batch_to_gcs()
+        if gcs_ok:
+            cleanup_local_outputs()
 
         return jsonify({
             'success': True,
@@ -1397,7 +1410,7 @@ def map_overlap_generate():
         veh_per_scene = int(config.get('overlap', {}).get('vehicles_per_scene', 5))
         
         # Load map geometry
-        map_json_path = f"/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/road_edge_structure_{map_name}.json"
+        map_json_path = os.path.join(os.getcwd(), "MapExtraction", f"road_edge_structure_{map_name}.json")
         if not os.path.exists(map_json_path):
             return jsonify({'error': f'Map geometry file not found: {map_json_path}'}), 400
             
@@ -1541,10 +1554,10 @@ def get_outline_image():
     if '..' in filename:
         return "Invalid filename", 400
         
-    outputs_dir = "/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/outputs"
-    # Also check /Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/tests if needed
+    outputs_dir = os.path.join(os.getcwd(), "MapExtraction", "outputs")
+    # Also check tests if needed
     if not os.path.exists(os.path.join(outputs_dir, filename)):
-        tests_dir = "/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/tests"
+        tests_dir = os.path.join(os.getcwd(), "MapExtraction", "tests")
         if os.path.exists(os.path.join(tests_dir, filename)):
             return send_from_directory(tests_dir, filename)
             
@@ -1555,7 +1568,9 @@ def get_outline_image():
 def list_outlines():
     """List PNG files in MapExtraction/outputs"""
     try:
-        outputs_dir = "/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/outputs"
+        outputs_dir = os.path.join(os.getcwd(), "MapExtraction", "outputs")
+        if not os.path.exists(outputs_dir):
+            os.makedirs(outputs_dir, exist_ok=True)
         files = [f for f in os.listdir(outputs_dir) if f.endswith('.png')]
         return jsonify({'files': sorted(files)})
     except Exception as e:
@@ -1571,9 +1586,9 @@ def convert_outline():
         if not filename:
             return jsonify({'error': 'No filename provided'}), 400
 
-        input_path = os.path.join("/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/outputs", filename)
+        input_path = os.path.join(os.getcwd(), "MapExtraction", "outputs", filename)
         output_json_name = f"road_edge_structure_{os.path.splitext(filename)[0]}.json"
-        output_json_path = os.path.join("/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction", output_json_name)
+        output_json_path = os.path.join(os.getcwd(), "MapExtraction", output_json_name)
         
         # Handle optional erasure mask from frontend (base64)
         data = request.get_json()
@@ -1588,7 +1603,7 @@ def convert_outline():
                 
                 mask_data = base64.b64decode(erasure_mask_b64)
                 mask_filename = f"mask_{os.path.splitext(filename)[0]}.png"
-                mask_path = os.path.join("/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/outputs", mask_filename)
+                mask_path = os.path.join(os.getcwd(), "MapExtraction", "outputs", mask_filename)
                 
                 with open(mask_path, 'wb') as f:
                     f.write(mask_data)
@@ -1598,10 +1613,11 @@ def convert_outline():
                 # Don't fail the whole request if mask saving fails, just proceed without it
                 mask_path = None
 
-        # Run conversion as a subprocess using the miniforge python which has the libs
+        # Run conversion as a subprocess
         import subprocess
-        python_exe = "/Users/rohith/miniforge3/bin/python"
-        script_path = "/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/outline_to_json.py"
+        import sys
+        python_exe = sys.executable
+        script_path = os.path.join(os.getcwd(), "MapExtraction", "outline_to_json.py")
         
         try:
             cmd = [python_exe, script_path, input_path, output_json_path]
@@ -1624,7 +1640,7 @@ def convert_outline():
         
         # The visualization is saved by the function (we'll update it to do so)
         vis_filename = f"vis_{os.path.splitext(filename)[0]}.png"
-        vis_path = os.path.join("/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/outputs", vis_filename)
+        vis_path = os.path.join(os.getcwd(), "MapExtraction", "outputs", vis_filename)
         
         return jsonify({
             'success': True,
@@ -1673,9 +1689,10 @@ def generate_road_swarm():
                 with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_json:
                     tmp_json_path = tmp_json.name
                 
-                # Run extraction script with Miniforge Python
-                python_exe = "/Users/rohith/miniforge3/bin/python"
-                script_path = "/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/extract_path.py"
+                # Run extraction script
+                import sys
+                python_exe = sys.executable
+                script_path = os.path.join(os.getcwd(), "MapExtraction", "extract_path.py")
                 
                 cmd = [python_exe, script_path, tmp_mask_path, tmp_json_path]
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -1705,7 +1722,7 @@ def generate_road_swarm():
         road_edges = []
         
         # A. Load JSON edges if available
-        map_json_path = f"/Users/rohith/Desktop/Rohith/CMU/DopplerNet/MapExtraction/road_edge_structure_{map_id}.json"
+        map_json_path = os.path.join(os.getcwd(), "MapExtraction", f"road_edge_structure_{map_id}.json")
         if os.path.exists(map_json_path):
             with open(map_json_path, 'r') as f:
                 map_data = json.load(f)

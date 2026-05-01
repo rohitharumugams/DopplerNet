@@ -8,7 +8,8 @@ import seaborn as sns
 # ============================================================
 # CONFIGURATION - SET YOUR METADATA FILE PATH HERE
 # ============================================================
-METADATA_FILE = "/Users/rohith/Desktop/Rohith/CMU/doppler-batch-generation/static/batch_outputs/batch_20251230_142626/metadata_20251230_142626.json"  # CHANGE THIS
+# Example: os.path.join("static", "batch_outputs", "batch_YYYYMMDD_HHMMSS", "metadata_YYYYMMDD_HHMMSS.json")
+METADATA_FILE = "path/to/your/metadata.json"  # CHANGE THIS TO YOUR ACTUAL BATCH FOLDER
 
 # ============================================================
 # Load metadata

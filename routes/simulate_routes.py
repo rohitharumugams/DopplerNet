@@ -89,9 +89,9 @@ def simulate_single():
         # Match single-mode UI "Output Duration" (`audio_duration`, default 5 in template).
         _dur_raw = request.form.get('audio_duration')
         try:
-            duration = float(_dur_raw) if _dur_raw not in (None, '') else 5.0
+            duration = float(_dur_raw) if _dur_raw not in (None, '') else 10.0
         except (TypeError, ValueError):
-            duration = 5.0
+            duration = 10.0
         duration = float(max(0.5, min(300.0, duration)))
 
         # Use lower-case name to match uploaded vehicle files (car.wav, train.wav, etc.)
