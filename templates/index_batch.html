@@ -22,6 +22,11 @@
       /* prevent horizontal scroll */
     }
 
+    .hidden {
+      display: none !important;
+      opacity: 0;
+    }
+
     .container {
       max-width: 1200px;
       margin: 0 auto;
@@ -580,6 +585,7 @@
         <button id="modeMap" class="mode-btn">Outline Converter</button>
         <button id="modeIntersection" class="mode-btn">Intersection</button>
         <button id="modeMixed" class="mode-btn">Real-Simulated Mixed</button>
+        <button id="modeVS13" class="mode-btn">VS13-Compatible Generation</button>
       </div>
     </header>
 
@@ -588,12 +594,54 @@
       <div class="section">
         <h3 class="section-title">Real-Simulated Mixed Audio Generation</h3>
         <p style="margin-bottom: 20px; color: #8b949e;">
-          This mode generates a structured dataset based on <strong>ref_docs/vs13(6)metadata.json</strong>. 
-          Each car will have its own <code>batch2</code> folder with a strict DopplerNet output structure.
+          This mode generates a structured dataset based on <strong>ref_docs\vs13(6)metadata.json</strong> (km/h speeds). 
+          Outputs follow the VS13-style layout (flat structure, .txt annotations).
         </p>
+
+        <div class="grid-2">
+          <div class="section">
+            <h3 class="section-title">Distance (m)</h3>
+            <p class="param-label">Closest distance to observer (in meters).</p>
+            <div class="param-group">
+              <label class="param-label">Distance</label>
+              <input type="number" id="mixedDistance" value="0.5" min="0.1" max="1000" step="0.05">
+            </div>
+          </div>
+          <div class="section">
+            <h3 class="section-title">Angle (°)</h3>
+            <p class="param-label">Approach angle (usually 0 for straight pass-by).</p>
+            <div class="param-group">
+              <label class="param-label">Angle</label>
+              <input type="number" id="mixedAngle" value="0" min="-180" max="180">
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Batch Settings</h3>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+            <div class="param-group">
+              <label class="param-label">Batch Name (Optional)</label>
+              <input type="text" id="mixedBatchName" placeholder="Default: MatchedData">
+            </div>
+            <div class="param-group">
+              <label class="param-label">Output Format</label>
+              <div style="display: flex; gap: 20px; align-items: center; height: 38px;">
+                <label style="cursor: pointer;"><input type="radio" name="mixedFormat" value="wav" checked> WAV</label>
+                <label style="cursor: pointer;"><input type="radio" name="mixedFormat" value="mp3"> MP3</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="param-group" style="margin-top: 10px;">
+            <label class="param-label">Save Path</label>
+            <div class="path-display" id="mixedSavePath">static/batch_outputs/</div>
+            <button class="browse-btn" onclick="browseMixedFolderPath()">Change Path</button>
+          </div>
+        </div>
         
-        <div class="param-group">
-          <button id="startMixedBtn" class="btn" onclick="startMixedGeneration()">Start Dataset Generation</button>
+        <div class="param-group" style="margin-top: 20px;">
+          <button id="startMixedBtn" class="btn" onclick="startMixedGeneration()" style="width: 100%; padding: 15px; font-size: 16px;">Start Dataset Generation</button>
         </div>
 
         <div id="mixedProgressContainer" class="progress-container">
@@ -607,6 +655,232 @@
           <div id="mixedProgressLog" class="log-box" style="margin-top: 10px; height: 150px;"></div>
         </div>
       </div>
+    </div>
+    
+    <!-- VS13-COMPATIBLE GENERATION MODE -->
+    <div id="vs13Mode" class="hidden">
+      <div class="section">
+        <h3 class="section-title">Path Types</h3>
+        <label class="checkbox-label">
+          <input type="checkbox" id="vs13PathStraight" value="straight" checked>
+          Straight Line Path
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="vs13PathParabola" value="parabola">
+          Parabolic Path
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="vs13PathBezier" value="bezier">
+          Bezier Curve Path
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <div class="section">
+          <h3 class="section-title">Sound Source</h3>
+          <div class="param-group">
+            <label class="param-label" for="vs13SoundSource">Choose Sound Type:</label>
+            <select id="vs13SoundSource" onchange="loadVS13Vehicles()">
+              <option value="all">All Sounds (Cars + Drones)</option>
+              <option value="vehicle" selected>Car sounds Only</option>
+              <option value="drone">Drone Sounds Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Spectrogram Settings</h3>
+          <div class="param-group">
+            <label class="param-label" for="vs13SpectrogramType">Spectrogram Type (.npy output)</label>
+            <select id="vs13SpectrogramType">
+              <option value="cqt">CQT — Constant-Q Transform</option>
+              <option value="stft">STFT — Short-Time Fourier Transform</option>
+              <option value="mel">Mel Spectrogram</option>
+            </select>
+          </div>
+          <div class="param-group" style="margin-top: 10px;">
+            <label class="param-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="vs13GenerateDiagnostics" checked>
+              Generate Diagnostic Plots (freq, df/dt, RMS, top-K)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Car Selection</h3>
+        <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 10px;">
+          Select which sounds to include in this batch:
+        </p>
+        <div style="margin-bottom: 12px; display: flex; gap: 10px;">
+          <button type="button" class="browse-btn" style="margin: 0; padding: 4px 12px; font-size: 12px;" onclick="toggleAllCheckboxes('vs13VehicleSelectionCheckboxes', true)">Select All</button>
+          <button type="button" class="browse-btn" style="margin: 0; padding: 4px 12px; font-size: 12px;" onclick="toggleAllCheckboxes('vs13VehicleSelectionCheckboxes', false)">Deselect All</button>
+        </div>
+        <div id="vs13VehicleStatusBar" class="param-label" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; margin-bottom: 12px; font-size: 11px; display: none;">
+          <span id="vs13VehicleStatusText"></span>
+        </div>
+        <div id="vs13VehicleSelectionCheckboxes"></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="section">
+          <h3 class="section-title">Speed (km/h)</h3>
+          <p class="param-label">Each clip will use a random speed between these values (in km/h).</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Speed</label>
+            <input type="number" id="vs13SpeedMin" value="30" min="1" max="360">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Speed</label>
+            <input type="number" id="vs13SpeedMax" value="105" min="1" max="360">
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Distance (m)</h3>
+          <p class="param-label">Random closest distance to observer (always positive).</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Distance</label>
+            <input type="number" id="vs13DistanceMin" value="0.5" min="0.1" max="1000" step="0.05">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Distance</label>
+            <input type="number" id="vs13DistanceMax" value="0.5" min="0.1" max="1000" step="0.05">
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Angle (Straight Path)</h3>
+          <p class="param-label">Random approach angle; always between -180° and +180°.</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Angle</label>
+            <input type="number" id="vs13AngleMin" value="0" min="-180" max="180">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Angle</label>
+            <input type="number" id="vs13AngleMax" value="0" min="-180" max="180">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Atmosphere</h3>
+        <p class="param-label">Temperature and humidity affect the speed of sound and Doppler acoustics.</p>
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label">Temperature Range (°C)</label>
+            <div class="input-row">
+              <input type="number" id="vs13TempMin" value="15" min="-20" max="50">
+              <input type="number" id="vs13TempMax" value="35" min="-20" max="50">
+            </div>
+          </div>
+          <div class="param-group">
+            <label class="param-label">Humidity Range (%)</label>
+            <div class="input-row">
+              <input type="number" id="vs13HumMin" value="30" min="0" max="100">
+              <input type="number" id="vs13HumMax" value="70" min="0" max="100">
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; border-top: 1px solid #30363d; padding-top: 14px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="vs13AddAirNoise" onchange="toggleVS13AirNoiseControls()">
+            Add subtle ambient air noise to batch clips
+          </label>
+          <div class="grid-2" style="margin-top: 10px;">
+            <div class="param-group">
+              <label class="param-label" for="vs13AirNoiseStrength">Air Noise Strength (%)</label>
+              <input type="range" id="vs13AirNoiseStrength" min="0" max="100" step="1" value="8" oninput="updateVS13AirNoiseStrengthLabel()" disabled>
+              <div style="margin-top: 6px; color: #8b949e;">
+                <span id="vs13AirNoiseStrengthValue">8%</span> (kept subtle by default)
+              </div>
+            </div>
+            <div class="param-group">
+              <label class="param-label" for="vs13AirNoiseFrequencyHz">Air Noise Frequency (Hz)</label>
+              <input type="number" id="vs13AirNoiseFrequencyHz" value="1200" min="100" max="5000" disabled>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Batch Settings</h3>
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+          <div class="param-group">
+            <label class="param-label">Batch Name (Optional)</label>
+            <input type="text" id="vs13BatchName" placeholder="Default: batch_YYYYMMDD_HHMMSS">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Output Format</label>
+            <div style="display: flex; gap: 20px; align-items: center; height: 38px;">
+              <label style="cursor: pointer;"><input type="radio" name="vs13Format" value="wav" checked> WAV</label>
+              <label style="cursor: pointer;"><input type="radio" name="vs13Format" value="mp3"> MP3</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="param-group" style="margin-top: 10px;">
+          <label class="param-label">Save Path</label>
+          <div class="path-display" id="vs13SavePath">static/batch_outputs/</div>
+          <button class="browse-btn" onclick="browseVS13FolderPath()">Change Path</button>
+        </div>
+
+        <div id="vs13SweepInfo" style="margin-top: 20px; padding: 10px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #58a6ff; font-size: 13px;">
+          <strong>VS13 Sweep Mode Active:</strong> Generates clips across the speed range using a fixed step interval.
+          <div id="vs13SweepControls" style="margin-top: 12px; border-top: 1px solid #30363d; padding-top: 10px;">
+            <div class="param-group">
+              <label class="param-label">Speed Step Size (km/h)</label>
+              <input type="number" id="vs13SpeedStep" value="1.0" min="0.1" max="5.0" step="0.1" style="width: 100px;">
+              <p class="param-label" style="font-size: 11px; color: #8b949e; margin-top: 4px;">
+                Interval between generated speeds (e.g., 0.5 km/h for 20.0, 20.5, 21.0...).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="param-group" style="margin-top: 20px;">
+          <label class="param-label">Distribution Mode</label>
+          <div style="display: flex; gap: 25px; align-items: center;">
+            <label style="cursor: pointer;"><input type="radio" name="vs13DistRadio" value="sweep" checked onchange="toggleVS13DistributionRadio()"> VS13 Sweep</label>
+            <label style="cursor: pointer;"><input type="radio" name="vs13DistRadio" value="auto" onchange="toggleVS13DistributionRadio()"> Automatic (Equal)</label>
+            <label style="cursor: pointer;"><input type="radio" name="vs13DistRadio" value="manual" onchange="toggleVS13DistributionRadio()"> Manual</label>
+          </div>
+        </div>
+
+        <div class="param-group" style="margin-top: 15px;">
+          <label class="checkbox-label" style="color: #8b949e; font-size: 13px;">
+            <input type="checkbox" id="vs13IncludeSampleFolders">
+            Include detailed per-sample folders in <code>Additional_files</code> (Spectrograms, Plots, etc.)
+          </label>
+        </div>
+
+        <div id="vs13TotalClipsGroup" class="param-group hidden" style="margin-top: 20px;">
+          <label class="param-label">Total Number of Clips</label>
+          <input type="number" id="vs13TotalClips" value="100" min="1" max="10000">
+        </div>
+
+        <div id="vs13ManualDistribution" class="manual-dist hidden" style="margin-top: 20px;">
+          <h4 style="color: #58a6ff; margin-bottom: 15px; font-size: 14px;">Manual Split</h4>
+          <div id="vs13VehicleDistribution"></div>
+        </div>
+      </div>
+
+      <div class="param-group" style="margin-top: 30px;">
+        <button id="startVS13Btn" class="btn" onclick="startVS13Generation()" style="width: 100%; padding: 15px; font-size: 16px;">Start VS13 Generation</button>
+      </div>
+
+      <div id="vs13ProgressContainer" class="progress-container">
+        <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+          <span id="vs13StatusLabel">Preparing...</span>
+          <span id="vs13Timer" style="color: #8b949e; font-size: 13px;"></span>
+        </div>
+        <div class="progress-bar">
+          <div id="vs13ProgressFill" class="progress-fill">0%</div>
+        </div>
+      </div>
+
+      <div id="vs13ProgressLog" class="log-box" style="margin-top: 15px; height: 180px;"></div>
     </div>
 
     <!-- INTERSECTION MODE -->
@@ -1804,6 +2078,9 @@
       // Update distribution if relevant
       if (typeof updateDistTotal === 'function') {
         updateDistTotal();
+      }
+      if (containerId === 'vs13VehicleSelectionCheckboxes' && typeof updateVS13ManualDist === 'function') {
+        updateVS13ManualDist();
       }
     }
 
@@ -4118,6 +4395,7 @@
       const btnMap = document.getElementById('modeMap');
       const btnIntersection = document.getElementById('modeIntersection');
       const btnMixed = document.getElementById('modeMixed');
+      const btnVS13 = document.getElementById('modeVS13');
 
       const batchMode = document.getElementById('batchMode');
       const overlapMode = document.getElementById('overlapMode');
@@ -4127,15 +4405,16 @@
       const mapMode = document.getElementById('mapMode');
       const intersectionMode = document.getElementById('intersectionMode');
       const mixedMode = document.getElementById('mixedMode');
+      const vs13Mode = document.getElementById('vs13Mode');
 
-      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnMap || !btnIntersection || !btnMixed ||
-        !batchMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !mapMode || !intersectionMode || !mixedMode) return;
+      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnMap || !btnIntersection || !btnMixed || !btnVS13 ||
+        !batchMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !mapMode || !intersectionMode || !mixedMode || !vs13Mode) return;
 
       function switchTo(activeBtn, showMode) {
-        [btnBatch, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnMap, btnIntersection, btnMixed].forEach(b => b.classList.remove('active'));
+        [btnBatch, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnMap, btnIntersection, btnMixed, btnVS13].forEach(b => b.classList.remove('active'));
         activeBtn.classList.add('active');
 
-        [batchMode, overlapMode, spectrogramMode, compareMode, singleMode, mapMode, intersectionMode, mixedMode].forEach(m => {
+        [batchMode, overlapMode, spectrogramMode, compareMode, singleMode, mapMode, intersectionMode, mixedMode, vs13Mode].forEach(m => {
           m.classList.add('hidden');
           setTimeout(() => {
             if (m === showMode) {
@@ -4165,6 +4444,45 @@
         initIntersectionUI();
       });
       btnMixed.addEventListener('click', () => switchTo(btnMixed, mixedMode));
+      btnVS13.addEventListener('click', () => {
+        switchTo(btnVS13, vs13Mode);
+        loadVS13Vehicles();
+      });
+    }
+
+    function browseMixedFolderPath() {
+      const pathDisplay = document.getElementById('mixedSavePath');
+      if (!pathDisplay) return;
+
+      const currentPath = pathDisplay.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentPath;
+      input.className = 'path-display';
+      input.style.width = '100%';
+
+      pathDisplay.replaceWith(input);
+      input.focus();
+      input.select();
+
+      function savePath() {
+        const newPath = input.value.trim() || 'static/batch_outputs/';
+        const newDisplay = document.createElement('div');
+        newDisplay.id = 'mixedSavePath';
+        newDisplay.className = 'path-display';
+        newDisplay.textContent = newPath;
+        input.replaceWith(newDisplay);
+      }
+
+      input.addEventListener('blur', savePath);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          savePath();
+        } else if (e.key === 'Escape') {
+          input.value = currentPath;
+          savePath();
+        }
+      });
     }
 
     async function startMixedGeneration() {
@@ -4176,6 +4494,18 @@
 
       if (!confirm("This will start a full dataset generation for all vehicles in the metadata. Continue?")) return;
 
+      const config = {
+          distance: parseFloat(document.getElementById('mixedDistance').value || 0.5),
+          angle: parseFloat(document.getElementById('mixedAngle').value || 0.0),
+          batch: {
+              name: document.getElementById('mixedBatchName').value,
+              save_path: document.getElementById('mixedSavePath').textContent
+          },
+          output: {
+              format: document.querySelector('input[name="mixedFormat"]:checked').value
+          }
+      };
+
       btn.disabled = true;
       container.style.display = 'block';
       log.innerHTML = 'Starting mixed batch generation...\n';
@@ -4183,7 +4513,11 @@
       const startTime = Date.now();
 
       try {
-        const response = await fetch('/api/generate_real_traffic_batch', { method: 'POST' });
+        const response = await fetch('/api/generate_real_traffic_batch', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
         const startData = await response.json();
         if (!startData.success) throw new Error(startData.error);
 
@@ -4213,6 +4547,236 @@
                 clearInterval(interval);
                 btn.disabled = false;
                 label.textContent = "Execution stopped or failed.";
+            }
+          } catch (e) {
+            console.error("Progress polling error:", e);
+          }
+        }, 1000);
+
+      } catch (err) {
+        alert("Error: " + err.message);
+        btn.disabled = false;
+      }
+    }
+
+    async function loadVS13Vehicles() {
+      const container = document.getElementById('vs13VehicleSelectionCheckboxes');
+      const soundSource = document.getElementById('vs13SoundSource').value;
+      const statusBar = document.getElementById('vs13VehicleStatusBar');
+      const statusText = document.getElementById('vs13VehicleStatusText');
+      if (!container) return;
+      try {
+        const response = await fetch(`/api/list_vehicles?source=${soundSource}`);
+        const data = await response.json();
+        const vehicles = data.vehicles || [];
+        
+        if (statusBar && statusText) {
+          statusBar.style.display = 'block';
+          statusText.textContent = `Displaying ${soundSource === 'all' ? 'all' : soundSource} sounds (${vehicles.length} found)`;
+        }
+
+        container.innerHTML = '';
+        vehicles.forEach(v => {
+          const lbl = document.createElement('label');
+          lbl.className = 'checkbox-label';
+          lbl.innerHTML = `<input type="checkbox" class="vs13-vehicle-cb" value="${v.name}" checked onchange="updateVS13ManualDist()"> ${v.name} (${v.duration}s)`;
+          container.appendChild(lbl);
+        });
+        updateVS13ManualDist();
+      } catch (e) {
+        console.error("Failed to load VS13 vehicles", e);
+      }
+    }
+
+    function toggleVS13DistributionRadio() {
+      const mode = document.querySelector('input[name="vs13DistRadio"]:checked').value;
+      const totalGroup = document.getElementById('vs13TotalClipsGroup');
+      const manualDist = document.getElementById('vs13ManualDistribution');
+      const sweepInfo = document.getElementById('vs13SweepInfo');
+
+      totalGroup.classList.toggle('hidden', mode === 'sweep');
+      manualDist.classList.toggle('hidden', mode !== 'manual');
+      sweepInfo.classList.toggle('hidden', mode !== 'sweep');
+
+      if (mode === 'manual') updateVS13ManualDist();
+    }
+
+    function toggleVS13AirNoiseControls() {
+      const enabled = document.getElementById('vs13AddAirNoise').checked;
+      document.getElementById('vs13AirNoiseStrength').disabled = !enabled;
+      document.getElementById('vs13AirNoiseFrequencyHz').disabled = !enabled;
+    }
+
+    function updateVS13AirNoiseStrengthLabel() {
+      const val = document.getElementById('vs13AirNoiseStrength').value;
+      document.getElementById('vs13AirNoiseStrengthValue').textContent = val + '%';
+    }
+
+    function browseVS13FolderPath() {
+      const pathDisplay = document.getElementById('vs13SavePath');
+      if (!pathDisplay) return;
+
+      const currentPath = pathDisplay.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentPath;
+      input.className = 'path-display';
+      input.style.width = '100%';
+
+      pathDisplay.replaceWith(input);
+      input.focus();
+      input.select();
+
+      function savePath() {
+        const newPath = input.value.trim() || 'static/batch_outputs/';
+        const newDisplay = document.createElement('div');
+        newDisplay.id = 'vs13SavePath';
+        newDisplay.className = 'path-display';
+        newDisplay.textContent = newPath;
+        input.replaceWith(newDisplay);
+      }
+
+      input.addEventListener('blur', savePath);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          savePath();
+        } else if (e.key === 'Escape') {
+          input.value = currentPath;
+          savePath();
+        }
+      });
+    }
+
+    function updateVS13ManualDist() {
+      const container = document.getElementById('vs13VehicleDistribution');
+      const selected = Array.from(document.querySelectorAll('.vs13-vehicle-cb:checked')).map(cb => cb.value);
+      const currentVals = {};
+      container.querySelectorAll('input').forEach(inp => {
+        currentVals[inp.dataset.vehicle] = inp.value;
+      });
+
+      container.innerHTML = '';
+      selected.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'param-group';
+        div.innerHTML = `
+          <label class="param-label">${v}</label>
+          <input type="number" data-vehicle="${v}" value="${currentVals[v] || 0}" min="0">
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function startVS13Generation() {
+      const btn = document.getElementById('startVS13Btn');
+      const container = document.getElementById('vs13ProgressContainer');
+      const fill = document.getElementById('vs13ProgressFill');
+      const log = document.getElementById('vs13ProgressLog');
+      const label = document.getElementById('vs13StatusLabel');
+
+      const config = {
+        vs13_mode: true,
+        paths: {
+          selected: Array.from(document.querySelectorAll('#vs13PathStraight:checked, #vs13PathParabola:checked, #vs13PathBezier:checked')).map(cb => cb.value)
+        },
+        vehicles: {
+          selected: Array.from(document.querySelectorAll('.vs13-vehicle-cb:checked')).map(cb => cb.value)
+        },
+        speed: {
+          min: parseFloat(document.getElementById('vs13SpeedMin').value),
+          max: parseFloat(document.getElementById('vs13SpeedMax').value),
+          is_kmph: true
+        },
+        distance: {
+          min: parseFloat(document.getElementById('vs13DistanceMin').value),
+          max: parseFloat(document.getElementById('vs13DistanceMax').value),
+          randomize: true
+        },
+        angle: {
+          min: parseFloat(document.getElementById('vs13AngleMin').value),
+          max: parseFloat(document.getElementById('vs13AngleMax').value),
+          randomize: true
+        },
+        atmosphere: {
+          temp_min: parseFloat(document.getElementById('vs13TempMin').value),
+          temp_max: parseFloat(document.getElementById('vs13TempMax').value),
+          hum_min: parseFloat(document.getElementById('vs13HumMin').value),
+          hum_max: parseFloat(document.getElementById('vs13HumMax').value),
+          add_air_noise: document.getElementById('vs13AddAirNoise').checked,
+          air_noise_strength: parseFloat(document.getElementById('vs13AirNoiseStrength').value),
+          air_noise_frequency_hz: parseFloat(document.getElementById('vs13AirNoiseFrequencyHz').value)
+        },
+        batch: {
+          name: document.getElementById('vs13BatchName').value,
+          save_path: document.getElementById('vs13SavePath').textContent,
+          total_clips: parseInt(document.getElementById('vs13TotalClips').value || 0),
+          dist_mode: document.querySelector('input[name="vs13DistRadio"]:checked').value,
+          speed_step: parseFloat(document.getElementById('vs13SpeedStep').value || 1.0),
+          include_sample_folders: document.getElementById('vs13IncludeSampleFolders').checked
+        },
+        output: {
+          format: document.querySelector('input[name="vs13Format"]:checked').value,
+          spectrogram_type: document.getElementById('vs13SpectrogramType').value,
+          generate_diagnostics: document.getElementById('vs13GenerateDiagnostics').checked
+        }
+      };
+
+      if (config.batch.dist_mode === 'manual') {
+        config.batch.manual_distribution = {};
+        document.querySelectorAll('#vs13VehicleDistribution input').forEach(inp => {
+          config.batch.manual_distribution[inp.dataset.vehicle] = parseInt(inp.value);
+        });
+      }
+
+      if (config.paths.selected.length === 0) return alert("Select at least one path type.");
+      if (config.vehicles.selected.length === 0) return alert("Select at least one vehicle.");
+
+      btn.disabled = true;
+      container.style.display = 'block';
+      log.innerHTML = 'Starting VS13-compatible batch generation...\n';
+
+      try {
+        const response = await fetch('/api/generate_vs13_batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        const startData = await response.json();
+        if (!startData.success) throw new Error(startData.error);
+
+        const startTime = Date.now();
+        const interval = setInterval(async () => {
+          try {
+            const res = await fetch('/api/vs13_progress');
+            const data = await res.json();
+
+            // Timer
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const ss = String(elapsed % 60).padStart(2, '0');
+            document.getElementById('vs13Timer').textContent = `Elapsed: ${mm}:${ss}`;
+
+            if (data.total_target > 0) {
+              const percent = Math.round((data.generated_so_far / data.total_target) * 100);
+              fill.style.width = percent + '%';
+              fill.textContent = percent + '%';
+              label.textContent = `Processing ${data.current_car} — ${data.current_speed} km/h (${percent}%)`;
+
+              if (data.log_line && !log.innerHTML.includes(data.log_line)) {
+                log.innerHTML += data.log_line + '\n';
+                log.scrollTop = log.scrollHeight;
+              }
+            }
+
+            if (!data.is_running && data.generated_so_far >= data.total_target && data.total_target > 0) {
+              clearInterval(interval);
+              btn.disabled = false;
+              label.textContent = "✓ VS13 Generation Complete!";
+              log.innerHTML += "\nAll VS13-compatible batches generated successfully.\n";
+            } else if (!data.is_running && data.generated_so_far < data.total_target) {
+              clearInterval(interval);
+              btn.disabled = false;
+              label.textContent = "Execution stopped or failed.";
             }
           } catch (e) {
             console.error("Progress polling error:", e);

@@ -38,6 +38,7 @@ Thumbs.db
 
 # Local Notes
 ref_docs/
+*.pdf
 
 # Environment variables
 .env

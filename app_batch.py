@@ -17,6 +17,7 @@ from routes.vehicle_routes import vehicle_bp
 from routes.batch_routes import batch_bp
 from routes.simulate_routes import simulate_bp
 from routes.mixed_routes import mixed_bp
+from routes.vs13_routes import vs13_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -26,6 +27,7 @@ app.register_blueprint(vehicle_bp)
 app.register_blueprint(batch_bp)
 app.register_blueprint(simulate_bp)
 app.register_blueprint(mixed_bp)
+app.register_blueprint(vs13_bp)
 
 # Serve MapExtraction outputs via a clean relative route
 @app.route('/map_outputs/<path:filename>')

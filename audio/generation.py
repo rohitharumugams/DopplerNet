@@ -615,29 +615,35 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
     )
 
     if config.get('speed', {}).get('randomize', True):
-        umin = int(config['speed'].get('min', gmin))
-        umax = int(config['speed'].get('max', gmax))
+        umin = float(config['speed'].get('min', gmin))
+        umax = float(config['speed'].get('max', gmax))
         lo = clamp(umin, gmin, gmax)
         hi = clamp(umax, gmin, gmax)
         if lo > hi:
             lo, hi = hi, lo
-        params['speed'] = get_sampler(f"speed_{vehicle_name}", lo, hi)
+        if abs(lo - hi) < 1e-4:
+            params['speed'] = lo
+        else:
+            params['speed'] = get_sampler(f"speed_{vehicle_name}", int(lo), int(hi))
     else:
-        params['speed'] = clamp(int(config['speed'].get('value', 30)), gmin, gmax)
+        params['speed'] = clamp(float(config['speed'].get('value', 30)), gmin, gmax)
 
     # -------- DISTANCE --------
     dmin, dmax = DEFAULT_RANGES['distance']
 
     if config.get('distance', {}).get('randomize', True):
-        umin = int(config['distance'].get('min', dmin))
-        umax = int(config['distance'].get('max', dmax))
+        umin = float(config['distance'].get('min', dmin))
+        umax = float(config['distance'].get('max', dmax))
         lo = clamp(umin, dmin, dmax)
         hi = clamp(umax, dmin, dmax)
         if lo > hi:
             lo, hi = hi, lo
-        params['distance'] = get_sampler("distance", lo, hi)
+        if abs(lo - hi) < 1e-4:
+            params['distance'] = lo
+        else:
+            params['distance'] = float(get_sampler("distance", int(lo), int(hi)))
     else:
-        params['distance'] = clamp(int(config['distance'].get('value', 30)), dmin, dmax)
+        params['distance'] = clamp(float(config['distance'].get('value', 30)), dmin, dmax)
 
     # -------- DURATION (batch / UI; do not override with a fixed 10 s) --------
     dur_cfg = config.get('duration', 10.0)
@@ -658,10 +664,14 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
     if path_type == 'straight':
         amin, amax = DEFAULT_RANGES['angle']
         if config.get('angle', {}).get('randomize', True):
-            lo, hi = clamp(int(config['angle'].get('min', amin)), amin, amax), clamp(int(config['angle'].get('max', amax)), amin, amax)
-            params['angle'] = get_sampler("angle", min(lo, hi), max(lo, hi))
+            lo = clamp(float(config['angle'].get('min', amin)), amin, amax)
+            hi = clamp(float(config['angle'].get('max', amax)), amin, amax)
+            if abs(lo - hi) < 1e-4:
+                params['angle'] = lo
+            else:
+                params['angle'] = float(get_sampler("angle", int(min(lo, hi)), int(max(lo, hi))))
         else:
-            params['angle'] = clamp(int(config['angle'].get('value', 0)), amin, amax)
+            params['angle'] = clamp(float(config['angle'].get('value', 0)), amin, amax)
 
     # -------- PARABOLA --------
     elif path_type == 'parabola':
@@ -1397,15 +1407,27 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
 
     # ── Path plot ─────────────────────────────────────────────────────────────
     # save_path_plot already handled dir creation
-    save_path_plot(path_type, params, common_dir, base_name)
-    save_path_plot(path_type, params, essential_dir, base_name)
-
+    include_samples = config.get('batch', {}).get('include_sample_folders', True)
+    if include_samples:
+        save_path_plot(path_type, params, common_dir, base_name)
+        save_path_plot(path_type, params, essential_dir, base_name)
+    
     # ── Numpy feature arrays + visualization (saves to Common/ and Essential/) 
     spectrogram_type = config.get('output', {}).get('spectrogram_type', 'cqt')
-    features = save_numpy_outputs(
-        doppler_audio, sample_dir, spectrogram_type, config,
-        base_name=base_name, essential_dir=essential_dir, params=params
-    )
+    
+    # If skipping samples, we still need some basic features for validation if needed,
+    # but the user wants to reduce compute. save_numpy_outputs generates the spectrogram.
+    if include_samples:
+        features = save_numpy_outputs(
+            doppler_audio, sample_dir, spectrogram_type, config,
+            base_name=base_name, essential_dir=essential_dir, params=params
+        )
+    else:
+        # Minimal features just for labeling
+        features = {
+            'time': np.linspace(0, params['duration'], int(params['duration'] * 100)),
+            'frequency': np.zeros(100) # Placeholder
+        }
 
     # ── Benchmark Labels & B6 Mask ──────────────────────────────────────────
     # Calculate ground-truth labels
@@ -1436,23 +1458,24 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         'vehicle_class': vehicle_name
     }
 
-    # B7 sanity: accelerated clips should not be spectrally flat.
-    if abs(float(params.get('acceleration', 0.0))) > 1e-9:
-        if float(np.std(features['frequency'])) < 1e-4:
-            raise ValueError("Flat frequency evolution for accelerated clip; regenerate sample.")
+    if include_samples:
+        # B7 sanity: accelerated clips should not be spectrally flat.
+        if abs(float(params.get('acceleration', 0.0))) > 1e-9:
+            if float(np.std(features['frequency'])) < 1e-4:
+                raise ValueError("Flat frequency evolution for accelerated clip; regenerate sample.")
 
-    # ── Save Benchmark-specific Datasets (B1-B5) ─────────────────────────────
-    save_benchmark_datasets(sample_dir, features, labels, params, config)
+        # ── Save Benchmark-specific Datasets (B1-B5) ─────────────────────────────
+        save_benchmark_datasets(sample_dir, features, labels, params, config)
 
-    # B6 Motion State Segmentation Mask
-    if config.get('benchmarks', {}).get('enabled', False) and 'B6' in config.get('benchmarks', {}).get('selected', []):
-        window = params.get('cpa_window', 1.0)
-        time_arr = features['time']
-        # Mask is 1 if within window of CPA
-        mask = np.abs(time_arr - cpa_time) <= (window / 2.0)
-        b6_dir = os.path.join(sample_dir, 'B6_Segmentation')
-        os.makedirs(b6_dir, exist_ok=True)
-        np.save(os.path.join(b6_dir, 'segmentation_mask.npy'), mask.astype(np.bool_))
+        # B6 Motion State Segmentation Mask
+        if config.get('benchmarks', {}).get('enabled', False) and 'B6' in config.get('benchmarks', {}).get('selected', []):
+            window = params.get('cpa_window', 1.0)
+            time_arr = features['time']
+            # Mask is 1 if within window of CPA
+            mask = np.abs(time_arr - cpa_time) <= (window / 2.0)
+            b6_dir = os.path.join(sample_dir, 'B6_Segmentation')
+            os.makedirs(b6_dir, exist_ok=True)
+            np.save(os.path.join(b6_dir, 'segmentation_mask.npy'), mask.astype(np.bool_))
 
     return {
         'filename': filename,
@@ -1462,8 +1485,8 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         'parameters': params,
         'labels': labels,
         'freq_ratio_range': {
-            'min': float(np.min(freq_ratios)),
-            'max': float(np.max(freq_ratios))
+            'min': 1.0, # Placeholder if skipped
+            'max': 1.0
         },
         'path_plot': f"{base_name}.png",
         'sample_dir': f'sample_{index:07d}'
