@@ -717,3 +717,101 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
     except Exception as e:
         print(f"Failed to save audio comparison plot to {out_path}: {e}")
         return False
+
+
+def save_automated_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, metrics, max_y_freq=2500):
+    """
+    Save a side-by-side comparative plot with metrics overlay at the bottom.
+    """
+    try:
+        fig = plt.figure(figsize=(14, 8.5))
+        
+        # Grid layout: 2 cols, 3 rows (spectrogram, amplitude, text)
+        gs = fig.add_gridspec(3, 2, height_ratios=[4, 1, 1], hspace=0.3, wspace=0.14)
+        
+        ax_spec_a = fig.add_subplot(gs[0, 0])
+        ax_spec_b = fig.add_subplot(gs[0, 1])
+        ax_amp_a = fig.add_subplot(gs[1, 0])
+        ax_amp_b = fig.add_subplot(gs[1, 1])
+        ax_text = fig.add_subplot(gs[2, :])
+        
+        # Hide text axes
+        ax_text.axis('off')
+
+        n_fft = 4096
+        hop_length = 512
+        win_length = 4096
+        window = "hann"
+        max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
+        if max_y_freq <= 0:
+            max_y_freq = 2500.0
+
+        def _draw_spectrogram(ax, y, title):
+            stft = librosa.stft(
+                y, n_fft=n_fft, hop_length=hop_length, win_length=win_length, window=window
+            )
+            s_power = np.abs(stft) ** 2
+            d_db = librosa.power_to_db(s_power, ref=np.max)
+            vmax = float(np.max(d_db))
+            vmin = vmax - 80.0
+            librosa.display.specshow(
+                d_db,
+                sr=sr,
+                hop_length=hop_length,
+                x_axis='time',
+                y_axis='hz',
+                ax=ax,
+                cmap='magma',
+                rasterized=True,
+                vmin=vmin,
+                vmax=vmax
+            )
+            ax.set_ylim(0, max_y_freq)
+            ax.set_yticks(np.linspace(0, max_y_freq, 6))
+            ax.set_title(title)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Frequency (Hz)')
+
+        def _draw_amplitude(ax, y, color):
+            rms = librosa.feature.rms(y=y, frame_length=n_fft, hop_length=hop_length, center=True)[0]
+            times = librosa.times_like(rms, sr=sr, hop_length=hop_length)
+            bar_width = (float(times[1] - times[0]) * 0.9) if len(times) > 1 else (float(hop_length) / float(sr))
+            ax.bar(times, rms, width=bar_width, color=color, edgecolor='none', alpha=0.9)
+            ax.set_ylabel('Amp')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylim(0, max(1e-6, float(np.max(rms)) * 1.15))
+            ax.grid(True, axis='y', linestyle=':', alpha=0.35)
+
+        _draw_spectrogram(ax_spec_a, y_a, title_a)
+        _draw_spectrogram(ax_spec_b, y_b, title_b)
+        _draw_amplitude(ax_amp_a, y_a, '#58a6ff')
+        _draw_amplitude(ax_amp_b, y_b, '#f0883e')
+
+        ax_amp_a.sharex(ax_spec_a)
+        ax_amp_b.sharex(ax_spec_b)
+        dur_a = float(len(y_a)) / float(sr)
+        dur_b = float(len(y_b)) / float(sr)
+        ax_spec_a.set_xlim(0.0, max(dur_a, 1e-6))
+        ax_spec_b.set_xlim(0.0, max(dur_b, 1e-6))
+        
+        # Add metrics text
+        metrics_text = (
+            f"Duration A: {metrics.get('Duration A (s)', 0):.2f} s    |    "
+            f"Duration B: {metrics.get('Duration B (s)', 0):.2f} s    |    "
+            f"Dominant Freq A: {metrics.get('Dominant Freq A (Hz)', 0):.1f} Hz    |    "
+            f"Dominant Freq B: {metrics.get('Dominant Freq B (Hz)', 0):.1f} Hz\n"
+            f"Envelope Correlation: {metrics.get('Envelope Correlation (%)', 0):.1f}%    |    "
+            f"Spectral Overlap: {metrics.get('Spectral Overlap (%)', 0):.1f}%    |    "
+            f"Overall Match: {metrics.get('Overall Match (%)', 0):.1f}%"
+        )
+        
+        # Render text in the text axes
+        ax_text.text(0.5, 0.5, metrics_text, fontsize=12, ha='center', va='center',
+                     bbox=dict(facecolor='#f8f9fa', edgecolor='#dee2e6', boxstyle='round,pad=1'))
+
+        fig.savefig(out_path, dpi=120, bbox_inches="tight", facecolor='white')
+        plt.close(fig)
+        return True
+    except Exception as e:
+        print(f"Failed to save automated comparison plot to {out_path}: {e}")
+        return False

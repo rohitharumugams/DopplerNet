@@ -586,6 +586,7 @@
         <button id="modeIntersection" class="mode-btn">Intersection</button>
         <button id="modeMixed" class="mode-btn">Real-Simulated Mixed</button>
         <button id="modeVS13" class="mode-btn">VS13-Compatible Generation</button>
+        <button id="modeAutoCompare" class="mode-btn">Automated Spectrogram Comparison</button>
       </div>
     </header>
 
@@ -2008,6 +2009,52 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <!-- AUTOMATED SPECTROGRAM COMPARISON MODE -->
+  <div id="autoCompareMode" class="hidden">
+    <div class="section">
+      <h3 class="section-title">Automated Spectrogram Comparison Mode</h3>
+      <p style="margin-bottom: 20px; color: #8b949e;">
+        Automate large-scale spectrogram comparison generation between two aligned datasets (RealData vs MatchedData).
+      </p>
+
+      <div class="grid-2">
+        <div class="param-group">
+          <label class="param-label">Dataset A (RealData) Path</label>
+          <input type="text" id="autoDatasetA" value="D:\Antigravity\vs13-model\RealData">
+        </div>
+        <div class="param-group">
+          <label class="param-label">Dataset B (MatchedData) Path</label>
+          <input type="text" id="autoDatasetB" value="D:\Antigravity\vs13-model\MatchedData">
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 15px;">
+        <div class="param-group">
+          <label class="param-label">Output Directory</label>
+          <input type="text" id="autoOutput" value="static\comparision_outputs">
+        </div>
+      </div>
+
+      <div class="param-group" style="margin-top: 20px;">
+        <button id="startAutoCompareBtn" class="btn" onclick="startAutoCompare()" style="width: 100%; padding: 15px; font-size: 16px;">Start Automated Comparison</button>
+      </div>
+
+      <div id="autoCompareProgressContainer" class="progress-container">
+        <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+          <span id="autoCompareStatusLabel">Preparing...</span>
+        </div>
+        <div class="progress-bar">
+          <div id="autoCompareProgressFill" class="progress-fill">0%</div>
+        </div>
+        <div id="autoCompareLog" class="log-box" style="margin-top: 10px; height: 150px;"></div>
+      </div>
+      
+      <div id="autoCompareResult" class="result-box">
+         <img id="autoCompareLatestImg" style="max-width: 100%; margin-top: 15px; border-radius: 4px;">
+      </div>
+    </div>
   </div>
 
   <script>
@@ -4396,6 +4443,7 @@
       const btnIntersection = document.getElementById('modeIntersection');
       const btnMixed = document.getElementById('modeMixed');
       const btnVS13 = document.getElementById('modeVS13');
+      const btnAutoCompare = document.getElementById('modeAutoCompare');
 
       const batchMode = document.getElementById('batchMode');
       const overlapMode = document.getElementById('overlapMode');
@@ -4406,15 +4454,16 @@
       const intersectionMode = document.getElementById('intersectionMode');
       const mixedMode = document.getElementById('mixedMode');
       const vs13Mode = document.getElementById('vs13Mode');
+      const autoCompareMode = document.getElementById('autoCompareMode');
 
-      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnMap || !btnIntersection || !btnMixed || !btnVS13 ||
-        !batchMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !mapMode || !intersectionMode || !mixedMode || !vs13Mode) return;
+      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnMap || !btnIntersection || !btnMixed || !btnVS13 || !btnAutoCompare ||
+        !batchMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !mapMode || !intersectionMode || !mixedMode || !vs13Mode || !autoCompareMode) return;
 
       function switchTo(activeBtn, showMode) {
-        [btnBatch, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnMap, btnIntersection, btnMixed, btnVS13].forEach(b => b.classList.remove('active'));
+        [btnBatch, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnMap, btnIntersection, btnMixed, btnVS13, btnAutoCompare].forEach(b => b.classList.remove('active'));
         activeBtn.classList.add('active');
 
-        [batchMode, overlapMode, spectrogramMode, compareMode, singleMode, mapMode, intersectionMode, mixedMode, vs13Mode].forEach(m => {
+        [batchMode, overlapMode, spectrogramMode, compareMode, singleMode, mapMode, intersectionMode, mixedMode, vs13Mode, autoCompareMode].forEach(m => {
           m.classList.add('hidden');
           setTimeout(() => {
             if (m === showMode) {
@@ -4448,6 +4497,7 @@
         switchTo(btnVS13, vs13Mode);
         loadVS13Vehicles();
       });
+      btnAutoCompare.addEventListener('click', () => switchTo(btnAutoCompare, autoCompareMode));
     }
 
     function browseMixedFolderPath() {
@@ -5643,6 +5693,116 @@
       toggleBatchAirNoiseControls();
       updateBatchAirNoiseStrengthLabel();
     });
+
+    async function startAutoCompare() {
+      const btn = document.getElementById('startAutoCompareBtn');
+      const container = document.getElementById('autoCompareProgressContainer');
+      const fill = document.getElementById('autoCompareProgressFill');
+      const log = document.getElementById('autoCompareLog');
+      const label = document.getElementById('autoCompareStatusLabel');
+      const resultBox = document.getElementById('autoCompareResult');
+      const latestImg = document.getElementById('autoCompareLatestImg');
+
+      if (!confirm("Start automated spectrogram comparison? This will process matched audio pairs and save images to the output directory.")) return;
+
+      const datasetA = document.getElementById('autoDatasetA').value.trim();
+      const datasetB = document.getElementById('autoDatasetB').value.trim();
+      const outDir = document.getElementById('autoOutput').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = "Scanning Datasets...";
+      container.style.display = 'block';
+      resultBox.style.display = 'block';
+      log.textContent = "";
+      fill.style.width = '0%';
+      fill.textContent = '0%';
+      label.textContent = "Scanning datasets for matched pairs...";
+      latestImg.style.display = 'none';
+
+      try {
+        const req = await fetch('/api/auto_compare/get_pairs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataset_a: datasetA,
+            dataset_b: datasetB,
+            out_dir: outDir
+          })
+        });
+
+        const res = await req.json();
+        if (!req.ok || !res.success) {
+          throw new Error(res.error || "Failed to scan datasets");
+        }
+
+        const pairs = res.pairs;
+        const total = pairs.length;
+        
+        if (res.missing_txt_path) {
+            log.textContent += `Notice: Checked for missing pairs. See ${res.missing_txt_path}\n`;
+        }
+
+        if (total === 0) {
+          log.textContent += "No matched pairs found. Check paths and filters.";
+          btn.disabled = false;
+          btn.textContent = "Start Automated Comparison";
+          label.textContent = "Finished - No pairs found";
+          return;
+        }
+
+        log.textContent += `Found ${total} matched pairs. Starting processing...\n`;
+
+        let completed = 0;
+        for (let i = 0; i < total; i++) {
+          const pair = pairs[i];
+          label.textContent = `Processing ${pair.carname} — ${pair.speed} km/h (${i + 1}/${total})`;
+          
+          try {
+            const pReq = await fetch('/api/auto_compare/process_pair', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                path_a: pair.path_a,
+                path_b: pair.path_b,
+                carname: pair.carname,
+                speed: pair.speed,
+                out_dir: outDir
+              })
+            });
+
+            const pRes = await pReq.json();
+            if (pReq.ok && pRes.success) {
+              completed++;
+              log.textContent += `[✓] Generated ${pair.carname}_${pair.speed}\n`;
+              log.scrollTop = log.scrollHeight;
+              
+              latestImg.src = pRes.image_path + "?t=" + new Date().getTime();
+              latestImg.style.display = 'block';
+            } else {
+              log.textContent += `[✗] Failed ${pair.carname}_${pair.speed}: ${pRes.error || 'Unknown error'}\n`;
+              log.scrollTop = log.scrollHeight;
+            }
+          } catch (e) {
+            log.textContent += `[✗] Error processing ${pair.carname}_${pair.speed}: ${e.message}\n`;
+            log.scrollTop = log.scrollHeight;
+          }
+
+          const pct = Math.round(((i + 1) / total) * 100);
+          fill.style.width = pct + '%';
+          fill.textContent = pct + '%';
+        }
+
+        label.textContent = `Completed ${completed} of ${total} comparisons!`;
+        log.textContent += `\nAll done! Images saved to ${outDir}\n`;
+
+      } catch (err) {
+        log.textContent += "\nError: " + err.message;
+        label.textContent = "Error occurred";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Start Automated Comparison";
+      }
+    }
 
     window.addEventListener('resize', resizeCanvas);
   </script>
