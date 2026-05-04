@@ -1,0 +1,56 @@
+PER-VEHICLE AVERAGES
+--------------------------------------------------
+Vehicle: KiaSportage (33 clips)
+  - Duration (RealData)              : 10.0091
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 161.1728
+  - Dominant Frequency (SimulatedData): 43.0664
+  - Envelope Correlation             : 92.4454
+  - Spectral Overlap                 : 59.2099
+  - Overall Match Score              : 65.4642
+
+Vehicle: NissanQashqai (29 clips)
+  - Duration (RealData)              : 10.0124
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 134.7682
+  - Dominant Frequency (SimulatedData): 179.6909
+  - Envelope Correlation             : 79.8219
+  - Spectral Overlap                 : 71.7451
+  - Overall Match Score              : 66.6294
+
+Vehicle: Peugeot3008 (31 clips)
+  - Duration (RealData)              : 10.0113
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 78.8393
+  - Dominant Frequency (SimulatedData): 126.0734
+  - Envelope Correlation             : 72.0329
+  - Spectral Overlap                 : 66.4601
+  - Overall Match Score              : 63.3081
+
+Vehicle: Peugeot307 (29 clips)
+  - Duration (RealData)              : 10.0933
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 161.4990
+  - Dominant Frequency (SimulatedData): 161.4990
+  - Envelope Correlation             : 84.5685
+  - Spectral Overlap                 : 66.4038
+  - Overall Match Score              : 66.0268
+
+Vehicle: RenaultScenic (35 clips)
+  - Duration (RealData)              : 10.0228
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 56.9092
+  - Dominant Frequency (SimulatedData): 137.8125
+  - Envelope Correlation             : 60.5185
+  - Spectral Overlap                 : 64.8920
+  - Overall Match Score              : 59.1836
+
+Vehicle: VWPassat (35 clips)
+  - Duration (RealData)              : 10.0107
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 162.4219
+  - Dominant Frequency (SimulatedData): 145.1953
+  - Envelope Correlation             : 78.4496
+  - Spectral Overlap                 : 64.6921
+  - Overall Match Score              : 64.0539
+

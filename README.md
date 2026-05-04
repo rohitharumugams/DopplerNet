@@ -1,4 +1,4 @@
-# Doppler Effect Simulator (DopplerNet)
+# Doppler Effect Simulator (DopplerSim)
 
 A Flask-based system for generating realistic Doppler-shifted vehicle audio clips for research purposes, dataset creation, and acoustic modeling experimentation. Supports batch, overlapping, and single-clip generation using straight-line, parabolic, and Bezier paths with physically accurate Doppler and distance attenuation.
 
@@ -31,7 +31,7 @@ A Flask-based system for generating realistic Doppler-shifted vehicle audio clip
 ## Project Structure
 
 ```
-DopplerNet/
+DopplerSim/
 ├── core/
 │   ├── config.py            # Environment, dirs, and default parameter ranges
 │   ├── progress.py          # Batch progress tracking
@@ -71,7 +71,7 @@ DopplerNet/
 ```bash
 # Clone the repository
 git clone https://github.com/rohitharumugams/doppler-batch-generation.git
-cd DopplerNet
+cd DopplerSim
 
 # Create and activate virtual environment
 python -m venv venv

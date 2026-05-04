@@ -1,0 +1,9 @@
+OVERALL AVERAGES (Across all cars and speeds)
+--------------------------------------------------
+Duration (RealData)                : 10.0255
+Duration (SimulatedData)           : 10.0000
+Dominant Frequency (RealData)      : 125.1617
+Dominant Frequency (SimulatedData) : 130.8815
+Envelope Correlation               : 77.6819
+Spectral Overlap                   : 65.3956
+Overall Match Score                : 63.9751

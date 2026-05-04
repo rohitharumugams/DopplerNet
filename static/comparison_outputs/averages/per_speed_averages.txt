@@ -1,0 +1,641 @@
+PER-SPEED AVERAGES
+--------------------------------------------------
+Speed: 30 km/h (3 clips)
+  - Duration (RealData)              : 10.0767
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 93.3105
+  - Dominant Frequency (SimulatedData): 143.5547
+  - Envelope Correlation             : 60.9163
+  - Spectral Overlap                 : 70.7484
+  - Overall Match Score              : 62.2850
+
+Speed: 31 km/h (1 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 75.3662
+  - Dominant Frequency (SimulatedData): 43.0664
+  - Envelope Correlation             : 82.8478
+  - Spectral Overlap                 : 68.7105
+  - Overall Match Score              : 66.1519
+
+Speed: 33 km/h (2 clips)
+  - Duration (RealData)              : 10.1761
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 177.6489
+  - Dominant Frequency (SimulatedData): 102.2827
+  - Envelope Correlation             : 93.9757
+  - Spectral Overlap                 : 68.4015
+  - Overall Match Score              : 72.6083
+
+Speed: 35 km/h (5 clips)
+  - Duration (RealData)              : 10.0870
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 148.5791
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 76.4152
+  - Spectral Overlap                 : 68.4103
+  - Overall Match Score              : 64.6403
+
+Speed: 36 km/h (1 clips)
+  - Duration (RealData)              : 10.0267
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 53.8330
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 53.3956
+  - Spectral Overlap                 : 57.7339
+  - Overall Match Score              : 54.0892
+
+Speed: 38 km/h (4 clips)
+  - Duration (RealData)              : 10.0112
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 134.5825
+  - Dominant Frequency (SimulatedData): 126.5076
+  - Envelope Correlation             : 72.0397
+  - Spectral Overlap                 : 72.9066
+  - Overall Match Score              : 66.1398
+
+Speed: 39 km/h (1 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 161.4990
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 95.2523
+  - Spectral Overlap                 : 72.0615
+  - Overall Match Score              : 73.4359
+
+Speed: 40 km/h (5 clips)
+  - Duration (RealData)              : 10.0141
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 111.9727
+  - Dominant Frequency (SimulatedData): 150.7324
+  - Envelope Correlation             : 59.4253
+  - Spectral Overlap                 : 67.4765
+  - Overall Match Score              : 61.4620
+
+Speed: 41 km/h (1 clips)
+  - Duration (RealData)              : 10.0269
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 193.7988
+  - Dominant Frequency (SimulatedData): 43.0664
+  - Envelope Correlation             : 90.4320
+  - Spectral Overlap                 : 61.5878
+  - Overall Match Score              : 66.4464
+
+Speed: 42 km/h (3 clips)
+  - Duration (RealData)              : 10.0130
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 129.1992
+  - Dominant Frequency (SimulatedData): 147.1436
+  - Envelope Correlation             : 72.7512
+  - Spectral Overlap                 : 73.2227
+  - Overall Match Score              : 65.6282
+
+Speed: 43 km/h (2 clips)
+  - Duration (RealData)              : 10.0163
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 107.6660
+  - Dominant Frequency (SimulatedData): 145.3491
+  - Envelope Correlation             : 83.2151
+  - Spectral Overlap                 : 68.7999
+  - Overall Match Score              : 67.9391
+
+Speed: 44 km/h (2 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 139.9658
+  - Dominant Frequency (SimulatedData): 86.1328
+  - Envelope Correlation             : 76.9484
+  - Spectral Overlap                 : 65.5534
+  - Overall Match Score              : 63.9914
+
+Speed: 45 km/h (4 clips)
+  - Duration (RealData)              : 10.0112
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 80.7495
+  - Dominant Frequency (SimulatedData): 156.1157
+  - Envelope Correlation             : 72.6223
+  - Spectral Overlap                 : 67.6327
+  - Overall Match Score              : 64.3829
+
+Speed: 46 km/h (2 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 123.8159
+  - Dominant Frequency (SimulatedData): 91.5161
+  - Envelope Correlation             : 69.9377
+  - Spectral Overlap                 : 63.8187
+  - Overall Match Score              : 61.1245
+
+Speed: 47 km/h (3 clips)
+  - Duration (RealData)              : 10.0199
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 154.3213
+  - Dominant Frequency (SimulatedData): 186.6211
+  - Envelope Correlation             : 86.2417
+  - Spectral Overlap                 : 67.9149
+  - Overall Match Score              : 67.5514
+
+Speed: 48 km/h (4 clips)
+  - Duration (RealData)              : 10.0058
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 148.0408
+  - Dominant Frequency (SimulatedData): 126.5076
+  - Envelope Correlation             : 76.3530
+  - Spectral Overlap                 : 66.6629
+  - Overall Match Score              : 64.0786
+
+Speed: 49 km/h (1 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 161.4990
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 84.7120
+  - Spectral Overlap                 : 62.9489
+  - Overall Match Score              : 62.6049
+
+Speed: 50 km/h (5 clips)
+  - Duration (RealData)              : 10.0527
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 124.8926
+  - Dominant Frequency (SimulatedData): 144.2725
+  - Envelope Correlation             : 75.7796
+  - Spectral Overlap                 : 66.5492
+  - Overall Match Score              : 64.5378
+
+Speed: 51 km/h (1 clips)
+  - Duration (RealData)              : 10.0061
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 215.3320
+  - Dominant Frequency (SimulatedData): 43.0664
+  - Envelope Correlation             : 94.0869
+  - Spectral Overlap                 : 56.1296
+  - Overall Match Score              : 64.3817
+
+Speed: 52 km/h (3 clips)
+  - Duration (RealData)              : 10.0268
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 114.8438
+  - Dominant Frequency (SimulatedData): 132.7881
+  - Envelope Correlation             : 64.6457
+  - Spectral Overlap                 : 67.3603
+  - Overall Match Score              : 60.7274
+
+Speed: 53 km/h (3 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 190.2100
+  - Dominant Frequency (SimulatedData): 125.6104
+  - Envelope Correlation             : 82.9433
+  - Spectral Overlap                 : 65.7478
+  - Overall Match Score              : 64.7492
+
+Speed: 54 km/h (3 clips)
+  - Duration (RealData)              : 10.0128
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 125.6104
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 78.7003
+  - Spectral Overlap                 : 68.8038
+  - Overall Match Score              : 64.5921
+
+Speed: 55 km/h (4 clips)
+  - Duration (RealData)              : 10.0061
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 113.0493
+  - Dominant Frequency (SimulatedData): 118.4326
+  - Envelope Correlation             : 79.6275
+  - Spectral Overlap                 : 64.9261
+  - Overall Match Score              : 63.7227
+
+Speed: 56 km/h (2 clips)
+  - Duration (RealData)              : 10.1018
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 156.1157
+  - Dominant Frequency (SimulatedData): 145.3491
+  - Envelope Correlation             : 85.2082
+  - Spectral Overlap                 : 69.1381
+  - Overall Match Score              : 66.8427
+
+Speed: 57 km/h (2 clips)
+  - Duration (RealData)              : 10.1983
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 123.8159
+  - Dominant Frequency (SimulatedData): 134.5825
+  - Envelope Correlation             : 80.3999
+  - Spectral Overlap                 : 62.3125
+  - Overall Match Score              : 62.1107
+
+Speed: 58 km/h (3 clips)
+  - Duration (RealData)              : 10.0129
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 157.9102
+  - Dominant Frequency (SimulatedData): 125.6104
+  - Envelope Correlation             : 86.5919
+  - Spectral Overlap                 : 65.9847
+  - Overall Match Score              : 66.6003
+
+Speed: 59 km/h (1 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 150.7324
+  - Dominant Frequency (SimulatedData): 161.4990
+  - Envelope Correlation             : 80.6991
+  - Spectral Overlap                 : 66.6046
+  - Overall Match Score              : 64.6319
+
+Speed: 60 km/h (5 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 133.5059
+  - Dominant Frequency (SimulatedData): 146.4258
+  - Envelope Correlation             : 73.5943
+  - Spectral Overlap                 : 66.8388
+  - Overall Match Score              : 63.5914
+
+Speed: 61 km/h (4 clips)
+  - Duration (RealData)              : 10.0113
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 96.8994
+  - Dominant Frequency (SimulatedData): 118.4326
+  - Envelope Correlation             : 79.1951
+  - Spectral Overlap                 : 67.5652
+  - Overall Match Score              : 65.4392
+
+Speed: 62 km/h (1 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 86.1328
+  - Dominant Frequency (SimulatedData): 139.9658
+  - Envelope Correlation             : 63.9521
+  - Spectral Overlap                 : 62.2724
+  - Overall Match Score              : 57.3015
+
+Speed: 63 km/h (3 clips)
+  - Duration (RealData)              : 10.0058
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 129.1992
+  - Dominant Frequency (SimulatedData): 111.2549
+  - Envelope Correlation             : 71.2243
+  - Spectral Overlap                 : 63.6325
+  - Overall Match Score              : 60.7311
+
+Speed: 64 km/h (3 clips)
+  - Duration (RealData)              : 10.0129
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 136.3770
+  - Dominant Frequency (SimulatedData): 147.1436
+  - Envelope Correlation             : 78.7619
+  - Spectral Overlap                 : 69.8141
+  - Overall Match Score              : 66.4307
+
+Speed: 65 km/h (4 clips)
+  - Duration (RealData)              : 10.0162
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 139.9658
+  - Dominant Frequency (SimulatedData): 118.4326
+  - Envelope Correlation             : 83.6343
+  - Spectral Overlap                 : 63.2736
+  - Overall Match Score              : 64.4930
+
+Speed: 66 km/h (2 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 107.6660
+  - Dominant Frequency (SimulatedData): 150.7324
+  - Envelope Correlation             : 78.2368
+  - Spectral Overlap                 : 67.2514
+  - Overall Match Score              : 64.6839
+
+Speed: 67 km/h (2 clips)
+  - Duration (RealData)              : 10.0164
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 172.2656
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 89.9974
+  - Spectral Overlap                 : 63.2113
+  - Overall Match Score              : 63.3767
+
+Speed: 68 km/h (4 clips)
+  - Duration (RealData)              : 10.0164
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 113.0493
+  - Dominant Frequency (SimulatedData): 121.1243
+  - Envelope Correlation             : 73.5951
+  - Spectral Overlap                 : 64.8505
+  - Overall Match Score              : 61.6245
+
+Speed: 69 km/h (2 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 172.2656
+  - Dominant Frequency (SimulatedData): 102.2827
+  - Envelope Correlation             : 86.7030
+  - Spectral Overlap                 : 59.1715
+  - Overall Match Score              : 62.0451
+
+Speed: 70 km/h (4 clips)
+  - Duration (RealData)              : 10.0163
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 107.6660
+  - Dominant Frequency (SimulatedData): 142.6575
+  - Envelope Correlation             : 65.9749
+  - Spectral Overlap                 : 66.5636
+  - Overall Match Score              : 61.9250
+
+Speed: 71 km/h (2 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 107.6660
+  - Dominant Frequency (SimulatedData): 204.5654
+  - Envelope Correlation             : 82.9257
+  - Spectral Overlap                 : 61.2693
+  - Overall Match Score              : 62.2050
+
+Speed: 72 km/h (5 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 109.8193
+  - Dominant Frequency (SimulatedData): 148.5791
+  - Envelope Correlation             : 86.1760
+  - Spectral Overlap                 : 65.3294
+  - Overall Match Score              : 66.3759
+
+Speed: 73 km/h (3 clips)
+  - Duration (RealData)              : 10.0199
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 179.4434
+  - Dominant Frequency (SimulatedData): 154.3213
+  - Envelope Correlation             : 81.7090
+  - Spectral Overlap                 : 68.1085
+  - Overall Match Score              : 65.6325
+
+Speed: 74 km/h (3 clips)
+  - Duration (RealData)              : 10.0061
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 132.7881
+  - Dominant Frequency (SimulatedData): 104.0771
+  - Envelope Correlation             : 81.9076
+  - Spectral Overlap                 : 60.3830
+  - Overall Match Score              : 60.7449
+
+Speed: 75 km/h (4 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 86.1328
+  - Dominant Frequency (SimulatedData): 145.3491
+  - Envelope Correlation             : 66.5804
+  - Spectral Overlap                 : 63.6403
+  - Overall Match Score              : 59.8797
+
+Speed: 76 km/h (1 clips)
+  - Duration (RealData)              : 10.0267
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 172.2656
+  - Dominant Frequency (SimulatedData): 161.4990
+  - Envelope Correlation             : 85.6143
+  - Spectral Overlap                 : 62.5502
+  - Overall Match Score              : 64.2283
+
+Speed: 77 km/h (2 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 118.4326
+  - Dominant Frequency (SimulatedData): 91.5161
+  - Envelope Correlation             : 82.7351
+  - Spectral Overlap                 : 57.8047
+  - Overall Match Score              : 61.4388
+
+Speed: 78 km/h (4 clips)
+  - Duration (RealData)              : 10.0112
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 142.6575
+  - Dominant Frequency (SimulatedData): 118.4326
+  - Envelope Correlation             : 82.1653
+  - Spectral Overlap                 : 65.8082
+  - Overall Match Score              : 65.1563
+
+Speed: 79 km/h (1 clips)
+  - Duration (RealData)              : 10.0061
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 150.7324
+  - Dominant Frequency (SimulatedData): 161.4990
+  - Envelope Correlation             : 74.1311
+  - Spectral Overlap                 : 64.5745
+  - Overall Match Score              : 61.8846
+
+Speed: 80 km/h (5 clips)
+  - Duration (RealData)              : 10.0142
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 105.5127
+  - Dominant Frequency (SimulatedData): 122.7393
+  - Envelope Correlation             : 77.3556
+  - Spectral Overlap                 : 63.8479
+  - Overall Match Score              : 63.7576
+
+Speed: 81 km/h (1 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 193.7988
+  - Dominant Frequency (SimulatedData): 269.1650
+  - Envelope Correlation             : 87.5286
+  - Spectral Overlap                 : 62.7659
+  - Overall Match Score              : 66.8606
+
+Speed: 82 km/h (4 clips)
+  - Duration (RealData)              : 10.0909
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 142.6575
+  - Dominant Frequency (SimulatedData): 153.4241
+  - Envelope Correlation             : 82.2920
+  - Spectral Overlap                 : 61.6809
+  - Overall Match Score              : 63.7690
+
+Speed: 83 km/h (2 clips)
+  - Duration (RealData)              : 10.0058
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 177.6489
+  - Dominant Frequency (SimulatedData): 80.7495
+  - Envelope Correlation             : 80.8691
+  - Spectral Overlap                 : 58.1887
+  - Overall Match Score              : 59.9049
+
+Speed: 84 km/h (1 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 53.8330
+  - Dominant Frequency (SimulatedData): 139.9658
+  - Envelope Correlation             : 54.8129
+  - Spectral Overlap                 : 64.1477
+  - Overall Match Score              : 56.6824
+
+Speed: 85 km/h (5 clips)
+  - Duration (RealData)              : 10.0869
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 90.4395
+  - Dominant Frequency (SimulatedData): 127.0459
+  - Envelope Correlation             : 71.2078
+  - Spectral Overlap                 : 66.0689
+  - Overall Match Score              : 63.5669
+
+Speed: 86 km/h (2 clips)
+  - Duration (RealData)              : 10.0058
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 53.8330
+  - Dominant Frequency (SimulatedData): 91.5161
+  - Envelope Correlation             : 74.4336
+  - Spectral Overlap                 : 64.5962
+  - Overall Match Score              : 62.6349
+
+Speed: 87 km/h (2 clips)
+  - Duration (RealData)              : 10.0058
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 107.6660
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 71.2051
+  - Spectral Overlap                 : 64.2063
+  - Overall Match Score              : 60.1109
+
+Speed: 88 km/h (3 clips)
+  - Duration (RealData)              : 10.0130
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 165.0879
+  - Dominant Frequency (SimulatedData): 157.9102
+  - Envelope Correlation             : 73.2502
+  - Spectral Overlap                 : 67.0470
+  - Overall Match Score              : 63.8581
+
+Speed: 89 km/h (2 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 172.2656
+  - Dominant Frequency (SimulatedData): 80.7495
+  - Envelope Correlation             : 91.1707
+  - Spectral Overlap                 : 64.8579
+  - Overall Match Score              : 67.9406
+
+Speed: 90 km/h (4 clips)
+  - Duration (RealData)              : 10.0112
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 107.6660
+  - Dominant Frequency (SimulatedData): 142.6575
+  - Envelope Correlation             : 81.1707
+  - Spectral Overlap                 : 63.4315
+  - Overall Match Score              : 63.9929
+
+Speed: 91 km/h (4 clips)
+  - Duration (RealData)              : 10.0110
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 148.0408
+  - Dominant Frequency (SimulatedData): 118.4326
+  - Envelope Correlation             : 85.3015
+  - Spectral Overlap                 : 58.7908
+  - Overall Match Score              : 63.5851
+
+Speed: 92 km/h (1 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 53.8330
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 79.3873
+  - Spectral Overlap                 : 65.4110
+  - Overall Match Score              : 64.5306
+
+Speed: 93 km/h (2 clips)
+  - Duration (RealData)              : 10.0163
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 215.3320
+  - Dominant Frequency (SimulatedData): 107.6660
+  - Envelope Correlation             : 90.9548
+  - Spectral Overlap                 : 57.8694
+  - Overall Match Score              : 64.0060
+
+Speed: 94 km/h (4 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 110.3577
+  - Dominant Frequency (SimulatedData): 153.4241
+  - Envelope Correlation             : 76.9511
+  - Spectral Overlap                 : 64.5656
+  - Overall Match Score              : 64.7157
+
+Speed: 95 km/h (2 clips)
+  - Duration (RealData)              : 10.0165
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 53.8330
+  - Dominant Frequency (SimulatedData): 129.1992
+  - Envelope Correlation             : 52.3607
+  - Spectral Overlap                 : 66.0606
+  - Overall Match Score              : 58.7476
+
+Speed: 96 km/h (3 clips)
+  - Duration (RealData)              : 10.0060
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 136.3770
+  - Dominant Frequency (SimulatedData): 118.4326
+  - Envelope Correlation             : 86.7627
+  - Spectral Overlap                 : 63.5422
+  - Overall Match Score              : 65.6402
+
+Speed: 97 km/h (2 clips)
+  - Duration (RealData)              : 10.0163
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 123.8159
+  - Dominant Frequency (SimulatedData): 145.3491
+  - Envelope Correlation             : 76.2593
+  - Spectral Overlap                 : 65.3032
+  - Overall Match Score              : 64.3084
+
+Speed: 98 km/h (4 clips)
+  - Duration (RealData)              : 10.0059
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 56.5247
+  - Dominant Frequency (SimulatedData): 123.8159
+  - Envelope Correlation             : 85.0393
+  - Spectral Overlap                 : 64.7152
+  - Overall Match Score              : 66.8748
+
+Speed: 100 km/h (3 clips)
+  - Duration (RealData)              : 10.0198
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 100.4883
+  - Dominant Frequency (SimulatedData): 96.8994
+  - Envelope Correlation             : 83.6964
+  - Spectral Overlap                 : 64.4844
+  - Overall Match Score              : 65.7503
+
+Speed: 101 km/h (2 clips)
+  - Duration (RealData)              : 10.2083
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 53.8330
+  - Dominant Frequency (SimulatedData): 150.7324
+  - Envelope Correlation             : 68.7602
+  - Spectral Overlap                 : 69.3921
+  - Overall Match Score              : 65.4012
+
+Speed: 102 km/h (1 clips)
+  - Duration (RealData)              : 10.0057
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 236.8652
+  - Dominant Frequency (SimulatedData): 183.0322
+  - Envelope Correlation             : 91.9178
+  - Spectral Overlap                 : 66.0188
+  - Overall Match Score              : 66.8419
+
+Speed: 103 km/h (2 clips)
+  - Duration (RealData)              : 10.0163
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 43.0664
+  - Dominant Frequency (SimulatedData): 102.2827
+  - Envelope Correlation             : 74.0119
+  - Spectral Overlap                 : 65.5832
+  - Overall Match Score              : 63.0329
+
+Speed: 105 km/h (1 clips)
+  - Duration (RealData)              : 10.0267
+  - Duration (SimulatedData)         : 10.0000
+  - Dominant Frequency (RealData)    : 183.0322
+  - Dominant Frequency (SimulatedData): 43.0664
+  - Envelope Correlation             : 95.2936
+  - Spectral Overlap                 : 55.8171
+  - Overall Match Score              : 62.6912
+

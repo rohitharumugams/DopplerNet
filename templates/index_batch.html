@@ -623,7 +623,7 @@
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
             <div class="param-group">
               <label class="param-label">Batch Name (Optional)</label>
-              <input type="text" id="mixedBatchName" placeholder="Default: MatchedData">
+              <input type="text" id="mixedBatchName" placeholder="Default: ExtendedSimulatedData">
             </div>
             <div class="param-group">
               <label class="param-label">Output Format</label>
@@ -2016,7 +2016,7 @@
     <div class="section">
       <h3 class="section-title">Automated Spectrogram Comparison Mode</h3>
       <p style="margin-bottom: 20px; color: #8b949e;">
-        Automate large-scale spectrogram comparison generation between two aligned datasets (RealData vs MatchedData).
+        Automate large-scale spectrogram comparison generation between two aligned datasets (RealData vs SimulatedData).
       </p>
 
       <div class="grid-2">
@@ -2025,15 +2025,15 @@
           <input type="text" id="autoDatasetA" value="D:\Antigravity\vs13-model\RealData">
         </div>
         <div class="param-group">
-          <label class="param-label">Dataset B (MatchedData) Path</label>
-          <input type="text" id="autoDatasetB" value="D:\Antigravity\vs13-model\MatchedData">
+          <label class="param-label">Dataset B (SimulatedData) Path</label>
+          <input type="text" id="autoDatasetB" value="D:\Antigravity\vs13-model\SimulatedData">
         </div>
       </div>
 
       <div class="grid-2" style="margin-top: 15px;">
         <div class="param-group">
           <label class="param-label">Output Directory</label>
-          <input type="text" id="autoOutput" value="static\comparision_outputs">
+          <input type="text" id="autoOutput" value="static\comparison_outputs">
         </div>
       </div>
 
@@ -5794,6 +5794,36 @@
 
         label.textContent = `Completed ${completed} of ${total} comparisons!`;
         log.textContent += `\nAll done! Images saved to ${outDir}\n`;
+        log.textContent += `Finalizing aggregate metrics...\n`;
+        
+        // Call finalize endpoint
+        try {
+          const fReq = await fetch('/api/auto_compare/finalize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ out_dir: outDir })
+          });
+          const fRes = await fReq.json();
+          if (fReq.ok && fRes.success) {
+            log.textContent += `[✓] Aggregate reports generated in: ${fRes.report_dir}\n`;
+            log.textContent += `    - overall_averages.txt\n`;
+            log.textContent += `    - per_vehicle_averages.txt\n`;
+            log.textContent += `    - per_speed_averages.txt\n`;
+            log.textContent += `    - distribution_stats.txt\n`;
+            log.textContent += `    - speed_correlation.txt\n`;
+            log.textContent += `    - score_histogram.png\n`;
+            
+            if (fRes.histogram_path) {
+               latestImg.src = fRes.histogram_path + "?t=" + new Date().getTime();
+               log.textContent += `\n[✓] Overall Match Score Distribution plot displayed below.\n`;
+            }
+          } else {
+            log.textContent += `[✗] Finalization failed: ${fRes.error}\n`;
+          }
+        } catch (e) {
+          log.textContent += `[✗] Finalization error: ${e.message}\n`;
+        }
+        log.scrollTop = log.scrollHeight;
 
       } catch (err) {
         log.textContent += "\nError: " + err.message;

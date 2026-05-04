@@ -13,7 +13,7 @@ def verify_benchmark_outputs(target_dir):
     base_path = Path(target_dir)
     csv_path = base_path / "dataset.csv"
     
-    print(f"--- DopplerNet Benchmark Verification ---")
+    print(f"--- DopplerSim Benchmark Verification ---")
     print(f"Target Directory: {base_path.absolute()}")
     
     if not csv_path.exists():

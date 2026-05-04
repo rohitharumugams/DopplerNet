@@ -1,7 +1,12 @@
 import os
 import re
+import time
+import json
 import numpy as np
 import librosa
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from flask import Blueprint, request, jsonify
 from audio.audio_utils import SR
 from visualization.plot_utils import save_automated_comparison_plot
@@ -32,8 +37,8 @@ def parse_filename(filename):
 def get_pairs():
     data = request.get_json() or {}
     dataset_a = data.get('dataset_a', r'D:\Antigravity\vs13-model\RealData')
-    dataset_b = data.get('dataset_b', r'D:\Antigravity\vs13-model\MatchedData')
-    out_dir = data.get('out_dir', 'static/comparision_outputs')
+    dataset_b = data.get('dataset_b', r'D:\Antigravity\vs13-model\SimulatedData')
+    out_dir = data.get('out_dir', 'static/comparison_outputs')
 
     if not os.path.exists(dataset_a) or not os.path.exists(dataset_b):
         return jsonify({'error': 'One or both dataset paths do not exist.'}), 400
@@ -94,7 +99,7 @@ def get_pairs():
     missing_txt_path = os.path.join(out_dir, 'missing_comparisons.txt')
     try:
         with open(missing_txt_path, 'w', encoding='utf-8') as f:
-            f.write("=== Missing from MatchedData (Dataset B) ===\n")
+            f.write("=== Missing from SimulatedData (Dataset B) ===\n")
             for path in sorted(a_missing_in_b):
                 f.write(path + "\n")
             
@@ -127,7 +132,7 @@ def process_pair():
     path_b = data.get('path_b')
     carname = data.get('carname')
     speed = data.get('speed')
-    out_dir = data.get('out_dir', 'static/comparision_outputs')
+    out_dir = data.get('out_dir', 'static/comparison_outputs')
 
     if not all([path_a, path_b, carname, speed is not None]):
         return jsonify({'error': 'Missing required pair information'}), 400
@@ -174,13 +179,13 @@ def process_pair():
     overall_similarity = float(np.clip((spectral_overlap * 0.55) + (amp_overlap * 0.30) + (env_corr_pct * 0.15), 0.0, 100.0))
 
     metrics = {
-        'Duration A (s)': float(len(y_a) / SR),
-        'Duration B (s)': float(len(y_b) / SR),
-        'Dominant Freq A (Hz)': dom_freq_a,
-        'Dominant Freq B (Hz)': dom_freq_b,
-        'Envelope Correlation (%)': env_corr_pct,
-        'Spectral Overlap (%)': spectral_overlap,
-        'Overall Match (%)': overall_similarity
+        'Duration (RealData)': float(len(y_a) / SR),
+        'Duration (SimulatedData)': float(len(y_b) / SR),
+        'Dominant Frequency (RealData)': dom_freq_a,
+        'Dominant Frequency (SimulatedData)': dom_freq_b,
+        'Envelope Correlation': env_corr_pct,
+        'Spectral Overlap': spectral_overlap,
+        'Overall Match Score': overall_similarity
     }
 
     # Format the speed for display/filename. If it's an integer, format as int.
@@ -195,8 +200,8 @@ def process_pair():
 
     ok = save_automated_comparison_plot(
         y_a, y_b, SR,
-        f"VS13 Data: {carname} - {speed_disp} km/h",
-        f"Simulated Data: {carname} - {speed_disp} km/h",
+        f"RealData: {carname} - {speed_disp} km/h",
+        f"SimulatedData: {carname} - {speed_disp} km/h",
         out_path,
         metrics,
         max_y_freq=2500
@@ -205,9 +210,204 @@ def process_pair():
     if not ok:
         return jsonify({'error': 'Failed to save comparison plot'}), 500
 
+    # Save metrics in individual per-clip JSON
+    clip_json_path = os.path.join(vehicle_out_dir, f"{filename_base}.json")
+    clip_data = {
+        'clip_id': filename_base,
+        'vehicle': carname,
+        'speed': speed_disp,
+        'metrics': metrics,
+        'path_a': path_a,
+        'path_b': path_b,
+        'timestamp': int(time.time())
+    }
+    
+    try:
+        with open(clip_json_path, 'w', encoding='utf-8') as f:
+            json.dump(clip_data, f, indent=4)
+    except Exception as e:
+        print(f"Failed to save clip JSON: {e}")
+
     return jsonify({
         'success': True,
         'carname': carname,
         'speed': speed_disp,
         'image_path': out_path
+    })
+
+
+
+from scipy.stats import pearsonr
+
+@auto_compare_bp.route('/api/auto_compare/finalize', methods=['POST'])
+def finalize_auto_compare():
+    data = request.get_json() or {}
+    out_dir = data.get('out_dir', 'static/comparison_outputs')
+    
+    # Aggregate results from all per-clip JSONs
+    all_entries = []
+    per_car_stats = {}
+    per_speed_stats = {}
+    
+    if not os.path.exists(out_dir):
+        return jsonify({'error': 'Output directory does not exist'}), 400
+        
+    for root, dirs, files in os.walk(out_dir):
+        if 'averages' in root: continue
+        for f in files:
+            if f.endswith('.json'):
+                path = os.path.join(root, f)
+                try:
+                    with open(path, 'r', encoding='utf-8') as jf:
+                        entry = json.load(jf)
+                        if 'metrics' not in entry or 'vehicle' not in entry:
+                            continue
+                        
+                        all_entries.append(entry)
+                        car_name = entry['vehicle']
+                        if car_name not in per_car_stats:
+                            per_car_stats[car_name] = []
+                        per_car_stats[car_name].append(entry)
+                        
+                        speed = entry.get('speed')
+                        if speed is not None:
+                            if speed not in per_speed_stats:
+                                per_speed_stats[speed] = []
+                            per_speed_stats[speed].append(entry)
+                except Exception as e:
+                    print(f"Error reading {path}: {e}")
+
+    if not all_entries:
+        return jsonify({'error': 'No metrics found to aggregate'}), 400
+
+    metrics_keys = [
+        'Duration (RealData)', 'Duration (SimulatedData)', 
+        'Dominant Frequency (RealData)', 'Dominant Frequency (SimulatedData)', 
+        'Envelope Correlation', 'Spectral Overlap', 
+        'Overall Match Score'
+    ]
+
+    def compute_detailed_stats(entries):
+        if not entries: return {}
+        res = {}
+        for k in metrics_keys:
+            vals = [e['metrics'].get(k, 0.0) for e in entries]
+            res[k] = {
+                'mean': float(np.mean(vals)),
+                'std': float(np.std(vals)),
+                'min': float(np.min(vals)),
+                'max': float(np.max(vals))
+            }
+        return res
+
+    overall_stats = compute_detailed_stats(all_entries)
+    
+    averages_dir = os.path.join(out_dir, 'averages')
+    os.makedirs(averages_dir, exist_ok=True)
+
+    # 1. overall_averages.txt
+    with open(os.path.join(averages_dir, 'overall_averages.txt'), 'w', encoding='utf-8') as f:
+        f.write("OVERALL AVERAGES (Across all cars and speeds)\n")
+        f.write("--------------------------------------------------\n")
+        for k in metrics_keys:
+            f.write(f"{k:35}: {overall_stats[k]['mean']:.4f}\n")
+
+    # 2. per_vehicle_averages.txt
+    with open(os.path.join(averages_dir, 'per_vehicle_averages.txt'), 'w', encoding='utf-8') as f:
+        f.write("PER-VEHICLE AVERAGES\n")
+        f.write("--------------------------------------------------\n")
+        for car in sorted(per_car_stats.keys()):
+            car_avg = compute_detailed_stats(per_car_stats[car])
+            f.write(f"Vehicle: {car} ({len(per_car_stats[car])} clips)\n")
+            for k in metrics_keys:
+                f.write(f"  - {k:33}: {car_avg[k]['mean']:.4f}\n")
+            f.write("\n")
+
+    # 3. per_speed_averages.txt
+    with open(os.path.join(averages_dir, 'per_speed_averages.txt'), 'w', encoding='utf-8') as f:
+        f.write("PER-SPEED AVERAGES\n")
+        f.write("--------------------------------------------------\n")
+        for speed in sorted(per_speed_stats.keys()):
+            speed_avg = compute_detailed_stats(per_speed_stats[speed])
+            f.write(f"Speed: {speed} km/h ({len(per_speed_stats[speed])} clips)\n")
+            for k in metrics_keys:
+                f.write(f"  - {k:33}: {speed_avg[k]['mean']:.4f}\n")
+            f.write("\n")
+
+    # 4. distribution_stats.txt (mean ± std + histogram data)
+    with open(os.path.join(averages_dir, 'distribution_stats.txt'), 'w', encoding='utf-8') as f:
+        f.write("SCORE DISTRIBUTIONS (Mean ± Std)\n")
+        f.write("--------------------------------------------------\n")
+        for k in metrics_keys:
+            s = overall_stats[k]
+            f.write(f"{k:35}: {s['mean']:.2f} ± {s['std']:.2f} (Range: {s['min']:.2f} - {s['max']:.2f})\n")
+        
+        f.write("\nMATCH SCORE HISTOGRAM DATA (Bins: 0-10, 10-20, ..., 90-100)\n")
+        f.write("--------------------------------------------------\n")
+        scores = [e['metrics'].get('Overall Match Score', 0.0) for e in all_entries]
+        hist, bins = np.histogram(scores, bins=np.linspace(0, 100, 11))
+        for i in range(len(hist)):
+            f.write(f"{bins[i]:3.0f} - {bins[i+1]:3.0f}% : {hist[i]:3d} clips\n")
+
+    # 5. speed_correlation.txt
+    with open(os.path.join(averages_dir, 'speed_correlation.txt'), 'w', encoding='utf-8') as f:
+        f.write("CORRELATION WITH SPEED\n")
+        f.write("--------------------------------------------------\n")
+        speeds = [e.get('speed', 0.0) for e in all_entries]
+        for k in metrics_keys:
+            vals = [e['metrics'].get(k, 0.0) for e in all_entries]
+            if len(set(speeds)) > 1 and len(set(vals)) > 1:
+                corr, pval = pearsonr(speeds, vals)
+                f.write(f"{k:35}: r={corr:.4f}, p={pval:.4f}\n")
+            else:
+                f.write(f"{k:35}: Insufficient variation for correlation\n")
+        
+        f.write("\nSPEED-PERFORMANCE ANALYSIS\n")
+        f.write("--------------------------------------------------\n")
+        sorted_speeds = sorted(per_speed_stats.keys())
+        if len(sorted_speeds) >= 2:
+            low_speed = sorted_speeds[0]
+            high_speed = sorted_speeds[-1]
+            low_avg = compute_detailed_stats(per_speed_stats[low_speed])['Overall Match Score']['mean']
+            high_avg = compute_detailed_stats(per_speed_stats[high_speed])['Overall Match Score']['mean']
+            diff = high_avg - low_avg
+            f.write(f"Average Match Score at {low_speed} km/h (min): {low_avg:.2f}%\n")
+            f.write(f"Average Match Score at {high_speed} km/h (max): {high_avg:.2f}%\n")
+            f.write(f"Total Change: {diff:+.2f}%\n")
+            if diff < -2.0:
+                f.write("CONCLUSION: Performance shows significant degradation at higher speeds.\n")
+            elif diff > 2.0:
+                f.write("CONCLUSION: Performance shows unexpected improvement at higher speeds.\n")
+            else:
+                f.write("CONCLUSION: Performance remains relatively stable across the speed range.\n")
+        else:
+            f.write("Insufficient speed variation for degradation analysis.\n")
+
+    # 6. Generate Score Histogram PNG
+    try:
+        plt.figure(figsize=(10, 6))
+        plt.hist(scores, bins=np.linspace(0, 100, 11), color='#238636', edgecolor='white', alpha=0.8)
+        plt.title('Distribution of Overall Match Scores', fontsize=14, fontweight='bold')
+        plt.xlabel('Match Score (%)', fontsize=12)
+        plt.ylabel('Number of Clips', fontsize=12)
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.xlim(0, 100)
+        
+        # Add mean/std text to plot
+        mean_val = overall_stats['Overall Match Score']['mean']
+        std_val = overall_stats['Overall Match Score']['std']
+        plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=2, label=f'Mean: {mean_val:.2f}%')
+        plt.legend()
+        
+        hist_path = os.path.join(averages_dir, 'score_histogram.png')
+        plt.savefig(hist_path, dpi=150, bbox_inches='tight')
+        plt.close()
+    except Exception as e:
+        print(f"Failed to generate histogram plot: {e}")
+
+    return jsonify({
+        'success': True,
+        'report_dir': averages_dir,
+        'histogram_path': os.path.join(averages_dir, 'score_histogram.png'),
+        'overall_avg': {k: overall_stats[k]['mean'] for k in metrics_keys}
     })

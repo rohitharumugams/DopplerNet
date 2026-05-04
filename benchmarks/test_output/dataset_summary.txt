@@ -1,4 +1,4 @@
-DopplerNet Dataset Report
+DopplerSim Dataset Report
 =========================
 Total samples: 3
 

@@ -1,6 +1,6 @@
-# DopplerNet Initial Benchmark Suite (B1-B10)
+# DopplerSim Initial Benchmark Suite (B1-B10)
 
-This directory contains the unified generation and evaluation suite for the ten initial benchmarks described in the DopplerNet paper.
+This directory contains the unified generation and evaluation suite for the ten initial benchmarks described in the DopplerSim paper.
 
 ## Core Utility: `benchmark_suite.py`
 

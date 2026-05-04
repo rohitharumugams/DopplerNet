@@ -73,7 +73,7 @@ def run_mixed_generation(user_config):
         }
         
         # Determine root folder and batch ID
-        base_output_dir = user_config.get('batch', {}).get('save_path', os.path.join(OUTPUT_FOLDER, "MatchedData"))
+        base_output_dir = user_config.get('batch', {}).get('save_path', os.path.join(OUTPUT_FOLDER, "ExtendedSimulatedData"))
         custom_batch_name = user_config.get('batch', {}).get('name', '').strip()
         timestamp = time.strftime('%Y%m%d_%H%M%S')
         
@@ -81,7 +81,7 @@ def run_mixed_generation(user_config):
             safe_name = "".join(c for c in custom_batch_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
             root_batch_id = f"{safe_name}_{timestamp}"
         else:
-            root_batch_id = f"MatchedData_{timestamp}"
+            root_batch_id = f"ExtendedSimulatedData_{timestamp}"
 
         root_dir = os.path.join(base_output_dir, root_batch_id)
         os.makedirs(root_dir, exist_ok=True)
@@ -223,7 +223,7 @@ def run_mixed_generation(user_config):
             # 5. Generation Log
             log_path = os.path.join(additional_dir, f"generation_log_{car_folder_name}.txt")
             with open(log_path, 'w') as log_f:
-                log_f.write(f"DopplerNet Mixed Batch Log: {car_folder_name}\n")
+                log_f.write(f"DopplerSim Mixed Batch Log: {car_folder_name}\n")
                 log_f.write("="*60 + "\n")
                 log_f.write(f"Total Clips: {len(car_clips)}\n")
                 log_f.write(f"Output Format: VS13-Compatible\n")

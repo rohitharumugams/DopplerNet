@@ -796,13 +796,13 @@ def save_automated_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, met
         
         # Add metrics text
         metrics_text = (
-            f"Duration A: {metrics.get('Duration A (s)', 0):.2f} s    |    "
-            f"Duration B: {metrics.get('Duration B (s)', 0):.2f} s    |    "
-            f"Dominant Freq A: {metrics.get('Dominant Freq A (Hz)', 0):.1f} Hz    |    "
-            f"Dominant Freq B: {metrics.get('Dominant Freq B (Hz)', 0):.1f} Hz\n"
-            f"Envelope Correlation: {metrics.get('Envelope Correlation (%)', 0):.1f}%    |    "
-            f"Spectral Overlap: {metrics.get('Spectral Overlap (%)', 0):.1f}%    |    "
-            f"Overall Match: {metrics.get('Overall Match (%)', 0):.1f}%"
+            f"Duration (RealData): {metrics.get('Duration (RealData)', 0):.2f} s    |    "
+            f"Duration (SimulatedData): {metrics.get('Duration (SimulatedData)', 0):.2f} s    |    "
+            f"Dominant Freq (RealData): {metrics.get('Dominant Frequency (RealData)', 0):.1f} Hz    |    "
+            f"Dominant Freq (SimulatedData): {metrics.get('Dominant Frequency (SimulatedData)', 0):.1f} Hz\n"
+            f"Envelope Correlation: {metrics.get('Envelope Correlation', 0):.1f}%    |    "
+            f"Spectral Overlap: {metrics.get('Spectral Overlap', 0):.1f}%    |    "
+            f"Overall Match Score: {metrics.get('Overall Match Score', 0):.1f}%"
         )
         
         # Render text in the text axes

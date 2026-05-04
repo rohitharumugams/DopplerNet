@@ -238,7 +238,7 @@ def generate_stats_report(dataset_csv, output_report, figures_dir):
     df = pd.read_csv(dataset_csv)
     fig_path = Path(figures_dir); fig_path.mkdir(parents=True, exist_ok=True)
     
-    report = [f"DopplerNet Dataset Report", "="*25, f"Total samples: {len(df)}"]
+    report = [f"DopplerSim Dataset Report", "="*25, f"Total samples: {len(df)}"]
     for col in ['vehicle_class', 'trajectory_type']:
         report.append(f"\n{col.replace('_', ' ').title()}:")
         counts = df[col].value_counts()
@@ -339,7 +339,7 @@ def evaluate_car(preds_df):
 # ============================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="DopplerNet Initial Benchmark Suite (B1-B10)")
+    parser = argparse.ArgumentParser(description="DopplerSim Initial Benchmark Suite (B1-B10)")
     parser.add_argument("--generate", action="store_true", help="Generate 5 test samples")
     parser.add_argument("--num_samples", type=int, default=10, help="Number of samples to generate")
     parser.add_argument("--force_crossing", action="store_true", help="Force vehicles to cross each other")
@@ -367,7 +367,7 @@ def main():
     df = pd.read_csv(dataset_csv)
     generate_stats_report(dataset_csv, report_txt, figures_dir)
     
-    print("\n--- Running DopplerNet Initial Suite (B1-B10) ---")
+    print("\n--- Running DopplerSim Initial Suite (B1-B10) ---")
     
     # Mock evaluation for demonstration
     mock_preds = df.copy()

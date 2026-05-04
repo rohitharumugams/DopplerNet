@@ -1,0 +1,16 @@
+CORRELATION WITH SPEED
+--------------------------------------------------
+Duration (RealData)                : r=-0.0647, p=0.3726
+Duration (SimulatedData)           : Insufficient variation for correlation
+Dominant Frequency (RealData)      : r=-0.0950, p=0.1899
+Dominant Frequency (SimulatedData) : r=-0.0270, p=0.7096
+Envelope Correlation               : r=0.1176, p=0.1044
+Spectral Overlap                   : r=-0.3014, p=0.0000
+Overall Match Score                : r=-0.0548, p=0.4500
+
+SPEED-PERFORMANCE ANALYSIS
+--------------------------------------------------
+Average Match Score at 30 km/h (min): 62.29%
+Average Match Score at 105 km/h (max): 62.69%
+Total Change: +0.41%
+CONCLUSION: Performance remains relatively stable across the speed range.

@@ -1,5 +1,5 @@
 """
-DopplerNet – Flask entry point.
+DopplerSim – Flask entry point.
 
 All business logic lives in the modules below.
 This file only sets up the Flask app, registers Blueprints, and provides
