@@ -567,7 +567,7 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         return None
 
 
-def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_amplitude_bar=False):
+def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=1250, include_amplitude_bar=False):
     """
     Generate and save a high-resolution spectrogram PNG to a specific path.
     """
@@ -606,9 +606,9 @@ def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_am
             vmin=vmin,
             vmax=vmax
         )
-        max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
+        max_y_freq = float(max_y_freq) if max_y_freq else 1250.0
         if max_y_freq <= 0:
-            max_y_freq = 2500.0
+            max_y_freq = 1250.0
         ax.set_ylim(0, max_y_freq)
         # Keep 5 equal y-axis portions regardless of selected max.
         y_ticks = np.linspace(0, max_y_freq, 6)
@@ -639,7 +639,7 @@ def save_spectrogram_to_file(y, sr, title, out_path, max_y_freq=2500, include_am
         return False
 
 
-def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_freq=2500):
+def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_freq=1250):
     """
     Save a side-by-side comparative plot:
     - Top row: spectrogram A and B
@@ -659,9 +659,9 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
         hop_length = 512
         win_length = 4096
         window = "hann"
-        max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
+        max_y_freq = float(max_y_freq) if max_y_freq else 1250.0
         if max_y_freq <= 0:
-            max_y_freq = 2500.0
+            max_y_freq = 1250.0
 
         def _draw_spectrogram(ax, y, title):
             stft = librosa.stft(
@@ -719,7 +719,7 @@ def save_audio_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, max_y_f
         return False
 
 
-def save_automated_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, metrics, max_y_freq=2500):
+def save_automated_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, metrics, max_y_freq=1250):
     """
     Save a side-by-side comparative plot with metrics overlay at the bottom.
     """
@@ -742,9 +742,9 @@ def save_automated_comparison_plot(y_a, y_b, sr, title_a, title_b, out_path, met
         hop_length = 512
         win_length = 4096
         window = "hann"
-        max_y_freq = float(max_y_freq) if max_y_freq else 2500.0
+        max_y_freq = float(max_y_freq) if max_y_freq else 1250.0
         if max_y_freq <= 0:
-            max_y_freq = 2500.0
+            max_y_freq = 1250.0
 
         def _draw_spectrogram(ax, y, title):
             stft = librosa.stft(

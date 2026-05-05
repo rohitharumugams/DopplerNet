@@ -143,6 +143,7 @@ def _build_linear_overlap_scene(config, selected_vehicles, clip_index, scene_dir
         params['distance'] = float(observer_distance)
         params['angle'] = 0.0
         params['duration'] = clip_time_duration
+        params['apply_propagation_delay'] = False
 
         audio_arr, _, _ = get_doppler_audio_array(vehicle_name, 'straight', params)
         if len(audio_arr) != clip_len_samples:
@@ -171,7 +172,7 @@ def _build_linear_overlap_scene(config, selected_vehicles, clip_index, scene_dir
             save_spectrogram_to_file(
                 delayed_audio,
                 SR,
-                f"Linear Overlap V{i}: {vehicle_name} (delay={start_delay:.2f}s, speed={speed_value:.1f}m/s)",
+                v_spec_png_file,
                 os.path.join(scene_dir, v_spec_png_file)
             )
 
@@ -225,7 +226,7 @@ def _build_linear_overlap_scene(config, selected_vehicles, clip_index, scene_dir
         save_spectrogram_to_file(
             mixed_audio,
             SR,
-            f"Linear Overlap Scene {clip_index:04d}",
+            mixed_spec_png_file,
             os.path.join(scene_dir, mixed_spec_png_file)
         )
 
@@ -1260,7 +1261,7 @@ def batch_overlap_generate():
 
                 # NEW: Auto-generate spectrogram for individual car
                 v_spec_path = v_audio_path.replace('.wav', '_spec.png')
-                save_spectrogram_to_file(audio_arr, SR, f"Vehicle {v_idx}: {vehicle_name}", v_spec_path)
+                save_spectrogram_to_file(audio_arr, SR, v_filename, v_spec_path)
 
                 clips_with_delays.append((audio_arr, delay))
                 scene_paths_data.append((path_type, params, vehicle_name))
@@ -1313,7 +1314,7 @@ def batch_overlap_generate():
 
             # NEW: Auto-generate spectrogram for mixed scene
             mixed_spec_path = os.path.join(scene_dir, "mixed_audio_spec.png")
-            save_spectrogram_to_file(mixed_audio, SR, f"Mixed Scene: {scene_id} ({num_vehicles} cars)", mixed_spec_path)
+            save_spectrogram_to_file(mixed_audio, SR, "mixed_audio.wav", mixed_spec_path)
 
             # Save combined plot
             save_combined_path_plot(scene_paths_data, scene_dir, "scene", lane_width=lane_width, 
@@ -1490,7 +1491,7 @@ def map_overlap_generate():
                 # Generate spectrogram for individual car
                 from visualization.plot_utils import save_spectrogram_to_file
                 v_spec_path = v_filepath.replace('.wav', '_spec.png')
-                save_spectrogram_to_file(audio_arr, SR, f"Vehicle {v_idx}: {vehicle_name}", v_spec_path)
+                save_spectrogram_to_file(audio_arr, SR, v_filename, v_spec_path)
                 
                 clips_metadata.append({
                     'id': v_idx,
@@ -1508,7 +1509,7 @@ def map_overlap_generate():
             
             # Generate spectrogram for mixed scene
             mixed_spec_path = mixed_audio_path.replace('.wav', '_spec.png')
-            save_spectrogram_to_file(mixed, SR, f"Mixed Scene: {scene_id}", mixed_spec_path)
+            save_spectrogram_to_file(mixed, SR, "mixed.wav", mixed_spec_path)
             
             # Generate combined path plot with REAL road geometry
             from visualization.plot_utils import save_combined_path_plot

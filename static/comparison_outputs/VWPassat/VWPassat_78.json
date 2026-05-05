@@ -11,7 +11,7 @@
         "Spectral Overlap": 64.6064224243164,
         "Overall Match Score": 67.44094180442463
     },
-    "path_a": "D:\\Antigravity\\vs13-model\\RealData\\VWPassat\\VWPassat_78.wav",
-    "path_b": "D:\\Antigravity\\vs13-model\\SimulatedData\\VWPassat\\VWPassat_78.0.wav",
+    "path_a": "../RealData/VWPassat/VWPassat_78.wav",
+    "path_b": "../SimulatedData/VWPassat/VWPassat_78.0.wav",
     "timestamp": 1777915434
 }

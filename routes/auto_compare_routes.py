@@ -36,8 +36,8 @@ def parse_filename(filename):
 @auto_compare_bp.route('/api/auto_compare/get_pairs', methods=['POST'])
 def get_pairs():
     data = request.get_json() or {}
-    dataset_a = data.get('dataset_a', r'D:\Antigravity\vs13-model\RealData')
-    dataset_b = data.get('dataset_b', r'D:\Antigravity\vs13-model\SimulatedData')
+    dataset_a = data.get('dataset_a', '../Datasets/RealData')
+    dataset_b = data.get('dataset_b', '../Datasets/SimulatedData')
     out_dir = data.get('out_dir', 'static/comparison_outputs')
 
     if not os.path.exists(dataset_a) or not os.path.exists(dataset_b):
@@ -200,11 +200,11 @@ def process_pair():
 
     ok = save_automated_comparison_plot(
         y_a, y_b, SR,
-        f"RealData: {carname} - {speed_disp} km/h",
-        f"SimulatedData: {carname} - {speed_disp} km/h",
+        os.path.basename(path_a),
+        os.path.basename(path_b),
         out_path,
         metrics,
-        max_y_freq=2500
+        max_y_freq=1250
     )
 
     if not ok:
@@ -212,13 +212,23 @@ def process_pair():
 
     # Save metrics in individual per-clip JSON
     clip_json_path = os.path.join(vehicle_out_dir, f"{filename_base}.json")
+    # Convert paths to relative for portability if they are under the project root's parent
+    # (assuming DopplerSim is inside vs13-model, and datasets are peers)
+    cwd = os.getcwd()
+    try:
+        rel_path_a = os.path.relpath(path_a, cwd)
+        rel_path_b = os.path.relpath(path_b, cwd)
+    except Exception:
+        rel_path_a = path_a
+        rel_path_b = path_b
+
     clip_data = {
         'clip_id': filename_base,
         'vehicle': carname,
         'speed': speed_disp,
         'metrics': metrics,
-        'path_a': path_a,
-        'path_b': path_b,
+        'path_a': rel_path_a,
+        'path_b': rel_path_b,
         'timestamp': int(time.time())
     }
     

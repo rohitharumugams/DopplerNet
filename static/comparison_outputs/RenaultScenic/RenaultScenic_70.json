@@ -11,7 +11,7 @@
         "Spectral Overlap": 65.6727294921875,
         "Overall Match Score": 58.66947772293154
     },
-    "path_a": "D:\\Antigravity\\vs13-model\\RealData\\RenaultScenic\\RenaultScenic_70.wav",
-    "path_b": "D:\\Antigravity\\vs13-model\\SimulatedData\\RenaultScenic\\RenaultScenic_70.0.wav",
+    "path_a": "../RealData/RenaultScenic/RenaultScenic_70.wav",
+    "path_b": "../SimulatedData/RenaultScenic/RenaultScenic_70.0.wav",
     "timestamp": 1777915343
 }

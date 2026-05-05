@@ -33,9 +33,25 @@ def generate_real_traffic_batch():
 
     config = request.json or {}
 
+    # Pre-calculate total target to show 0/X immediately
+    try:
+        metadata_path = os.path.join(os.getcwd(), 'reference_docs', 'vs13(6)metadata.json')
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+        
+        is_test = config.get('test_mode', False)
+        if is_test:
+            total_target = int(config.get('test_count', 5))
+        else:
+            total_target = sum(len(speeds) for speeds in metadata.values())
+    except Exception as e:
+        print(f"Error pre-calculating total: {e}")
+        total_target = 0
+
     # Initialize progress
     mixed_progress['is_running'] = True
     mixed_progress['generated_so_far'] = 0
+    mixed_progress['total_target'] = total_target
     mixed_progress['log_line'] = 'Starting background thread...'
     
     # Start generation in background
@@ -52,7 +68,7 @@ def get_mixed_progress():
 def run_mixed_generation(user_config):
     global mixed_progress
     try:
-        metadata_path = os.path.join(os.getcwd(), 'ref_docs', 'vs13(6)metadata.json')
+        metadata_path = os.path.join(os.getcwd(), 'reference_docs', 'vs13(6)metadata.json')
         if not os.path.exists(metadata_path):
             mixed_progress['log_line'] = f"Error: Metadata file not found at {metadata_path}"
             mixed_progress['is_running'] = False
@@ -61,29 +77,60 @@ def run_mixed_generation(user_config):
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
             
-        # Calculate total target
+        is_test = user_config.get('test_mode', False)
+        test_count = int(user_config.get('test_count', 5))
+        test_speed = user_config.get('test_speed')
+        is_clean = user_config.get('clean_audio', False)
+        gen_specs = user_config.get('generate_spectrograms', False)
+
+        # If test mode, limit metadata
+        if is_test:
+            # Flatten speeds into a list of (car, speed) pairs
+            all_pairs = []
+            for car, speeds in metadata.items():
+                for s in speeds:
+                    all_pairs.append((car, s))
+            
+            # Take only the first test_count pairs
+            test_pairs = all_pairs[:test_count]
+            
+            # Reconstruct metadata for test
+            new_metadata = {}
+            for car, s in test_pairs:
+                if car not in new_metadata:
+                    new_metadata[car] = []
+                new_metadata[car].append(s)
+            metadata = new_metadata
+
+        # Calculate total target (already done in route, but ensuring consistency)
         total = sum(len(speeds) for speeds in metadata.values())
         mixed_progress['total_target'] = total
         
         # Folder Mapping for spelling differences
         car_mapping = {
-            "Peugeot3008": "Peuguot3008",
-            "Peugeot307": "Peuguot307",
             "NissanQashqai": "NissanQashQai"
         }
         
-        # Determine root folder and batch ID
-        base_output_dir = user_config.get('batch', {}).get('save_path', os.path.join(OUTPUT_FOLDER, "ExtendedSimulatedData"))
+        # Determine root folder
+        base_output_dir = user_config.get('batch', {}).get('save_path', os.path.join(OUTPUT_FOLDER, "batch_outputs"))
         custom_batch_name = user_config.get('batch', {}).get('name', '').strip()
         timestamp = time.strftime('%Y%m%d_%H%M%S')
-        
-        if custom_batch_name:
-            safe_name = "".join(c for c in custom_batch_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
-            root_batch_id = f"{safe_name}_{timestamp}"
-        else:
-            root_batch_id = f"ExtendedSimulatedData_{timestamp}"
 
-        root_dir = os.path.join(base_output_dir, root_batch_id)
+        if custom_batch_name:
+            # If a custom batch name is provided, use it as a subfolder
+            safe_name = "".join(c for c in custom_batch_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
+            if is_test:
+                root_batch_id = f"{safe_name}_{timestamp}"
+            else:
+                root_batch_id = safe_name
+            root_dir = os.path.join(base_output_dir, root_batch_id)
+        else:
+            # Fallback when no batch name is provided
+            if is_test:
+                root_dir = os.path.join(base_output_dir, f"Test_{timestamp}")
+            else:
+                root_dir = base_output_dir
+
         os.makedirs(root_dir, exist_ok=True)
         
         target_distance = float(user_config.get('distance', 0.5))
@@ -105,16 +152,18 @@ def run_mixed_generation(user_config):
             
             # Batch config for this car
             batch_config = {
-                'output': {
-                    'spectrogram_type': 'cqt',
-                    'generate_diagnostics': True,
-                    'format': output_format
-                },
                 'batch': {
                     'include_sample_folders': False # Flat structure requirement
                 },
                 'atmosphere': {
                     'add_air_noise': False 
+                },
+                'output': {
+                    'spectrogram_type': 'stft' if is_test else 'cqt',
+                    'generate_diagnostics': False,
+                    'generate_spectrogram': is_test or gen_specs,
+                    'format': output_format,
+                    'freq_limit': 1250
                 }
             }
             
@@ -124,8 +173,16 @@ def run_mixed_generation(user_config):
             for i, speed_kmph in enumerate(speeds):
                 mixed_progress['current_sample_index'] = i + 1
                 
+                # Override speed if in test mode and custom speed provided
+                effective_speed_kmph = speed_kmph
+                if is_test and test_speed:
+                    try:
+                        effective_speed_kmph = float(test_speed)
+                    except:
+                        pass
+                
                 # Internal high-precision conversion
-                speed_mps = float(speed_kmph) / 3.6
+                speed_mps = float(effective_speed_kmph) / 3.6
                 
                 # Parameters
                 params = {
@@ -135,10 +192,13 @@ def run_mixed_generation(user_config):
                     'duration': 10.0,
                     'acceleration': 0.0,
                     'temperature': 20,
-                    'humidity': 50
+                    'humidity': 50,
+                    'clean_audio': is_clean,
+                    'apply_propagation_delay': False
                 }
                 
-                base_filename = f"{car_folder_name}_{round(float(speed_kmph), 2)}"
+                disp_speed = int(effective_speed_kmph) if float(effective_speed_kmph).is_integer() else round(float(effective_speed_kmph), 2)
+                base_filename = f"{car_folder_name}_{disp_speed}"
                 ext = "wav" if output_format == "wav" else "mp3"
                 
                 try:
@@ -156,10 +216,33 @@ def run_mixed_generation(user_config):
                     
                     # Extract audio to car_dir
                     sample_folder = clip_meta['sample_dir']
-                    source_audio = os.path.join(additional_dir, sample_folder, "Essential", f"{base_filename}.{ext}")
+                    actual_gen_filename = clip_meta['filename']
+                    source_audio = os.path.join(additional_dir, sample_folder, "Essential", actual_gen_filename)
                     dest_audio = os.path.join(car_dir, f"{base_filename}.{ext}")
+                    
                     if os.path.exists(source_audio):
                         shutil.copy2(source_audio, dest_audio)
+                    
+                    # ── Spectrogram Handling ─────────────────────────────────────
+                    gen_base_name = actual_gen_filename.rsplit('.', 1)[0]
+                    source_spec = os.path.join(additional_dir, sample_folder, "Essential", f"{gen_base_name}_spectrogram.png")
+
+                    # 1. Parallel dataset folder: static/spectrograms/[batchname/]<car>/<filename>.png
+                    if gen_specs and os.path.exists(source_spec):
+                        if custom_batch_name:
+                            # Re-sanitize for the path just in case
+                            clean_batch_name = "".join(c for c in custom_batch_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
+                            spec_ds_dir = os.path.join("static", "spectrograms", clean_batch_name, car_folder_name)
+                        else:
+                            spec_ds_dir = os.path.join("static", "spectrograms", car_folder_name)
+                        
+                        os.makedirs(spec_ds_dir, exist_ok=True)
+                        shutil.copy2(source_spec, os.path.join(spec_ds_dir, f"{base_filename}.png"))
+
+                    # 2. Local verification: copy to car_dir if requested or in test mode
+                    if (is_test or gen_specs) and os.path.exists(source_spec):
+                        dest_spec = os.path.join(car_dir, f"{base_filename}_spectrogram.png")
+                        shutil.copy2(source_spec, dest_spec)
                     
                     # Create .txt annotation
                     cpa_time = clip_meta['labels'].get('cpa_time_sec', 5.0)

@@ -595,7 +595,7 @@
       <div class="section">
         <h3 class="section-title">Real-Simulated Mixed Audio Generation</h3>
         <p style="margin-bottom: 20px; color: #8b949e;">
-          This mode generates a structured dataset based on <strong>ref_docs\vs13(6)metadata.json</strong> (km/h speeds). 
+          This mode generates a structured dataset based on <strong>reference_docs\vs13(6)metadata.json</strong> (km/h speeds). 
           Outputs follow the VS13-style layout (flat structure, .txt annotations).
         </p>
 
@@ -638,6 +638,29 @@
             <label class="param-label">Save Path</label>
             <div class="path-display" id="mixedSavePath">static/batch_outputs/</div>
             <button class="browse-btn" onclick="browseMixedFolderPath()">Change Path</button>
+          </div>
+
+          <div class="checkbox-group" style="margin-top: 20px; display: flex; gap: 30px; flex-wrap: wrap; padding: 15px; background: #0d1117; border-radius: 6px; border: 1px solid #30363d;">
+            <label class="checkbox-label" title="Disables realism layers like reverb, engine texture, and atmospheric absorption.">
+              <input type="checkbox" id="mixedCleanAudio"> Generate clean audio
+            </label>
+            <label class="checkbox-label" title="Saves spectrogram PNGs for every clip in a parallel folder structure.">
+              <input type="checkbox" id="mixedGenerateSpectrograms"> Generate spectrograms
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="mixedTestMode" onchange="toggleMixedTestCount()"> Test Mode
+            </label>
+            <div id="mixedTestCountGroup" class="hidden" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="param-label" style="margin: 0;">Clips:</label>
+                <input type="number" id="mixedTestCount" value="5" min="1" max="100" style="width: 70px;">
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="param-label" style="margin: 0;">Speed (km/h):</label>
+                <input type="number" id="mixedTestSpeed" value="30" min="5" max="250" style="width: 80px;">
+              </div>
+              <span style="font-size: 11px; color: #8b949e;">(Optional: overrides metadata speed if Test is on)</span>
+            </div>
           </div>
         </div>
         
@@ -1709,7 +1732,7 @@
       </div>
       <div class="param-group">
         <label class="param-label" for="specMaxFreq">Maximum Y-axis Frequency (Hz)</label>
-        <input type="number" id="specMaxFreq" value="2500" min="100" step="100">
+        <input type="number" id="specMaxFreq" value="1250" min="100" step="100">
       </div>
 
       <div style="text-align: center; margin: 20px 0;">
@@ -1744,7 +1767,7 @@
       </div>
       <div class="param-group" style="max-width: 280px;">
         <label class="param-label" for="compareMaxFreq">Maximum Y-axis Frequency (Hz)</label>
-        <input type="number" id="compareMaxFreq" value="2500" min="100" step="100">
+        <input type="number" id="compareMaxFreq" value="1250" min="100" step="100">
       </div>
       <div style="text-align: center; margin: 20px 0;">
         <button class="btn" onclick="analyzeAudioComparison()" style="padding: 12px 30px; background-color: #58a6ff;">
@@ -2022,11 +2045,11 @@
       <div class="grid-2">
         <div class="param-group">
           <label class="param-label">Dataset A (RealData) Path</label>
-          <input type="text" id="autoDatasetA" value="D:\Antigravity\vs13-model\RealData">
+          <input type="text" id="autoDatasetA" value="../Datasets/RealData">
         </div>
         <div class="param-group">
           <label class="param-label">Dataset B (SimulatedData) Path</label>
-          <input type="text" id="autoDatasetB" value="D:\Antigravity\vs13-model\SimulatedData">
+          <input type="text" id="autoDatasetB" value="../Datasets/SimulatedData">
         </div>
       </div>
 
@@ -3038,7 +3061,7 @@
       const resultContainer = document.getElementById('specResult');
       const maxFreqInput = document.getElementById('specMaxFreq');
       const maxFreqRaw = parseFloat(maxFreqInput?.value);
-      const max_y_freq = Number.isFinite(maxFreqRaw) && maxFreqRaw > 0 ? maxFreqRaw : 2500;
+      const max_y_freq = Number.isFinite(maxFreqRaw) && maxFreqRaw > 0 ? maxFreqRaw : 1250;
       resultContainer.innerHTML = '<p class="param-label status-loading">Generating spectrogram... <span class="loading-spinner"></span></p>';
 
       try {
@@ -3093,7 +3116,7 @@
       const fileA = document.getElementById('compareFileA')?.files?.[0];
       const fileB = document.getElementById('compareFileB')?.files?.[0];
       const maxFreqRaw = parseFloat(document.getElementById('compareMaxFreq')?.value);
-      const max_y_freq = Number.isFinite(maxFreqRaw) && maxFreqRaw > 0 ? maxFreqRaw : 2500;
+      const max_y_freq = Number.isFinite(maxFreqRaw) && maxFreqRaw > 0 ? maxFreqRaw : 1250;
       const resultContainer = document.getElementById('compareResult');
 
       if (!fileA || !fileB) {
@@ -4547,6 +4570,11 @@
       const config = {
           distance: parseFloat(document.getElementById('mixedDistance').value || 0.5),
           angle: parseFloat(document.getElementById('mixedAngle').value || 0.0),
+          clean_audio: document.getElementById('mixedCleanAudio').checked,
+          generate_spectrograms: document.getElementById('mixedGenerateSpectrograms').checked,
+          test_mode: document.getElementById('mixedTestMode').checked,
+          test_count: parseInt(document.getElementById('mixedTestCount').value || 5),
+          test_speed: document.getElementById('mixedTestSpeed').value,
           batch: {
               name: document.getElementById('mixedBatchName').value,
               save_path: document.getElementById('mixedSavePath').textContent
@@ -4580,7 +4608,7 @@
               const percent = Math.round((data.generated_so_far / data.total_target) * 100);
               fill.style.width = percent + '%';
               fill.textContent = percent + '%';
-              label.textContent = `Processing ${data.current_car} — ${data.current_sample_index} samples (${percent}%)`;
+              label.textContent = `Processing ${data.current_car} — ${data.generated_so_far} / ${data.total_target} clips (${percent}%)`;
               
               if (data.log_line && !log.innerHTML.includes(data.log_line)) {
                 log.innerHTML += data.log_line + '\n';
@@ -4607,6 +4635,11 @@
         alert("Error: " + err.message);
         btn.disabled = false;
       }
+    }
+
+    function toggleMixedTestCount() {
+        const isTest = document.getElementById('mixedTestMode').checked;
+        document.getElementById('mixedTestCountGroup').classList.toggle('hidden', !isTest);
     }
 
     async function loadVS13Vehicles() {

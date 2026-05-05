@@ -11,7 +11,7 @@
         "Spectral Overlap": 71.145751953125,
         "Overall Match Score": 68.95950154114087
     },
-    "path_a": "D:\\Antigravity\\vs13-model\\RealData\\Peugeot307\\Peugeot307_38.wav",
-    "path_b": "D:\\Antigravity\\vs13-model\\SimulatedData\\Peugeot307\\Peugeot307_38.0.wav",
+    "path_a": "../RealData/Peugeot307/Peugeot307_38.wav",
+    "path_b": "../SimulatedData/Peugeot307/Peugeot307_38.0.wav",
     "timestamp": 1777915237
 }

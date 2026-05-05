@@ -11,7 +11,7 @@
         "Spectral Overlap": 57.056312561035156,
         "Overall Match Score": 63.963740766312654
     },
-    "path_a": "D:\\Antigravity\\vs13-model\\RealData\\KiaSportage\\KiaSportage_58.wav",
-    "path_b": "D:\\Antigravity\\vs13-model\\SimulatedData\\KiaSportage\\KiaSportage_58.0.wav",
+    "path_a": "../RealData/KiaSportage/KiaSportage_58.wav",
+    "path_b": "../SimulatedData/KiaSportage/KiaSportage_58.0.wav",
     "timestamp": 1777915037
 }

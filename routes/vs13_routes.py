@@ -146,8 +146,10 @@ def run_vs13_generation(config):
             params = dict(base_params)
             params['speed'] = speed_mps
             params['duration'] = 10.0 # VS13 standard
+            params['apply_propagation_delay'] = False
             
-            base_filename = f"{car_name}_{round(speed_kmph, 2)}"
+            disp_speed = int(speed_kmph) if float(speed_kmph).is_integer() else round(speed_kmph, 2)
+            base_filename = f"{car_name}_{disp_speed}"
             
             include_samples = config.get('batch', {}).get('include_sample_folders', False)
             
@@ -171,6 +173,12 @@ def run_vs13_generation(config):
                 dest_wav = os.path.join(car_dir, f"{base_filename}.wav")
                 if os.path.exists(source_wav):
                     shutil.copy2(source_wav, dest_wav)
+                
+                # Copy spectrogram if generated
+                source_spec = os.path.join(additional_dir, sample_folder, "Essential", f"{base_filename}_spectrogram.png")
+                dest_spec = os.path.join(car_dir, f"{base_filename}_spectrogram.png")
+                if os.path.exists(source_spec):
+                    shutil.copy2(source_spec, dest_spec)
                 
                 # If not including samples, cleanup the sample folder
                 if not include_samples:

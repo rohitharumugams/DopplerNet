@@ -953,7 +953,7 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     # Propagation delay (arrival-time realism): shift waveform by r0 / c_sound,
     # where r0 is source-observer distance at path start.
     # This adds travel-time latency without altering Doppler physics itself.
-    if bool(params.get('apply_propagation_delay', True)):
+    if bool(params.get('apply_propagation_delay', False)):
         try:
             obs = np.array(params.get('observer_pos', (0.0, 0.0)), dtype=float)
             r0 = None
@@ -1017,15 +1017,16 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
         padded[:len(doppler_audio)] = doppler_audio
         doppler_audio = padded
 
-    # Shift spectral centroid toward roadside/engine band (vehicle WAVs often peak ~40–80 Hz otherwise).
-    if bool(params.get('balance_vehicle_spectrum', True)):
-        doppler_audio = _preflight_vehicle_spectrum(doppler_audio, SR)
-
     # Spectral realism enrichment while preserving Doppler macro-structure.
     # Per-source variability comes from clip-local randomized enrichment levels.
-    seed = int(np.random.randint(0, 2**31 - 1))
-    rng = np.random.default_rng(seed)
-    doppler_audio = _enrich_spectral_realism(doppler_audio, amplitudes, SR, rng, params)
+    if not bool(params.get('clean_audio', False)):
+        # Shift spectral centroid toward roadside/engine band (vehicle WAVs often peak ~40–80 Hz otherwise).
+        if bool(params.get('balance_vehicle_spectrum', True)):
+            doppler_audio = _preflight_vehicle_spectrum(doppler_audio, SR)
+
+        seed = int(np.random.randint(0, 2**31 - 1))
+        rng = np.random.default_rng(seed)
+        doppler_audio = _enrich_spectral_realism(doppler_audio, amplitudes, SR, rng, params)
 
     return doppler_audio, freq_ratios, amplitudes
 
@@ -1033,7 +1034,7 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
 # ============================================================
 # NUMPY FEATURE OUTPUT
 # ============================================================
-def save_numpy_outputs(doppler_audio, sample_dir, spectrogram_type='cqt', config=None, base_name='spectrogram', essential_dir=None, params=None):
+def save_numpy_outputs(doppler_audio, sample_dir, spectrogram_type='cqt', config=None, base_name='spectrogram', essential_dir=None, params=None, freq_limit=1250):
     """
     Compute and save per-frame feature arrays for one clip.
     All arrays share the same frame count T, computed with HOP_LENGTH=512.
@@ -1161,7 +1162,8 @@ def save_numpy_outputs(doppler_audio, sample_dir, spectrogram_type='cqt', config
             np.save(os.path.join(essential_dir, 'kinematics.npy'), kinematics)
         _save_numpy_visualization(
             doppler_audio, spec, frequency, dfdt, rms, spec_topk, time_arr,
-            spectrogram_type, essential_dir, generate_diagnostics=False, base_name=base_name
+            spectrogram_type, essential_dir, generate_diagnostics=False, base_name=base_name,
+            freq_limit=freq_limit
         )
 
     return {
@@ -1178,7 +1180,8 @@ def save_numpy_outputs(doppler_audio, sample_dir, spectrogram_type='cqt', config
 
 def _save_numpy_visualization(doppler_audio, spec, frequency, dfdt, rms,
                                spec_topk, time_arr, spectrogram_type, sample_dir,
-                               generate_diagnostics=True, base_name='spectrogram'):
+                               generate_diagnostics=True, base_name='spectrogram',
+                               freq_limit=1250):
     """
     Save separate white-background PNGs inside sample_dir.
     spectrogram.png is ALWAYS saved.
@@ -1199,17 +1202,29 @@ def _save_numpy_visualization(doppler_audio, spec, frequency, dfdt, rms,
         ax.yaxis.label.set_color('black')
         ax.title.set_color('#222222')
 
-    # ── 1. spectrogram.png  (webapp Spectrogram Generator settings) ───────────
+    # ── 1. spectrogram.png  (High contrast, magma cmap, truncated Y) ───────────
     try:
-        fig, ax = plt.subplots(figsize=(10, 4), facecolor='white')
-        stft = librosa.stft(doppler_audio, n_fft=4096, hop_length=256)
+        fig, ax = plt.subplots(figsize=(12, 4.8), facecolor='white')
+        n_fft = 4096
+        hop_length = 512
+        win_length = 4096
+        stft = librosa.stft(doppler_audio, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
         D = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+        
+        # Improve contrast (match Audio Comparison logic)
+        vmax = float(np.max(D))
+        vmin = vmax - 80.0
+        
         librosa.display.specshow(D, sr=SR, x_axis='time', y_axis='hz',
-                                 ax=ax, hop_length=256)
-        ax.set_ylim(0, 2500)
-        ax.set_title(f'Spectrogram ({spectrogram_type.upper()})')
+                                 ax=ax, hop_length=hop_length, cmap='magma',
+                                 vmin=vmin, vmax=vmax, rasterized=True)
+        
+        ax.set_ylim(0, freq_limit)
+        ax.set_yticks(np.linspace(0, freq_limit, 6))
+        ax.set_title(base_name)
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
+        
         fig.savefig(os.path.join(sample_dir, f'{base_name}_spectrogram.png'),
                     dpi=120, bbox_inches='tight', facecolor='white')
         plt.close(fig)
@@ -1376,18 +1391,13 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
     # ── Audio ─────────────────────────────────────────────────────────────────
     output_format = config.get('output', {}).get('format', 'wav')
     
-    # Metadata-rich base name
-    meta_name = f"{vehicle_name}_{path_type}_{params['speed']}mps_{params['distance']}m_{index:07d}"
-    
+    # Create a clean base name
     if custom_filename:
-        # If it's a test sample, prepend the (test_N_) tag
-        try:
-            sno = custom_filename.split('_')[-1]
-            base_name = f"(test_{sno}_){meta_name}"
-        except:
-            base_name = f"({custom_filename}_){meta_name}"
+        base_name = custom_filename
     else:
-        base_name = meta_name
+        # Use km/h for the fallback metadata name
+        speed_kmph = round(params['speed'] * 3.6, 2)
+        base_name = f"{vehicle_name}_{speed_kmph}_{params['distance']}m_{index:07d}"
         
     filename = f"{base_name}.{output_format}"
     
@@ -1408,19 +1418,23 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
     # ── Path plot ─────────────────────────────────────────────────────────────
     # save_path_plot already handled dir creation
     include_samples = config.get('batch', {}).get('include_sample_folders', True)
+    generate_spec = config.get('output', {}).get('generate_spectrogram', False)
+
     if include_samples:
         save_path_plot(path_type, params, common_dir, base_name)
         save_path_plot(path_type, params, essential_dir, base_name)
     
     # ── Numpy feature arrays + visualization (saves to Common/ and Essential/) 
     spectrogram_type = config.get('output', {}).get('spectrogram_type', 'cqt')
+    freq_limit = config.get('output', {}).get('freq_limit', 1250)
     
     # If skipping samples, we still need some basic features for validation if needed,
     # but the user wants to reduce compute. save_numpy_outputs generates the spectrogram.
-    if include_samples:
+    if include_samples or generate_spec:
         features = save_numpy_outputs(
             doppler_audio, sample_dir, spectrogram_type, config,
-            base_name=base_name, essential_dir=essential_dir, params=params
+            base_name=base_name, essential_dir=essential_dir, params=params,
+            freq_limit=freq_limit
         )
     else:
         # Minimal features just for labeling

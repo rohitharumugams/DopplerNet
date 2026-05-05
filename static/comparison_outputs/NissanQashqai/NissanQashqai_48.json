@@ -11,7 +11,7 @@
         "Spectral Overlap": 76.84678649902344,
         "Overall Match Score": 71.84928843205768
     },
-    "path_a": "D:\\Antigravity\\vs13-model\\RealData\\NissanQashqai\\NissanQashqai_48.wav",
-    "path_b": "D:\\Antigravity\\vs13-model\\SimulatedData\\NissanQashQai\\NissanQashQai_48.0.wav",
+    "path_a": "../RealData/NissanQashqai/NissanQashqai_48.wav",
+    "path_b": "../SimulatedData/NissanQashQai/NissanQashQai_48.0.wav",
     "timestamp": 1777915101
 }
