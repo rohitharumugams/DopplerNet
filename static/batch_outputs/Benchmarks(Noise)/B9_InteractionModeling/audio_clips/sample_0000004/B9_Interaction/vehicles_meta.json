@@ -1,0 +1,35 @@
+[
+  {
+    "vehicle_name": "Peuguot307",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 3.053303534277088,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v1_Peuguot307.wav"
+  },
+  {
+    "vehicle_name": "Peuguot3008",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 4.058780808916202,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v2_Peuguot3008.wav"
+  },
+  {
+    "vehicle_name": "Peuguot3008",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 0.22451612186433045,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v3_Peuguot3008.wav"
+  }
+]

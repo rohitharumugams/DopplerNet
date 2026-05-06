@@ -1,0 +1,68 @@
+[
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 13.0,
+    "acceleration": 0.0,
+    "offset": 10.970933442308738,
+    "direction": 1,
+    "delay": 3.2540879305463326,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 28.0,
+    "acceleration": 0.0,
+    "offset": 14.92462439249514,
+    "direction": -1,
+    "delay": 0.0,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "NissanQashQai",
+    "speed": 37.0,
+    "acceleration": 0.0,
+    "offset": 11.96729576134127,
+    "direction": 1,
+    "delay": 0.5210325127352966,
+    "path_type": "parabola",
+    "is_crossing": true,
+    "audio_file": "v3_NissanQashQai.wav"
+  },
+  {
+    "vehicle_name": "NissanQashQai",
+    "speed": 37.0,
+    "acceleration": 0.0,
+    "offset": 15.964531482674902,
+    "direction": -1,
+    "delay": 3.960153856821514,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v4_NissanQashQai.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 50.0,
+    "acceleration": 0.0,
+    "offset": 13.040489307938289,
+    "direction": 1,
+    "delay": 1.437621813265586,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v5_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 22.0,
+    "acceleration": 0.0,
+    "offset": 17.085664370989655,
+    "direction": -1,
+    "delay": 0.05102452567825766,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v6_KiaSportage.wav"
+  }
+]

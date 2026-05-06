@@ -1,0 +1,57 @@
+[
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 1.8343583902329605,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v1_VWPassat.wav"
+  },
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 0.0,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v2_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 0.3928855765890482,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v3_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 2.457922319899107,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v4_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "NissanQashQai",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 0.6713547546022993,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v5_NissanQashQai.wav"
+  }
+]

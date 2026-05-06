@@ -1,0 +1,24 @@
+[
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 11.944850471049982,
+    "direction": 1,
+    "delay": 0.0,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "Peuguot307",
+    "speed": 20.0,
+    "acceleration": 0.0,
+    "offset": 15.965016338183649,
+    "direction": -1,
+    "delay": 0.10105138994646357,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_Peuguot307.wav"
+  }
+]

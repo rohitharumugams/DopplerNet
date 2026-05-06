@@ -35,7 +35,7 @@ def load_original_audio(audio_type='horn', duration=5):
         'car': 'static/horn.mp3',
         'train': 'static/train.mp3',
         'flight': 'static/flight.mp3',
-        'drone': 'static/drone.mp3'  # <-- added drone mapping
+        'drone': 'static/drone.mp3'  # < added drone mapping
     }
 
     filename = audio_files.get(audio_type, 'static/horn.mp3')
@@ -307,7 +307,7 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
         step = freq_curve[i]
         input_positions[i] = input_positions[i-1] + step
     
-    # Fix: Do not forcefully scale the entire curve to the max input position, 
+    # Fix: Do not forcefully scale the entire curve to the max input position,
     # as that artificially pitch shifts the audio by ignoring the true Doppler integral.
     # Only scale if we genuinely run out of input buffer to prevent index bounds errors.
     if input_positions[-1] > 0:
@@ -496,10 +496,13 @@ def apply_doppler_to_audio_fixed_advanced(original_audio, freq_ratios, amplitude
     return result
 
 
-def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=343.0):
+def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=343.0, alignment='start'):
     """
     Apply observer-time alignment using a retarded-time approximation:
-    t_obs = t_emit + (r - r_cpa)/c.
+    t_obs = t_emit + (r - r_ref)/c.
+    
+    If alignment='start', r_ref = distances[0], so simulation starts at t_obs = 0.
+    If alignment='cpa', r_ref = min(distances), so CPA occurs at its original t_emit.
     """
     freq = np.asarray(freq_ratios, dtype=np.float32)
     amp = np.asarray(amplitudes, dtype=np.float32)
@@ -513,8 +516,13 @@ def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=3
     dist = np.maximum(dist[:n], 1e-6)
     dt = 1.0 / float(SR)
     t_emit = np.arange(n, dtype=np.float32) * dt
-    r_cpa = float(np.min(dist))
-    t_obs = t_emit + (dist - r_cpa) / max(1e-6, float(c_sound))
+    
+    if alignment == 'start':
+        r_ref = float(dist[0])
+    else:
+        r_ref = float(np.min(dist))
+        
+    t_obs = t_emit + (dist - r_ref) / max(1e-6, float(c_sound))
 
     order = np.argsort(t_obs)
     t_obs = t_obs[order]
@@ -581,7 +589,7 @@ def analyze_doppler_effect(original_audio, processed_audio, freq_ratios):
         orig_peak_idx = np.argmax(orig_mag[:, frame])
         orig_dominant_freqs.append(freqs[orig_peak_idx])
         
-        # Processed audio dominant frequency  
+        # Processed audio dominant frequency
         proc_peak_idx = np.argmax(proc_mag[:, frame])
         proc_dominant_freqs.append(freqs[proc_peak_idx])
     

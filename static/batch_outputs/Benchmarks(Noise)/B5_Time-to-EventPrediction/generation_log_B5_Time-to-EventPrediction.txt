@@ -1,0 +1,5 @@
+Generated clip 1/5: RenaultScenic_82.8_96.0m_0000001.wav
+Generated clip 2/5: Peuguot307_75.6_61.0m_0000002.wav
+Generated clip 3/5: KiaSportage_133.2_26.0m_0000003.wav
+Generated clip 4/5: NissanQashQai_43.2_87.0m_0000004.wav
+Generated clip 5/5: Peuguot3008_36.0_52.0m_0000005.wav

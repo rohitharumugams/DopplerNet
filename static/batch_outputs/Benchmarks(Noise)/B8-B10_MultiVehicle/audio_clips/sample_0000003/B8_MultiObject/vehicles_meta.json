@@ -1,0 +1,46 @@
+[
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 23.0,
+    "acceleration": 0.0,
+    "offset": 11.189392984475553,
+    "direction": 1,
+    "delay": 0.5902185678070571,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 19.0,
+    "acceleration": 0.0,
+    "offset": 15.181189419213291,
+    "direction": -1,
+    "delay": 0.0,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_VWPassat.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 29.0,
+    "acceleration": 0.0,
+    "offset": 12.76004054804938,
+    "direction": 1,
+    "delay": 1.5632026579894793,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v3_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 46.0,
+    "acceleration": 0.0,
+    "offset": 16.83698076960435,
+    "direction": -1,
+    "delay": 0.11182477798924051,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v4_KiaSportage.wav"
+  }
+]

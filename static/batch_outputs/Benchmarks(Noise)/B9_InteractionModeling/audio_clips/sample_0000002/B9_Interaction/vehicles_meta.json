@@ -1,0 +1,57 @@
+[
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 0.19350462509296784,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v1_VWPassat.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 4.888348650072005,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v2_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "Peuguot307",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 0.3354581843709825,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v3_Peuguot307.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 1.8714594760935928,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v4_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 3.043621110519448,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v5_VWPassat.wav"
+  }
+]

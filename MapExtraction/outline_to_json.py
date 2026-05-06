@@ -48,7 +48,7 @@ def convert_outline_png_to_json(image_path, output_json_path, mask_path=None):
             if mask_bgr.shape[:2] != binary.shape:
                 mask_bgr = cv2.resize(mask_bgr, (binary.shape[1], binary.shape[0]), interpolation=cv2.INTER_NEAREST)
             
-            # OpenCV is BGR. 
+            # OpenCV is BGR.
             # Red marks (Eraser) -> mask_bgr[:,:,2] is high.
             # Green marks (Pencil) -> mask_bgr[:,:,1] is high.
             
@@ -62,14 +62,14 @@ def convert_outline_png_to_json(image_path, output_json_path, mask_path=None):
             print(f"Applied manual edits (Red/Green) from {mask_path}")
 
     # 3. Find Edge Contours
-    # Use RETR_CCOMP to get a 2-level hierarchy: 
-    #   - external boundaries (level 0)
-    #   - internal holes (level 1)
+    # Use RETR_CCOMP to get a 2-level hierarchy:
+    # - external boundaries (level 0)
+    # - internal holes (level 1)
     # This helps us avoid "double lines" when the input outlines have thickness.
     # We only want the outer boundary of each "line" in the image.
     contours, hierarchy = cv2.findContours(binary, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     
-    # Simplify contours 
+    # Simplify contours
     edges = []
     if hierarchy is not None:
         hierarchy = hierarchy[0] # Flatten

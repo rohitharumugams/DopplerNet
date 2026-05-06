@@ -80,7 +80,7 @@ def calculate_intersection_doppler(vehicles, observer_pos=(10, 10), duration_s=1
         # Smooth fade-in/out to prevent abrupt spawning (per vehicle)
         amplitudes = apply_distance_fade(amplitudes, fade_duration_s=1.0)
         
-        # Normalize amplitudes relative to some global max if needed, 
+        # Normalize amplitudes relative to some global max if needed,
         # but here we keep them raw for mixing (1/R law).
         
         results[v_id] = {

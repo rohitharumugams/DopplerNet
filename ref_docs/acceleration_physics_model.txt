@@ -1,0 +1,121 @@
+# DopplerSim Physics Model: Accelerated Source (Reference)
+# Last Updated: 2026-04-24
+
+This document details the mathematical formulation for time-varying Doppler effects 
+in the DopplerSim simulator under constant longitudinal acceleration for both 
+single-source and multi-source scenarios.
+
+1. MODELING ASSUMPTIONS
+-----------------------
+- Isotropic Point Emitter: Sources are modeled as isotropic point emitters (monopoles). 
+  Directional directivity (beam patterns) is not explicitly modeled.
+- Frequency Domain: The Doppler effect is applied as a time-varying frequency scaling 
+  factor in the audio resynthesis pipeline.
+- Medium: The medium (air) is assumed to be homogeneous with a constant speed of 
+  sound c_sound determined by atmospheric parameters.
+
+2. KINEMATIC MODEL
+------------------
+The source follows a path s(t) with constant acceleration a.
+
+Initial Velocity (t=0): v0
+Constant Acceleration: a
+
+Instantaneous Velocity Magnitude:
+    v(t) = v0 + a * t
+    (Constraint: v(t) >= 0.001 m/s to prevent backward motion)
+
+Displacement:
+    s(t) = Integrate[v(t), dt] from 0 to t
+    s(t) = v0 * t + 0.5 * a * t^2
+
+Position Vector:
+    P(t) = Pc + u * (s(t) - s_cpa)
+    where:
+        Pc: Point of closest approach (CPA) to the origin.
+        u: Unit direction vector of the path.
+        s_cpa: Displacement at the time of closest approach.
+
+3. GEOMETRY & RELATIVE MOTION
+-----------------------------
+At each timestep t:
+
+Relative Position Vector (Mic to Source):
+    R(t) = P(t) - P_mic
+
+Distance:
+    r(t) = ||R(t)||
+
+Radial Velocity (Instantaneous Projection):
+    v_r(t) = (v_vec(t) . R(t)) / r(t)
+    where v_vec(t) = v(t) * u.
+
+    Note: v_r > 0 implies the source is moving AWAY from the microphone.
+
+4. DOPPLER FREQUENCY SHIFT
+--------------------------
+The instantaneous frequency ratio (f_shifted / f_emitted) is derived from the classical 
+Doppler formula for a moving source:
+
+    f_ratio(t) = c_sound / (c_sound + v_r(t))
+
+    where c_sound is the speed of sound (approx. 343 m/s).
+
+5. AMPLITUDE & INTENSITY
+------------------------
+The acoustic amplitude A(t) is modeled using:
+
+A. Geometric Spreading (Spatial):
+    A_spatial(t) = 1 / sqrt(r(t)^2 + eps^2)
+    (Standard inverse-distance law).
+
+B. Convective Amplification:
+    A_convective(t) = c_sound / (c_sound + v_r(t))
+    (Models energy concentration in the direction of motion).
+
+C. Combined Amplitude Formulation:
+    A_total(t) = K * A_spatial(t) * A_convective(t)
+
+6. RETARDED-TIME PROPAGATION DELAY
+----------------------------------
+To model the finite speed of sound, sound emitted at time t_emit arrives at the 
+observer at time t_obs:
+
+    t_obs = t_emit + [r(t_emit) - r_cpa] / c_sound
+
+Implementation:
+- Interpolation: Linear interpolation is used to map non-uniform arrival times (t_obs) 
+  back to a uniform observer grid (t_emit).
+- Edge Handling: Boundary padding is used for samples falling outside the mapping 
+  range (nearest-available sample values).
+
+7. MULTI-SOURCE SYNCHRONIZATION
+-------------------------------
+In multi-source scenarios, each vehicle i follows its own profile:
+
+Relative Displacement per Vehicle:
+    dt_i = t - t_arr_i
+    s_i(t) = v0_i * dt_i + 0.5 * a_i * dt_i^2
+
+Each source is rendered independently and mixed linearly (superposition of pressures).
+
+8. DISCRIMINABILITY METRICS (ALPHA)
+-----------------------------------
+Two metrics quantify the prominence of the acceleration signature:
+
+A. Velocity Change Ratio (Alpha):
+    Alpha = |a * T_transit / v0|
+    Measures the total change in velocity relative to initial speed over the window.
+    Threshold: Alpha > 0.5 (Heuristic for distinct asymmetry).
+
+B. Geometric-Acceleration Dominance (Alpha_eff):
+    Alpha_eff = |a * d / v0^2|
+    Determines if acceleration effects outweigh geometric Doppler effects near CPA.
+    This helps identify datasets where acceleration is kinematically learnable.
+
+9. SUMMARY FOR CROSS-CHECK
+--------------------------
+For a source moving at constant acceleration 'a':
+1. v(t) is linear.
+2. f_ratio(t) results in an asymmetric S-curve.
+3. Per-vehicle kinematics (vN_kinematics.npy) store the ground truth [t, v_corr, a, alpha_eff].

@@ -1,0 +1,702 @@
+{
+  "batch_id": "B8-B10_MultiVehicle",
+  "config": {
+    "output": {
+      "format": "wav",
+      "path": "static/batch_outputs/Benchmarks/",
+      "spectrogram_type": "cqt",
+      "generate_diagnostics": true
+    },
+    "vehicles": {
+      "selected": [
+        "KiaSportage",
+        "NissanQashQai",
+        "Peuguot3008",
+        "Peuguot307",
+        "RenaultScenic",
+        "VWPassat"
+      ]
+    },
+    "paths": {
+      "selected": [
+        "straight",
+        "parabola",
+        "bezier"
+      ]
+    },
+    "speed": {
+      "randomize": true,
+      "min": 10,
+      "max": 50
+    },
+    "distance": {
+      "randomize": true,
+      "min": 5,
+      "max": 100
+    },
+    "duration": {
+      "randomize": true,
+      "min": 10,
+      "max": 10
+    },
+    "angle": {
+      "randomize": true,
+      "min": -45,
+      "max": 45
+    },
+    "atmosphere": {
+      "randomize": true,
+      "temp_min": 15,
+      "temp_max": 35,
+      "hum_min": 30,
+      "hum_max": 70,
+      "add_air_noise": false,
+      "air_noise_strength": 8,
+      "air_noise_frequency_hz": 1200
+    },
+    "acceleration": {
+      "randomize": false,
+      "min": -3.5,
+      "max": 2.5
+    },
+    "batch": {
+      "total_clips": 5,
+      "mode": "auto",
+      "name": "B8-B10_MultiVehicle"
+    },
+    "benchmarks": {
+      "enabled": true,
+      "selected": [
+        "B8",
+        "B10"
+      ],
+      "params": {
+        "enable_acceleration": false,
+        "cpa_time": 5,
+        "cpa_window": 1,
+        "is_crossing": true,
+        "lane_width": 4,
+        "max_stagger": 5,
+        "vehicle_min": 2,
+        "vehicle_max": 5,
+        "include_opposite": true,
+        "road_angle": 0,
+        "road_shapes": [
+          "straight",
+          "parabola",
+          "bezier"
+        ],
+        "intersection_benchmark": false,
+        "intersection_angle_min": 30,
+        "intersection_angle_max": 150,
+        "intersection_half_arm": 90
+      }
+    },
+    "linear_overlap": {
+      "enabled": false,
+      "vehicle_min": 3,
+      "vehicle_max": 5,
+      "delay_min": 0.3,
+      "delay_max": 2,
+      "observer_distance": 18,
+      "generate_png_spectrograms": false
+    }
+  },
+  "clips": [
+    {
+      "filename": "multi_object_0000001.wav",
+      "index": 1,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "VWPassat",
+        "path_type": "bezier",
+        "params": {
+          "speed": 41,
+          "duration": 4.780487804878049,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 11.330986812206923,
+          "y1": 11.045866812206922,
+          "y2": 10.784506812206923,
+          "y3": 10.499386812206922,
+          "x0": -127.22731575919957,
+          "x3": 68.77268424080043,
+          "x1": -62.54731575919956,
+          "x2": 2.132684240800444
+        },
+        "delay": 4.912570555133742,
+        "is_crossing": true,
+        "offset": 10.915186812206922,
+        "direction": 1,
+        "speed": 41
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 41.0,
+          "acceleration": 0.0,
+          "offset": 10.915186812206922,
+          "direction": 1,
+          "delay": 4.912570555133742,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 34.0,
+          "acceleration": 0.0,
+          "offset": 14.91486070567646,
+          "direction": -1,
+          "delay": 1.9764145898429248,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 32.0,
+          "acceleration": 0.0,
+          "offset": 12.011504662945663,
+          "direction": 1,
+          "delay": 4.893542249832825,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 36.0,
+          "acceleration": 0.0,
+          "offset": 16.023585765633914,
+          "direction": -1,
+          "delay": 3.4135920385402456,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 12.0,
+          "acceleration": 0.0,
+          "offset": 13.094080176988168,
+          "direction": 1,
+          "delay": 0.0,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v5_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 47.0,
+          "acceleration": 0.0,
+          "offset": 17.09753601836151,
+          "direction": -1,
+          "delay": 0.41577779153858185,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v6_Peuguot3008.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 33.666666666666664,
+        "direction_label": -1,
+        "cpa_distance_m": 10.915186812206922,
+        "trajectory_type": "busy_road",
+        "num_sources": 6,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "VWPassat",
+          "NissanQashQai",
+          "RenaultScenic",
+          "NissanQashQai",
+          "VWPassat",
+          "Peuguot3008"
+        ],
+        "cpa_time_sec": 7.6019828708147195
+      },
+      "path_plot": "multi_object_0000001.png",
+      "sample_dir": "sample_0000001",
+      "num_sources": 6,
+      "individual_files": [
+        "v1_VWPassat.wav",
+        "v2_NissanQashQai.wav",
+        "v3_RenaultScenic.wav",
+        "v4_NissanQashQai.wav",
+        "v5_VWPassat.wav",
+        "v6_Peuguot3008.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000002.wav",
+      "index": 2,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "VWPassat",
+        "path_type": "bezier",
+        "params": {
+          "speed": 25,
+          "duration": 7.84,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 11.623751849004405,
+          "y1": 11.338631849004404,
+          "y2": 11.077271849004404,
+          "y3": 10.792151849004403,
+          "x0": -110.03539753237878,
+          "x3": 85.96460246762122,
+          "x1": -45.355397532378774,
+          "x2": 19.324602467621233
+        },
+        "delay": 3.5084056913020736,
+        "is_crossing": true,
+        "offset": 11.207951849004404,
+        "direction": 1,
+        "speed": 25
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 11.207951849004404,
+          "direction": 1,
+          "delay": 3.5084056913020736,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "Peuguot307",
+          "speed": 45.0,
+          "acceleration": 0.0,
+          "offset": 15.19870522623184,
+          "direction": -1,
+          "delay": 1.8101366193880302,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_Peuguot307.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 10.0,
+          "acceleration": 0.0,
+          "offset": 12.789955746533364,
+          "direction": 1,
+          "delay": 0.0,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 13.0,
+          "acceleration": 0.0,
+          "offset": 16.800606697347977,
+          "direction": -1,
+          "delay": 1.0266866982335254,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_NissanQashQai.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 23.25,
+        "direction_label": -1,
+        "cpa_distance_m": 11.207951849004404,
+        "trajectory_type": "busy_road",
+        "num_sources": 4,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "VWPassat",
+          "Peuguot307",
+          "KiaSportage",
+          "NissanQashQai"
+        ],
+        "cpa_time_sec": 6.586307252230908
+      },
+      "path_plot": "multi_object_0000002.png",
+      "sample_dir": "sample_0000002",
+      "num_sources": 4,
+      "individual_files": [
+        "v1_VWPassat.wav",
+        "v2_Peuguot307.wav",
+        "v3_KiaSportage.wav",
+        "v4_NissanQashQai.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000003.wav",
+      "index": 3,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "NissanQashQai",
+        "path_type": "bezier",
+        "params": {
+          "speed": 19,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 10.537995761460515,
+          "y1": 10.823115761460516,
+          "y2": 11.084475761460515,
+          "y3": 11.369595761460516,
+          "x0": -127.48579776157811,
+          "x3": 62.514202238421895,
+          "x1": -64.78579776157811,
+          "x2": -2.0857977615781067
+        },
+        "delay": 2.8599293040047415,
+        "is_crossing": true,
+        "offset": 10.953795761460515,
+        "direction": 1,
+        "speed": 19
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 19.0,
+          "acceleration": 0.0,
+          "offset": 10.953795761460515,
+          "direction": 1,
+          "delay": 2.8599293040047415,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 14.0,
+          "acceleration": 0.0,
+          "offset": 14.9263237019348,
+          "direction": -1,
+          "delay": 2.0007261068946116,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 27.0,
+          "acceleration": 0.0,
+          "offset": 12.017647977607103,
+          "direction": 1,
+          "delay": 2.655347013338696,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 32.0,
+          "acceleration": 0.0,
+          "offset": 15.989435632887922,
+          "direction": -1,
+          "delay": 0.0,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 14.0,
+          "acceleration": 0.0,
+          "offset": 13.096787295112893,
+          "direction": 1,
+          "delay": 0.06734127374727283,
+          "path_type": "parabola",
+          "is_crossing": true,
+          "audio_file": "v5_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 38.0,
+          "acceleration": 0.0,
+          "offset": 17.056053337551365,
+          "direction": -1,
+          "delay": 2.1042484306438567,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v6_RenaultScenic.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 24.0,
+        "direction_label": -1,
+        "cpa_distance_m": 10.953795761460515,
+        "trajectory_type": "busy_road",
+        "num_sources": 6,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "NissanQashQai",
+          "VWPassat",
+          "VWPassat",
+          "KiaSportage",
+          "RenaultScenic",
+          "RenaultScenic"
+        ],
+        "cpa_time_sec": 6.614598688104863
+      },
+      "path_plot": "multi_object_0000003.png",
+      "sample_dir": "sample_0000003",
+      "num_sources": 6,
+      "individual_files": [
+        "v1_NissanQashQai.wav",
+        "v2_VWPassat.wav",
+        "v3_VWPassat.wav",
+        "v4_KiaSportage.wav",
+        "v5_RenaultScenic.wav",
+        "v6_RenaultScenic.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000004.wav",
+      "index": 4,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "Peuguot307",
+        "path_type": "bezier",
+        "params": {
+          "speed": 40,
+          "duration": 4.9,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 10.81519241683436,
+          "y3": 11.053700673870647,
+          "y1": 11.073995815122492,
+          "y2": 10.81596082644664,
+          "x0": -129.411140642048,
+          "x3": 66.58885935795199,
+          "x1": -64.73114064204799,
+          "x2": -0.051140642047982965
+        },
+        "delay": 2.5120925388413546,
+        "is_crossing": true,
+        "offset": 10.924675848230846,
+        "direction": 1,
+        "speed": 40
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "Peuguot307",
+          "speed": 40.0,
+          "acceleration": 0.0,
+          "offset": 10.924675848230846,
+          "direction": 1,
+          "delay": 2.5120925388413546,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_Peuguot307.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 44.0,
+          "acceleration": 0.0,
+          "offset": 14.932539047433284,
+          "direction": -1,
+          "delay": 4.752168092909609,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 10.0,
+          "acceleration": 0.0,
+          "offset": 11.960937650202945,
+          "direction": 1,
+          "delay": 2.918719023770543,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 43.0,
+          "acceleration": 0.0,
+          "offset": 16.02543408060822,
+          "direction": -1,
+          "delay": 1.8213947326905722,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 48.0,
+          "acceleration": 0.0,
+          "offset": 13.020887279992936,
+          "direction": 1,
+          "delay": 4.620637141827256,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v5_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 15.0,
+          "acceleration": 0.0,
+          "offset": 17.02308363677575,
+          "direction": -1,
+          "delay": 0.0,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v6_VWPassat.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 33.333333333333336,
+        "direction_label": -1,
+        "cpa_distance_m": 10.924675848230846,
+        "trajectory_type": "busy_road",
+        "num_sources": 6,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "Peuguot307",
+          "VWPassat",
+          "RenaultScenic",
+          "VWPassat",
+          "VWPassat",
+          "VWPassat"
+        ],
+        "cpa_time_sec": 7.770835255006555
+      },
+      "path_plot": "multi_object_0000004.png",
+      "sample_dir": "sample_0000004",
+      "num_sources": 6,
+      "individual_files": [
+        "v1_Peuguot307.wav",
+        "v2_VWPassat.wav",
+        "v3_RenaultScenic.wav",
+        "v4_VWPassat.wav",
+        "v5_VWPassat.wav",
+        "v6_VWPassat.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000005.wav",
+      "index": 5,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "NissanQashQai",
+        "path_type": "bezier",
+        "params": {
+          "speed": 33,
+          "duration": 5.9393939393939394,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 10.759677305634499,
+          "y1": 11.0447973056345,
+          "y2": 11.3061573056345,
+          "y3": 11.5912773056345,
+          "x0": -112.83838295159339,
+          "x3": 83.16161704840661,
+          "x1": -48.15838295159338,
+          "x2": 16.521617048406625
+        },
+        "delay": 0.3054446930382393,
+        "is_crossing": true,
+        "offset": 11.1754773056345,
+        "direction": 1,
+        "speed": 33
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 33.0,
+          "acceleration": 0.0,
+          "offset": 11.1754773056345,
+          "direction": 1,
+          "delay": 0.3054446930382393,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "Peuguot307",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 15.16461498019913,
+          "direction": -1,
+          "delay": 1.3627210356744528,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_Peuguot307.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 30.0,
+          "acceleration": 0.0,
+          "offset": 12.8135370116585,
+          "direction": 1,
+          "delay": 3.2679630115224985,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 39.0,
+          "acceleration": 0.0,
+          "offset": 16.79462470237105,
+          "direction": -1,
+          "delay": 0.0,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_KiaSportage.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 31.75,
+        "direction_label": -1,
+        "cpa_distance_m": 11.1754773056345,
+        "trajectory_type": "busy_road",
+        "num_sources": 4,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "NissanQashQai",
+          "Peuguot307",
+          "VWPassat",
+          "KiaSportage"
+        ],
+        "cpa_time_sec": 6.234032185058798
+      },
+      "path_plot": "multi_object_0000005.png",
+      "sample_dir": "sample_0000005",
+      "num_sources": 4,
+      "individual_files": [
+        "v1_NissanQashQai.wav",
+        "v2_Peuguot307.wav",
+        "v3_VWPassat.wav",
+        "v4_KiaSportage.wav"
+      ]
+    }
+  ],
+  "total_generated": 5,
+  "timestamp": "2026-05-07T03:12:59.700201"
+}

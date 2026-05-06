@@ -38,7 +38,7 @@ def get_pairs():
     data = request.get_json() or {}
     dataset_a = data.get('dataset_a', '../Datasets/RealData')
     dataset_b = data.get('dataset_b', '../Datasets/SimulatedData')
-    out_dir = data.get('out_dir', 'static/comparison_outputs')
+    out_dir = data.get('out_dir', 'static/spectrograms/comparison_outputs')
 
     if not os.path.exists(dataset_a) or not os.path.exists(dataset_b):
         return jsonify({'error': 'One or both dataset paths do not exist.'}), 400
@@ -132,7 +132,7 @@ def process_pair():
     path_b = data.get('path_b')
     carname = data.get('carname')
     speed = data.get('speed')
-    out_dir = data.get('out_dir', 'static/comparison_outputs')
+    out_dir = data.get('out_dir', 'static/spectrograms/comparison_outputs')
 
     if not all([path_a, path_b, carname, speed is not None]):
         return jsonify({'error': 'Missing required pair information'}), 400
@@ -252,7 +252,7 @@ from scipy.stats import pearsonr
 @auto_compare_bp.route('/api/auto_compare/finalize', methods=['POST'])
 def finalize_auto_compare():
     data = request.get_json() or {}
-    out_dir = data.get('out_dir', 'static/comparison_outputs')
+    out_dir = data.get('out_dir', 'static/spectrograms/comparison_outputs')
     
     # Aggregate results from all per-clip JSONs
     all_entries = []
@@ -344,13 +344,13 @@ def finalize_auto_compare():
                 f.write(f"  - {k:33}: {speed_avg[k]['mean']:.4f}\n")
             f.write("\n")
 
-    # 4. distribution_stats.txt (mean ± std + histogram data)
+    # 4. distribution_stats.txt (mean +/- std + histogram data)
     with open(os.path.join(averages_dir, 'distribution_stats.txt'), 'w', encoding='utf-8') as f:
-        f.write("SCORE DISTRIBUTIONS (Mean ± Std)\n")
+        f.write("SCORE DISTRIBUTIONS (Mean +/- Std)\n")
         f.write("--------------------------------------------------\n")
         for k in metrics_keys:
             s = overall_stats[k]
-            f.write(f"{k:35}: {s['mean']:.2f} ± {s['std']:.2f} (Range: {s['min']:.2f} - {s['max']:.2f})\n")
+            f.write(f"{k:35}: {s['mean']:.2f} +/- {s['std']:.2f} (Range: {s['min']:.2f} - {s['max']:.2f})\n")
         
         f.write("\nMATCH SCORE HISTOGRAM DATA (Bins: 0-10, 10-20, ..., 90-100)\n")
         f.write("--------------------------------------------------\n")

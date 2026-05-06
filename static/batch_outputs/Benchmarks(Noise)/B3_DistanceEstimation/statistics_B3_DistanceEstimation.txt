@@ -1,0 +1,45 @@
+============================================================
+BATCH GENERATION STATISTICS
+============================================================
+
+Total Clips Generated: 5
+
+Vehicle Distribution:
+  KiaSportage: 1 clips (20.0%)
+  NissanQashQai: 1 clips (20.0%)
+  Peuguot3008: 1 clips (20.0%)
+  Peuguot307: 1 clips (20.0%)
+  RenaultScenic: 1 clips (20.0%)
+
+Path Type Distribution:
+  bezier: 1 clips (20.0%)
+  parabola: 2 clips (40.0%)
+  straight: 2 clips (40.0%)
+
+Speed Statistics:
+  Min: 27.0 m/s
+  Max: 50.0 m/s
+  Mean: 37.2 m/s
+  Median: 35.0 m/s
+
+Distance Statistics:
+  Min: 15.0 m
+  Max: 97.0 m
+  Mean: 56.0 m
+  Median: 56.0 m
+
+Duration Statistics:
+  Min: 10.0 s
+  Max: 10.0 s
+  Mean: 10.0 s
+  Median: 10.0 s
+
+Per-Clip Speeds:
+----------------------------------------
+  Clip    1:   44.0 m/s  (Peuguot3008)
+  Clip    2:   30.0 m/s  (RenaultScenic)
+  Clip    3:   35.0 m/s  (KiaSportage)
+  Clip    4:   50.0 m/s  (NissanQashQai)
+  Clip    5:   27.0 m/s  (Peuguot307)
+
+============================================================

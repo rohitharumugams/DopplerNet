@@ -1,0 +1,623 @@
+{
+  "batch_id": "B8_MultiObjectResolution",
+  "config": {
+    "output": {
+      "format": "wav",
+      "path": "static/batch_outputs/Benchmarks/",
+      "spectrogram_type": "cqt",
+      "generate_diagnostics": true
+    },
+    "vehicles": {
+      "selected": [
+        "KiaSportage",
+        "NissanQashQai",
+        "Peuguot3008",
+        "Peuguot307",
+        "RenaultScenic",
+        "VWPassat"
+      ]
+    },
+    "paths": {
+      "selected": [
+        "straight",
+        "parabola",
+        "bezier"
+      ]
+    },
+    "speed": {
+      "randomize": true,
+      "min": 10,
+      "max": 50
+    },
+    "distance": {
+      "randomize": true,
+      "min": 5,
+      "max": 100
+    },
+    "duration": {
+      "randomize": true,
+      "min": 10,
+      "max": 10
+    },
+    "angle": {
+      "randomize": true,
+      "min": -45,
+      "max": 45
+    },
+    "atmosphere": {
+      "randomize": true,
+      "temp_min": 15,
+      "temp_max": 35,
+      "hum_min": 30,
+      "hum_max": 70,
+      "add_air_noise": true,
+      "air_noise_strength": 8,
+      "air_noise_frequency_hz": 1200
+    },
+    "acceleration": {
+      "randomize": false,
+      "min": -3.5,
+      "max": 2.5
+    },
+    "batch": {
+      "total_clips": 5,
+      "mode": "auto",
+      "name": "B8_MultiObjectResolution"
+    },
+    "benchmarks": {
+      "enabled": true,
+      "selected": [
+        "B8"
+      ],
+      "params": {
+        "enable_acceleration": false,
+        "cpa_time": 5,
+        "cpa_window": 1,
+        "is_crossing": true,
+        "lane_width": 4,
+        "max_stagger": 5,
+        "vehicle_min": 2,
+        "vehicle_max": 5,
+        "include_opposite": true,
+        "road_angle": 0,
+        "road_shapes": [
+          "straight",
+          "parabola",
+          "bezier"
+        ],
+        "intersection_benchmark": false,
+        "intersection_angle_min": 30,
+        "intersection_angle_max": 150,
+        "intersection_half_arm": 90
+      }
+    },
+    "linear_overlap": {
+      "enabled": false,
+      "vehicle_min": 3,
+      "vehicle_max": 5,
+      "delay_min": 0.3,
+      "delay_max": 2,
+      "observer_distance": 18,
+      "generate_png_spectrograms": false
+    }
+  },
+  "clips": [
+    {
+      "filename": "multi_object_0000001.wav",
+      "index": 1,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "RenaultScenic",
+        "path_type": "bezier",
+        "params": {
+          "speed": 20,
+          "duration": 9.8,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 11.364817837384408,
+          "y1": 11.079697837384407,
+          "y2": 10.818337837384407,
+          "y3": 10.533217837384406,
+          "x0": -128.60111936695074,
+          "x3": 67.39888063304926,
+          "x1": -63.921119366950734,
+          "x2": 0.758880633049273
+        },
+        "delay": 0.8755371123036115,
+        "is_crossing": true,
+        "offset": 10.949017837384407,
+        "direction": 1,
+        "speed": 20
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 20.0,
+          "acceleration": 0.0,
+          "offset": 10.949017837384407,
+          "direction": 1,
+          "delay": 0.8755371123036115,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 12.0,
+          "acceleration": 0.0,
+          "offset": 14.903855930146772,
+          "direction": -1,
+          "delay": 4.629921684766042,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_Peuguot3008.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 26.0,
+          "acceleration": 0.0,
+          "offset": 11.965865346353361,
+          "direction": 1,
+          "delay": 4.7657069311795235,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 42.0,
+          "acceleration": 0.0,
+          "offset": 16.01794770372304,
+          "direction": -1,
+          "delay": 2.1957109114869033,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 16.0,
+          "acceleration": 0.0,
+          "offset": 13.024044458681113,
+          "direction": 1,
+          "delay": 0.016258965627281574,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v5_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 19.0,
+          "acceleration": 0.0,
+          "offset": 17.098553459062323,
+          "direction": -1,
+          "delay": 1.2476523480903094,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v6_KiaSportage.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 22.5,
+        "direction_label": -1,
+        "cpa_distance_m": 10.949017837384407,
+        "trajectory_type": "busy_road",
+        "num_sources": 6,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "RenaultScenic",
+          "Peuguot3008",
+          "RenaultScenic",
+          "KiaSportage",
+          "VWPassat",
+          "KiaSportage"
+        ],
+        "cpa_time_sec": 7.2884646589089455
+      },
+      "path_plot": "multi_object_0000001.png",
+      "sample_dir": "sample_0000001",
+      "num_sources": 6,
+      "individual_files": [
+        "v1_RenaultScenic.wav",
+        "v2_Peuguot3008.wav",
+        "v3_RenaultScenic.wav",
+        "v4_KiaSportage.wav",
+        "v5_VWPassat.wav",
+        "v6_KiaSportage.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000002.wav",
+      "index": 2,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "RenaultScenic",
+        "path_type": "bezier",
+        "params": {
+          "speed": 27,
+          "duration": 7.2592592592592595,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 11.250642108905796,
+          "y3": 11.217304217295723,
+          "y1": 11.128633188175996,
+          "y2": 11.186823610300332,
+          "x0": -113.88151427767909,
+          "x3": 82.11848572232091,
+          "x1": -49.20151427767908,
+          "x2": 15.478485722320926
+        },
+        "delay": 3.8635636593080043,
+        "is_crossing": true,
+        "offset": 11.231359147067865,
+        "direction": 1,
+        "speed": 27
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 27.0,
+          "acceleration": 0.0,
+          "offset": 11.231359147067865,
+          "direction": 1,
+          "delay": 3.8635636593080043,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 13.0,
+          "acceleration": 0.0,
+          "offset": 15.18704422125641,
+          "direction": -1,
+          "delay": 0.5368314229125731,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 21.0,
+          "acceleration": 0.0,
+          "offset": 12.835557126079246,
+          "direction": 1,
+          "delay": 0.9221651945822429,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 39.0,
+          "acceleration": 0.0,
+          "offset": 16.836560108739725,
+          "direction": -1,
+          "delay": 3.194609112569302,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_Peuguot3008.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 25.0,
+        "direction_label": -1,
+        "cpa_distance_m": 11.231359147067865,
+        "trajectory_type": "busy_road",
+        "num_sources": 4,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "RenaultScenic",
+          "RenaultScenic",
+          "VWPassat",
+          "Peuguot3008"
+        ],
+        "cpa_time_sec": 7.12929234734303
+      },
+      "path_plot": "multi_object_0000002.png",
+      "sample_dir": "sample_0000002",
+      "num_sources": 4,
+      "individual_files": [
+        "v1_RenaultScenic.wav",
+        "v2_RenaultScenic.wav",
+        "v3_VWPassat.wav",
+        "v4_Peuguot3008.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000003.wav",
+      "index": 3,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "Peuguot3008",
+        "path_type": "bezier",
+        "params": {
+          "speed": 11,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 11.011782763827643,
+          "y3": 11.159971896913248,
+          "y1": 10.957930034161276,
+          "y2": 10.985144798769388,
+          "x0": -68.37406591915935,
+          "x3": 41.62593408084065,
+          "x1": -32.074065919159345,
+          "x2": 4.225934080840659
+        },
+        "delay": 4.528640067558163,
+        "is_crossing": true,
+        "offset": 11.15824106029028,
+        "direction": 1,
+        "speed": 11
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 11.0,
+          "acceleration": 0.0,
+          "offset": 11.15824106029028,
+          "direction": 1,
+          "delay": 4.528640067558163,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_Peuguot3008.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 30.0,
+          "acceleration": 0.0,
+          "offset": 15.16099720941721,
+          "direction": -1,
+          "delay": 4.409774221485384,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 26.0,
+          "acceleration": 0.0,
+          "offset": 12.769324613893064,
+          "direction": 1,
+          "delay": 2.6104012498509404,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 13.0,
+          "acceleration": 0.0,
+          "offset": 16.753383941837054,
+          "direction": -1,
+          "delay": 3.7008715866447757,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_Peuguot3008.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 20.0,
+        "direction_label": -1,
+        "cpa_distance_m": 11.15824106029028,
+        "trajectory_type": "busy_road",
+        "num_sources": 4,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "Peuguot3008",
+          "KiaSportage",
+          "RenaultScenic",
+          "Peuguot3008"
+        ],
+        "cpa_time_sec": 8.812421781384817
+      },
+      "path_plot": "multi_object_0000003.png",
+      "sample_dir": "sample_0000003",
+      "num_sources": 4,
+      "individual_files": [
+        "v1_Peuguot3008.wav",
+        "v2_KiaSportage.wav",
+        "v3_RenaultScenic.wav",
+        "v4_Peuguot3008.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000004.wav",
+      "index": 4,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "Peuguot3008",
+        "path_type": "bezier",
+        "params": {
+          "speed": 32,
+          "duration": 6.125,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 11.622980578693666,
+          "y1": 11.337860578693665,
+          "y2": 11.076500578693665,
+          "y3": 10.791380578693664,
+          "x0": -113.68929644657501,
+          "x3": 82.31070355342499,
+          "x1": -49.00929644657501,
+          "x2": 15.670703553425
+        },
+        "delay": 4.308726210997144,
+        "is_crossing": true,
+        "offset": 11.207180578693665,
+        "direction": 1,
+        "speed": 32
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 32.0,
+          "acceleration": 0.0,
+          "offset": 11.207180578693665,
+          "direction": 1,
+          "delay": 4.308726210997144,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_Peuguot3008.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 40.0,
+          "acceleration": 0.0,
+          "offset": 15.172708681697744,
+          "direction": -1,
+          "delay": 4.510541760840761,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 23.0,
+          "acceleration": 0.0,
+          "offset": 12.84680669694213,
+          "direction": 1,
+          "delay": 3.828288663047031,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v3_Peuguot3008.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 31.0,
+          "acceleration": 0.0,
+          "offset": 16.83290942151057,
+          "direction": -1,
+          "delay": 0.6099322440904753,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v4_KiaSportage.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 31.5,
+        "direction_label": -1,
+        "cpa_distance_m": 11.207180578693665,
+        "trajectory_type": "busy_road",
+        "num_sources": 4,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "Peuguot3008",
+          "RenaultScenic",
+          "Peuguot3008",
+          "KiaSportage"
+        ],
+        "cpa_time_sec": 8.314372219743852
+      },
+      "path_plot": "multi_object_0000004.png",
+      "sample_dir": "sample_0000004",
+      "num_sources": 4,
+      "individual_files": [
+        "v1_Peuguot3008.wav",
+        "v2_RenaultScenic.wav",
+        "v3_Peuguot3008.wav",
+        "v4_KiaSportage.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000005.wav",
+      "index": 5,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "RenaultScenic",
+        "path_type": "bezier",
+        "params": {
+          "speed": 47,
+          "duration": 4.170212765957447,
+          "temperature": 20,
+          "humidity": 50,
+          "road_curve_blend": 1.0,
+          "road_angle_offset": 0.0,
+          "global_curve_scale": 1.0,
+          "y0": 12.010132739235758,
+          "y3": 12.016637461972522,
+          "y1": 11.99428493704187,
+          "y2": 12.007940743602786,
+          "x0": -101.00074660386163,
+          "x3": 94.99925339613837,
+          "x1": -36.32074660386162,
+          "x2": 28.359253396138385
+        },
+        "delay": 3.5172307741599473,
+        "is_crossing": true,
+        "offset": 11.97551809431498,
+        "direction": 1,
+        "speed": 47
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 47.0,
+          "acceleration": 0.0,
+          "offset": 11.97551809431498,
+          "direction": 1,
+          "delay": 3.5172307741599473,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v1_RenaultScenic.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 27.0,
+          "acceleration": 0.0,
+          "offset": 16.00317116439276,
+          "direction": -1,
+          "delay": 4.828531351830404,
+          "path_type": "bezier",
+          "is_crossing": true,
+          "audio_file": "v2_Peuguot3008.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 37.0,
+        "direction_label": -1,
+        "cpa_distance_m": 11.97551809431498,
+        "trajectory_type": "busy_road",
+        "num_sources": 2,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "RenaultScenic",
+          "Peuguot3008"
+        ],
+        "cpa_time_sec": 9.172881062995176
+      },
+      "path_plot": "multi_object_0000005.png",
+      "sample_dir": "sample_0000005",
+      "num_sources": 2,
+      "individual_files": [
+        "v1_RenaultScenic.wav",
+        "v2_Peuguot3008.wav"
+      ]
+    }
+  ],
+  "total_generated": 5,
+  "timestamp": "2026-05-07T01:41:51.552974"
+}

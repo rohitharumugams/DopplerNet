@@ -1,0 +1,33 @@
+[2026-04-21]
+
+* What was changed:
+  - Implemented Strict Median Integrity across all trajectory types (Straight, Parabola, Bezier).
+  - Added tolerance-aware assertions: `assert np.all((y * direction) > -1e-6)` at all timesteps to guarantee zero median crossings.
+  - Refactored Parabola and Bezier generation to be constraint-driven (mathematically bounding lateral deviations within Lane Centerline +/- 0.8*offset).
+  - Fixed Multi-Source Leakage: Removed interleaving logic; multi-source benchmarks now strictly produce multi-source clips.
+  - Implemented Balanced Vehicle Count Sampler: Ensures uniform distribution of sources across batches (e.g., exactly 25% each for counts 2, 3, 4, 5).
+  - Enhanced Logging: Detailed per-clip console output showing path type, lane index, direction, and vehicle count.
+  - Hard-enforced `lane_index != 0` and strict `num_sources >= vehicle_min` with immediate fail on breach.
+* Impact on system:
+  - Zero tolerance for median crossings or lane-neutral violations.
+  - Batch datasets now have perfectly balanced vehicle count distributions, aiding model training.
+  - Faster debugging of illegal trajectories via explicit physics-level assertions.
+
+[2026-04-21]
+
+* What was changed:
+  - Implemented Strict Lane-Bound Enforcement across all trajectory types.
+  - Added `LANES_PER_DIRECTION = 3` to `core/config.py` for dynamic lane validation.
+  - Unified lane assignment logic: `sign(lane_index) == direction` and `abs(lane_index) <= LANES_PER_DIRECTION`.
+  - Refactored `audio/generation.py` to ensure `lane_index` is assigned and validated before trajectory parameter generation.
+  - Updated Curved Path Physics (`parabola.py`, `bezier.py`): Replaced curve deformation with uniform lateral translation based on lane offset.
+  - Updated Visualization (`plot_utils.py`): Road guides now dynamically render all lanes based on config; path calculation matched to physics logic.
+  - Eliminated Lane 0 usage: All lateral offsets are now strictly signed displacements from the road centerline (median).
+* Why it was changed:
+  - To prevent vehicles from traversing the median or spawning in invalid locations.
+  - To ensure consistency between physics simulations and visual representations.
+  - To fulfill user requirements for a robust, configuration-driven road boundary system.
+* Impact on system:
+  - High fidelity in lane assignment and road integrity.
+  - Multi-microphone and stereo samples correctly capture lateral offsets without distorting path shapes.
+  - Unified parameter sampler rejects invalid lane transitions or assignments before simulation starts.

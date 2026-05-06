@@ -1,0 +1,1059 @@
+{
+  "car": "Peugeot3008",
+  "clips": [
+    {
+      "filename": "Peugeot3008_40.wav",
+      "index": 1,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 11.11111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 11.11111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_40.png",
+      "sample_dir": "sample_0000001"
+    },
+    {
+      "filename": "Peugeot3008_43.wav",
+      "index": 2,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 11.944444444444445,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 11.944444444444445,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_43.png",
+      "sample_dir": "sample_0000002"
+    },
+    {
+      "filename": "Peugeot3008_45.wav",
+      "index": 3,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 12.5,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 12.5,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_45.png",
+      "sample_dir": "sample_0000003"
+    },
+    {
+      "filename": "Peugeot3008_47.wav",
+      "index": 4,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 13.055555555555555,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 13.055555555555555,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_47.png",
+      "sample_dir": "sample_0000004"
+    },
+    {
+      "filename": "Peugeot3008_50.wav",
+      "index": 5,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 13.88888888888889,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 13.88888888888889,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_50.png",
+      "sample_dir": "sample_0000005"
+    },
+    {
+      "filename": "Peugeot3008_52.wav",
+      "index": 6,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 14.444444444444445,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 14.444444444444445,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_52.png",
+      "sample_dir": "sample_0000006"
+    },
+    {
+      "filename": "Peugeot3008_54.wav",
+      "index": 7,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 15.0,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 15.0,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_54.png",
+      "sample_dir": "sample_0000007"
+    },
+    {
+      "filename": "Peugeot3008_55.wav",
+      "index": 8,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 15.277777777777777,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 15.277777777777777,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_55.png",
+      "sample_dir": "sample_0000008"
+    },
+    {
+      "filename": "Peugeot3008_56.wav",
+      "index": 9,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 15.555555555555555,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 15.555555555555555,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_56.png",
+      "sample_dir": "sample_0000009"
+    },
+    {
+      "filename": "Peugeot3008_58.wav",
+      "index": 10,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 16.11111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 16.11111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_58.png",
+      "sample_dir": "sample_0000010"
+    },
+    {
+      "filename": "Peugeot3008_60.wav",
+      "index": 11,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 16.666666666666668,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 16.666666666666668,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_60.png",
+      "sample_dir": "sample_0000011"
+    },
+    {
+      "filename": "Peugeot3008_61.wav",
+      "index": 12,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 16.944444444444443,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 16.944444444444443,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_61.png",
+      "sample_dir": "sample_0000012"
+    },
+    {
+      "filename": "Peugeot3008_63.wav",
+      "index": 13,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 17.5,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 17.5,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_63.png",
+      "sample_dir": "sample_0000013"
+    },
+    {
+      "filename": "Peugeot3008_65.wav",
+      "index": 14,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 18.055555555555554,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 18.055555555555554,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_65.png",
+      "sample_dir": "sample_0000014"
+    },
+    {
+      "filename": "Peugeot3008_67.wav",
+      "index": 15,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 18.61111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 18.61111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_67.png",
+      "sample_dir": "sample_0000015"
+    },
+    {
+      "filename": "Peugeot3008_68.wav",
+      "index": 16,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 18.88888888888889,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 18.88888888888889,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_68.png",
+      "sample_dir": "sample_0000016"
+    },
+    {
+      "filename": "Peugeot3008_70.wav",
+      "index": 17,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 19.444444444444443,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 19.444444444444443,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_70.png",
+      "sample_dir": "sample_0000017"
+    },
+    {
+      "filename": "Peugeot3008_72.wav",
+      "index": 18,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 20.0,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 20.0,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_72.png",
+      "sample_dir": "sample_0000018"
+    },
+    {
+      "filename": "Peugeot3008_74.wav",
+      "index": 19,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 20.555555555555554,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 20.555555555555554,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_74.png",
+      "sample_dir": "sample_0000019"
+    },
+    {
+      "filename": "Peugeot3008_75.wav",
+      "index": 20,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 20.833333333333332,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 20.833333333333332,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_75.png",
+      "sample_dir": "sample_0000020"
+    },
+    {
+      "filename": "Peugeot3008_78.wav",
+      "index": 21,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 21.666666666666668,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 21.666666666666668,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_78.png",
+      "sample_dir": "sample_0000021"
+    },
+    {
+      "filename": "Peugeot3008_80.wav",
+      "index": 22,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 22.22222222222222,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 22.22222222222222,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_80.png",
+      "sample_dir": "sample_0000022"
+    },
+    {
+      "filename": "Peugeot3008_83.wav",
+      "index": 23,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 23.055555555555554,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 23.055555555555554,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_83.png",
+      "sample_dir": "sample_0000023"
+    },
+    {
+      "filename": "Peugeot3008_85.wav",
+      "index": 24,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 23.61111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 23.61111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_85.png",
+      "sample_dir": "sample_0000024"
+    },
+    {
+      "filename": "Peugeot3008_87.wav",
+      "index": 25,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 24.166666666666664,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 24.166666666666664,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_87.png",
+      "sample_dir": "sample_0000025"
+    },
+    {
+      "filename": "Peugeot3008_89.wav",
+      "index": 26,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 24.72222222222222,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 24.72222222222222,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_89.png",
+      "sample_dir": "sample_0000026"
+    },
+    {
+      "filename": "Peugeot3008_90.wav",
+      "index": 27,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 25.0,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 25.0,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_90.png",
+      "sample_dir": "sample_0000027"
+    },
+    {
+      "filename": "Peugeot3008_92.wav",
+      "index": 28,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 25.555555555555554,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 25.555555555555554,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_92.png",
+      "sample_dir": "sample_0000028"
+    },
+    {
+      "filename": "Peugeot3008_95.wav",
+      "index": 29,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 26.38888888888889,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 26.38888888888889,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_95.png",
+      "sample_dir": "sample_0000029"
+    },
+    {
+      "filename": "Peugeot3008_97.wav",
+      "index": 30,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 26.944444444444443,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 26.944444444444443,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_97.png",
+      "sample_dir": "sample_0000030"
+    },
+    {
+      "filename": "Peugeot3008_100.wav",
+      "index": 31,
+      "vehicle": "Peugeot3008",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 27.77777777777778,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 27.77777777777778,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peugeot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peugeot3008_100.png",
+      "sample_dir": "sample_0000031"
+    }
+  ]
+}

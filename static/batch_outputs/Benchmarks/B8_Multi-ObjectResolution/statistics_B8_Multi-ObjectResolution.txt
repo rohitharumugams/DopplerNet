@@ -1,0 +1,61 @@
+============================================================
+BATCH GENERATION STATISTICS
+============================================================
+
+Total Clips Generated: 5
+
+Vehicle Distribution:
+  multi: 5 clips (100.0%)
+
+Path Type Distribution:
+  busy_road: 5 clips (100.0%)
+
+Speed Statistics:
+  Min: 18.0 m/s
+  Max: 45.0 m/s
+  Mean: 31.6 m/s
+  Median: 31.0 m/s
+
+Distance Statistics:
+  Min: 10.9 m
+  Max: 11.9 m
+  Mean: 11.1 m
+  Median: 11.0 m
+
+Duration Statistics: N/A
+
+Per-Clip Listing:
+------------------------------------------------------------
+  Clip    1:   39.0 m/s (avg) | 6 sources (multi)
+    - KiaSportage    :   39.0 m/s
+    - Peuguot307     :   39.0 m/s
+    - KiaSportage    :   25.0 m/s
+    - Peuguot307     :   31.0 m/s
+    - KiaSportage    :   31.0 m/s
+    - VWPassat       :   22.0 m/s
+  Clip    2:   31.0 m/s (avg) | 6 sources (multi)
+    - Peuguot307     :   31.0 m/s
+    - NissanQashQai  :   35.0 m/s
+    - VWPassat       :   17.0 m/s
+    - NissanQashQai  :   31.0 m/s
+    - Peuguot3008    :   39.0 m/s
+    - KiaSportage    :   18.0 m/s
+  Clip    3:   25.0 m/s (avg) | 2 sources (multi)
+    - RenaultScenic  :   25.0 m/s
+    - Peuguot307     :   20.0 m/s
+  Clip    4:   18.0 m/s (avg) | 6 sources (multi)
+    - RenaultScenic  :   18.0 m/s
+    - KiaSportage    :   31.0 m/s
+    - KiaSportage    :   50.0 m/s
+    - VWPassat       :   24.0 m/s
+    - Peuguot3008    :   37.0 m/s
+    - RenaultScenic  :   17.0 m/s
+  Clip    5:   45.0 m/s (avg) | 6 sources (multi)
+    - KiaSportage    :   45.0 m/s
+    - Peuguot3008    :   36.0 m/s
+    - Peuguot3008    :   50.0 m/s
+    - NissanQashQai  :   47.0 m/s
+    - NissanQashQai  :   39.0 m/s
+    - NissanQashQai  :   14.0 m/s
+
+============================================================

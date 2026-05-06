@@ -1,0 +1,282 @@
+{
+  "batch_id": "B5_Time-to-EventPrediction",
+  "config": {
+    "output": {
+      "format": "wav",
+      "path": "static/batch_outputs/Benchmarks/",
+      "spectrogram_type": "cqt",
+      "generate_diagnostics": true
+    },
+    "vehicles": {
+      "selected": [
+        "KiaSportage",
+        "NissanQashQai",
+        "Peuguot3008",
+        "Peuguot307",
+        "RenaultScenic",
+        "VWPassat"
+      ]
+    },
+    "paths": {
+      "selected": [
+        "straight",
+        "parabola",
+        "bezier"
+      ]
+    },
+    "speed": {
+      "randomize": true,
+      "min": 10,
+      "max": 50
+    },
+    "distance": {
+      "randomize": true,
+      "min": 5,
+      "max": 100
+    },
+    "duration": {
+      "randomize": true,
+      "min": 10,
+      "max": 10
+    },
+    "angle": {
+      "randomize": true,
+      "min": -45,
+      "max": 45
+    },
+    "atmosphere": {
+      "randomize": true,
+      "temp_min": 15,
+      "temp_max": 35,
+      "hum_min": 30,
+      "hum_max": 70,
+      "add_air_noise": false,
+      "air_noise_strength": 8,
+      "air_noise_frequency_hz": 1200
+    },
+    "acceleration": {
+      "randomize": false,
+      "min": -3.5,
+      "max": 2.5
+    },
+    "batch": {
+      "total_clips": 5,
+      "mode": "auto",
+      "name": "B5_Time-to-EventPrediction"
+    },
+    "benchmarks": {
+      "enabled": true,
+      "selected": [
+        "B5"
+      ],
+      "params": {
+        "enable_acceleration": false,
+        "cpa_time": 5,
+        "cpa_window": 1,
+        "is_crossing": true,
+        "lane_width": 4,
+        "max_stagger": 5,
+        "vehicle_min": 2,
+        "vehicle_max": 5,
+        "include_opposite": true,
+        "road_angle": 0,
+        "road_shapes": [
+          "straight",
+          "parabola",
+          "bezier"
+        ],
+        "intersection_benchmark": false,
+        "intersection_angle_min": 30,
+        "intersection_angle_max": 150,
+        "intersection_half_arm": 90
+      }
+    },
+    "linear_overlap": {
+      "enabled": false,
+      "vehicle_min": 3,
+      "vehicle_max": 5,
+      "delay_min": 0.3,
+      "delay_max": 2,
+      "observer_distance": 18,
+      "generate_png_spectrograms": false
+    }
+  },
+  "clips": [
+    {
+      "filename": "RenaultScenic_126.0_33.0m_0000001.wav",
+      "index": 1,
+      "vehicle": "RenaultScenic",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 35,
+        "distance": 33.0,
+        "duration": 10.0,
+        "angle": 39.0,
+        "acceleration": 0.0,
+        "temperature": 30,
+        "humidity": 51,
+        "target_cpa_time": 5.0
+      },
+      "labels": {
+        "speed_mps": 35,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 33.0,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "RenaultScenic"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "RenaultScenic_126.0_33.0m_0000001.png",
+      "sample_dir": "sample_0000001"
+    },
+    {
+      "filename": "Peuguot3008_97.2_76.0m_0000002.wav",
+      "index": 2,
+      "vehicle": "Peuguot3008",
+      "path_type": "parabola",
+      "parameters": {
+        "speed": 27,
+        "distance": 76.0,
+        "duration": 10.0,
+        "a": 0.0015,
+        "h": 76.0,
+        "acceleration": 0.0,
+        "temperature": 25,
+        "humidity": 37,
+        "target_cpa_time": 5.0
+      },
+      "labels": {
+        "speed_mps": 27,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 76.0,
+        "trajectory_type": "parabola",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peuguot3008"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peuguot3008_97.2_76.0m_0000002.png",
+      "sample_dir": "sample_0000002"
+    },
+    {
+      "filename": "NissanQashQai_43.2_23.0m_0000003.wav",
+      "index": 3,
+      "vehicle": "NissanQashQai",
+      "path_type": "parabola",
+      "parameters": {
+        "speed": 12,
+        "distance": 23.0,
+        "duration": 10.0,
+        "a": 0.0012,
+        "h": 23.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 64,
+        "target_cpa_time": 5.0
+      },
+      "labels": {
+        "speed_mps": 12,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 23.0,
+        "trajectory_type": "parabola",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "NissanQashQai"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "NissanQashQai_43.2_23.0m_0000003.png",
+      "sample_dir": "sample_0000003"
+    },
+    {
+      "filename": "Peuguot307_180.0_66.0m_0000004.wav",
+      "index": 4,
+      "vehicle": "Peuguot307",
+      "path_type": "bezier",
+      "parameters": {
+        "speed": 50,
+        "distance": 66.0,
+        "duration": 10.0,
+        "x0": -250.0,
+        "x3": 250.0,
+        "x1": -223,
+        "x2": 115,
+        "y0": 76.0,
+        "y3": 76.0,
+        "y1": 64.0,
+        "y2": 69.0,
+        "acceleration": 0.0,
+        "temperature": 15,
+        "humidity": 50,
+        "target_cpa_time": 5.0
+      },
+      "labels": {
+        "speed_mps": 50,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 66.0,
+        "trajectory_type": "bezier",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "Peuguot307"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "Peuguot307_180.0_66.0m_0000004.png",
+      "sample_dir": "sample_0000004"
+    },
+    {
+      "filename": "KiaSportage_43.2_13.0m_0000005.wav",
+      "index": 5,
+      "vehicle": "KiaSportage",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 12,
+        "distance": 13.0,
+        "duration": 10.0,
+        "angle": -19.0,
+        "acceleration": 0.0,
+        "temperature": 31,
+        "humidity": 36,
+        "target_cpa_time": 5.0
+      },
+      "labels": {
+        "speed_mps": 12,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 13.0,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "KiaSportage"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "KiaSportage_43.2_13.0m_0000005.png",
+      "sample_dir": "sample_0000005"
+    }
+  ],
+  "total_generated": 5,
+  "timestamp": "2026-05-07T03:02:54.885770"
+}

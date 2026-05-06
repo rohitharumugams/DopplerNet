@@ -1,0 +1,46 @@
+[
+  {
+    "vehicle_name": "Peuguot3008",
+    "speed": 11.0,
+    "acceleration": 0.0,
+    "offset": 11.15824106029028,
+    "direction": 1,
+    "delay": 4.528640067558163,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_Peuguot3008.wav"
+  },
+  {
+    "vehicle_name": "KiaSportage",
+    "speed": 30.0,
+    "acceleration": 0.0,
+    "offset": 15.16099720941721,
+    "direction": -1,
+    "delay": 4.409774221485384,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_KiaSportage.wav"
+  },
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 26.0,
+    "acceleration": 0.0,
+    "offset": 12.769324613893064,
+    "direction": 1,
+    "delay": 2.6104012498509404,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v3_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "Peuguot3008",
+    "speed": 13.0,
+    "acceleration": 0.0,
+    "offset": 16.753383941837054,
+    "direction": -1,
+    "delay": 3.7008715866447757,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v4_Peuguot3008.wav"
+  }
+]

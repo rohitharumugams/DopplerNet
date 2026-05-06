@@ -5,9 +5,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-# ============================================================
-# DIRECTORY STRUCTURE
-# ============================================================
+# directory structure
 
 UPLOAD_FOLDER = 'static/vehicle_sounds'
 DRONE_SOUNDS_FOLDER = 'static/drone_sounds'
@@ -21,20 +19,16 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 os.makedirs(SINGLE_OUTPUT_FOLDER, exist_ok=True)
 os.makedirs(SPECTROGRAM_FOLDER, exist_ok=True)
 
-# ============================================================
-# PERSISTENCE FILES
-# ============================================================
+# persistence files
 
 SAMPLER_STATE_FILE = "sampler_state.json"
 PROGRESS_FILE = "generation_progress.json"
 
-# ============================================================
-# DEFAULT RANGES FOR RANDOMIZATION
+# default ranges for randomization
 # NOTE: enforce constraints:
 # - parabola_a is positive so it opens upwards
 # - Bezier y will be sampled positive in code
 # - angle limited to [-45, 45]
-# ============================================================
 
 DEFAULT_RANGES = {
     'speed': {

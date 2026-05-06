@@ -1,0 +1,49 @@
+# DopplerSim: Real-Simulated Mixed Audio Generation Documentation (v2.0)
+
+## 1. Overview
+The "Real-Simulated Mixed Audio Generation" mode has been updated to align with VS13 dataset conventions. It bridges real-world traffic metadata (km/h) with high-fidelity simulated acoustics, generating a flat, ML-ready dataset.
+
+## 2. Data Source
+- **Metadata File**: `ref_docs/vs13(6)metadata.json`
+- **Content**: Dictionary mapping vehicle names to lists of real-world recorded speeds in **km/h**.
+- **Mandatory Coverage**: Every speed entry for every vehicle in the JSON is generated exactly once.
+
+## 3. Physical Constraints (Deterministic)
+Every clip is generated with:
+- **Path Type**: `straight`
+- **Distance to Observer**: **0.5m** (Fixed)
+- **Approach Angle**: **0°** (Fixed)
+- **Duration**: **10.0 seconds**
+- **Acceleration**: **0.0 m/s^2**
+- **Speeds**: Sourced from JSON, converted to m/s with full float precision for simulation.
+
+## 4. Output Structure (VS13-Style)
+All outputs are stored in a flat hierarchy within a single root folder.
+
+**Root Directory**: `static/batch_outputs/SimulatedData/`
+
+### Organization (per vehicle):
+```
+SimulatedData/
+└── <VehicleName>/
+    ├── <VehicleName>_<speed_kmph>.wav      # Audio clip
+    ├── <VehicleName>_<speed_kmph>.txt      # Annotation: "<speed_kmph> <cpa_time>"
+    ├── Train_valid_split.txt               # 80/20 random reproducible split
+    └── Additional_files/
+        ├── dataset.csv                     # Detailed per-clip metadata
+        ├── metadata_<VehicleName>.json     # Batch configuration and full clip metadata
+        ├── statistics_<VehicleName>.txt    # Kinematic and distribution stats
+        └── generation_log_<VehicleName>.txt# Process log
+```
+
+## 5. Technical Improvements
+1. **km/h Standardization**: All filenames, internal metadata (except physics), and annotations use km/h.
+2. **Flat Structure**: Removed the `sample_XXXX` directory layer to match VS13 conventions.
+3. **Traceability**: `dataset.csv` now maps `speed_kmph` directly to simulation `speed_mps`.
+4. **Split Logic**: `Train_valid_split.txt` is generated per-vehicle using a fixed seed (42) for reproducibility.
+
+## 6. Execution
+1. Navigate to **Real-Simulated Mixed** in DopplerSim UI.
+2. Click **"Start Dataset Generation"**.
+3. The system will iterate through all vehicles and speeds in the JSON metadata.
+4. Results are generated in `static/batch_outputs/SimulatedData/`.

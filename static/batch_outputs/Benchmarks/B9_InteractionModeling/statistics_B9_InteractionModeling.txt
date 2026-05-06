@@ -1,0 +1,27 @@
+============================================================
+BATCH GENERATION STATISTICS
+============================================================
+
+Total Clips Generated: 5
+
+Vehicle Distribution:
+  multi: 5 clips (100.0%)
+
+Path Type Distribution:
+  busy_road: 5 clips (100.0%)
+
+Speed Statistics: N/A
+
+Distance Statistics: N/A
+
+Duration Statistics: N/A
+
+Per-Clip Listing:
+------------------------------------------------------------
+  Clip    1: N/A  (multi)
+  Clip    2: N/A  (multi)
+  Clip    3: N/A  (multi)
+  Clip    4: N/A  (multi)
+  Clip    5: N/A  (multi)
+
+============================================================

@@ -1,0 +1,103 @@
+DOPPLERSIM PROJECT CONTEXT SUMMARY
+====================================
+
+1. PROJECT STRUCTURE
+--------------------
+The DopplerSim project is a Flask-based research framework for generating physically accurate Doppler-shifted audio datasets.
+- core/: Contains configuration (`config.py`), batch progress tracking (`progress.py`), and parameter sampling logic (`sampler.py`).
+- physics/: Core trajectory models including `straight_line.py`, `parabola.py`, `bezier.py`, and `map_trajectory.py`.
+- audio/: Audio processing utilities (`audio_utils.py`) and high-level generation logic (`generation.py`).
+- visualization/: Tools for plotting paths (`plot_utils.py`), generating graphs (`graphs.py`), and validating trajectories (`validation.py`).
+- routes/: Flask Blueprints for batch generation, single-clip simulation, and vehicle management.
+- MapExtraction/: A subsystem for extracting road outlines and centerlines from map images to create realistic trajectories.
+- static/: Storage for source audio libraries (`vehicle_sounds/`, `drone_sounds/`), generated datasets (`batch_outputs/`), and UI assets.
+- templates/: HTML templates for the Flask web interface.
+- ref_docs/: Documentation and research papers (e.g., `Benchmarks_Neurips__Copy_.pdf`).
+- outputs/ & test_output/: Temporary or validation output storage.
+
+2. SIMULATOR / DATA GENERATION PIPELINE
+---------------------------------------
+The simulator generates audio by applying time-domain resampling to source vehicle sounds based on physical trajectory models.
+- Supported Trajectories:
+    - Straight Line: Constant velocity, configurable Closest Point of Approach (CPA) and approach angle (-45° to 45°).
+    - Parabolic: $y = ax^2 + h$, where $h$ is vertex height (CPA) and $a$ is curvature (0.0005 to 0.0020). Speed is normalized to maintain a target average.
+    - Bezier Curve: Cubic Bezier with 4 control points. Allows complex, multi-point paths while maintaining kinematic consistency.
+    - Map-based: Trajectories derived from real-world road geometries extracted from map images.
+- Kinematic Profiles:
+    - Constant Velocity: Traditional uniform motion.
+    - Accelerated Motion: Linear velocity variation $v(t) = v_0 + at$. Supports positive acceleration and deceleration (clamped to $\ge 0.001\,m/s$).
+    - Applied globally across all trajectory types (Straight, Parabolic, Bezier).
+- Physical Parameters:
+    - Speed Range: 15–50 m/s (Car), 5–30 m/s (Drone), 10–50 m/s (Default).
+    - Distance Range: 5m to 1000m.
+    - Atmosphere: Adjustable Temperature (-20°C to 50°C) and Humidity (0–100%) affecting the speed of sound.
+    - Microphones: Supports single or dual-microphone arrays (symmetrical along X-axis).
+- Storage/Naming:
+    - Samples are stored in `sample_XXXXXXX/` folders within a batch directory.
+    - Filenames follow the pattern: `{vehicle}_{path}_{speed}mps_{distance}m_{index}.wav`.
+    - Each sample includes `metadata.json`, a path plot (.png), and multiple feature arrays (.npy).
+
+3. FEATURE EXTRACTION PIPELINE
+------------------------------
+Features are extracted at a sample rate of 22,050 Hz with a Hop Length of 512 samples (~23ms frames).
+- Representations (saved as .npy):
+    - Spectrograms: CQT (84 bins, 12 bins/octave), STFT (2048 FFT), or Mel-frequency (84 mels).
+    - frequency.npy: Dominant frequency per frame, normalized to [0, 1].
+    - dfdt.npy: Rate of change of the dominant frequency, normalized to [-1, 1].
+    - rms.npy: Root Mean Square energy per frame, normalized to [0, 1].
+    - spec_topk.npy: Top-3 frequency components and their magnitudes per frame (shape: [T, 3, 2]).
+    - kinematics.npy: Time, Instantaneous Velocity (m/s), and Acceleration (m/s^2) per frame. Essential for B7 (Accelerated Motion) benchmarks.
+    - time.npy: Time axis values for each frame.
+- Visualizations: Automatic generation of high-resolution spectrograms and diagnostic plots for frequency/RMS trends.
+
+4. DATASET VERSIONS
+-------------------
+Datasets are generated on-demand via the CLI or Web UI and stored in timestamped batch folders.
+- Source Libraries:
+    - vehicle_sounds/: 7 car recordings (`car_1.wav` to `car_7.wav`).
+    - drone_sounds/: 10 specialized drone recordings (e.g., `03-HF-Mi5.wav`).
+- Batch Outputs: Located in `static/batch_outputs/`. Each batch contains an `audio_clips/` folder, `metadata_{batch_id}.json`, `generation_log_{batch_id}.txt`, and `statistics_{batch_id}.txt`.
+- Validation: Recent batches include `validation.json` and `validation.txt` confirming if vehicle paths stayed within road boundaries.
+
+5. EXISTING BENCHMARKS AND MODELS
+---------------------------------
+While the training code is not in the primary simulator directory, the project references benchmarks in `ref_docs/Benchmarks_Neurips__Copy_.pdf`.
+- Focus: The project appears to benchmark Doppler-based localization or classification models using the generated CQT/Mel features.
+- Model Architectures: Likely CNNs or RNNs operating on the (84, T) spectrogram representations.
+- Evaluation Metrics: Mean Absolute Error (MAE) for speed/distance estimation and Accuracy for vehicle classification.
+
+6. LOGS AND DOCUMENTATION
+-------------------------
+- README.md: Comprehensive overview of features, installation, and physics models. Note: Documented Doppler formula: $f_{obs} = f_{src} \times (c / (c - v_{rel}))$.
+- generation_progress.json: Real-time tracking of current batch generation tasks.
+- sampler_state.json: Persists the state of cyclic parameter samplers to ensure uniform coverage of the parameter space across restarts.
+- Validation Reports: Located within batch folders, documenting road boundary violations and median crossings.
+
+7. OPEN ISSUES AND TODOS
+------------------------
+- "Zero-division" guards: Code contains multiple `np.maximum(r, 1e-9)` checks, suggesting past issues with origin-crossing trajectories.
+- Bug Reproduction: `reproduce_bug.py` and `test_fix.py` indicate a resolved (or under-investigation) issue where `apply_doppler_to_audio_fixed` was incorrectly returning lengths matching the source buffer rather than the frequency ratio array.
+- "Map Extraction" consistency: `MAP_EXTRACTION_BASE` in `app_batch.py` is hardcoded to a specific user's Desktop path (`/Users/rohith/Desktop/...`), which will break on other machines.
+
+8. NEW WORK IN PROGRESS
+-----------------------
+- Road Extraction (`MapExtraction/`): Recent efforts focus on `test.py` and `MapToRoad.py` for automated map-to-trajectory processing. Features include:
+    - Advanced text removal via inpainting.
+    - Two-pass morphological smoothing for clean road edges.
+    - Dashed centerline generation for realistic multi-lane simulation.
+- Validation Layer: `visualization/validation.py` is a recent addition that checks if generated trajectories are physically valid (i.e., they don't leave the road or cross the median).
+- Drone Support: Enhanced support for drone-specific sound libraries and flight dynamics is currently being integrated into the `audio_utils.py` and `generation.py` logic.
+- Accelerated Doppler Integration (B7): Full integration of non-uniform motion into the DopplerSim pipeline. Features include:
+    - Time-varying Doppler shift modeling for accelerating/decelerating sources.
+    - Corrected physical amplitude modeling (pressure amplitude vs. intensity).
+    - Retarded-Time Correction: Solves the acoustic propagation delay to shift the S-curve temporally while preserving CPA alignment.
+    - Alpha Discriminability Metric (α = aT/v0): Tracked in statistics to evaluate dataset utility for kinematic ML tasks.
+    - Specialized UI controls and validation scripts (`benchmarks/tests/`) for acceleration benchmarking.
+
+NEXT STEPS
+----------
+1. Standardize `MAP_EXTRACTION_BASE` to a relative path or environment variable.
+2. Integrate the standalone `skimage`-based road extraction (`MapExtraction/test.py`) directly into the Flask batch generation workflow.
+3. Scale accelerated motion benchmarks (B7) to multi-vehicle scenarios (B8-B10).
+4. Ensure the parameter sampler generates a balanced distribution across the (Alpha, d/lambda) space for Benchmark 7.
+5. Establish a centralized "Dataset Versioning" manifest to track parameter ranges across distributed research batches.

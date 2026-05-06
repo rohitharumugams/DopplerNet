@@ -1,0 +1,6 @@
+sample_id,batch_id,filename,vehicle_class,trajectory_type,speed_mps,acceleration_mps2,direction_label,cpa_distance_m,cpa_time_sec,num_sources,is_crossing
+sample_0000001,B4_TrajectoryLocalization,NissanQashQai_154.8_65.0m_0000001.wav,NissanQashQai,straight,43,0.0,0,65.0,5.0,1,False
+sample_0000002,B4_TrajectoryLocalization,RenaultScenic_176.4_60.0m_0000002.wav,RenaultScenic,straight,49,0.0,0,60.0,5.0,1,False
+sample_0000003,B4_TrajectoryLocalization,Peuguot307_136.8_55.0m_0000003.wav,Peuguot307,parabola,38,0.0,0,55.0,5.0,1,False
+sample_0000004,B4_TrajectoryLocalization,KiaSportage_169.2_50.0m_0000004.wav,KiaSportage,parabola,47,0.0,0,50.0,5.0,1,False
+sample_0000005,B4_TrajectoryLocalization,Peuguot3008_86.4_45.0m_0000005.wav,Peuguot3008,bezier,24,0.0,0,45.0,5.0,1,False

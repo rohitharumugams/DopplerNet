@@ -1,0 +1,6 @@
+sample_id,batch_id,filename,vehicle_class,trajectory_type,speed_mps,acceleration_mps2,direction_label,cpa_distance_m,cpa_time_sec,num_sources,is_crossing
+sample_0000001,B8_MultiObjectResolution,multi_object_0000001.wav,multi,busy_road,22.5,0.0,-1,10.949017837384407,7.2884646589089455,6,True
+sample_0000002,B8_MultiObjectResolution,multi_object_0000002.wav,multi,busy_road,25.0,0.0,-1,11.231359147067865,7.12929234734303,4,True
+sample_0000003,B8_MultiObjectResolution,multi_object_0000003.wav,multi,busy_road,20.0,0.0,-1,11.15824106029028,8.812421781384817,4,True
+sample_0000004,B8_MultiObjectResolution,multi_object_0000004.wav,multi,busy_road,31.5,0.0,-1,11.207180578693665,8.314372219743852,4,True
+sample_0000005,B8_MultiObjectResolution,multi_object_0000005.wav,multi,busy_road,37.0,0.0,-1,11.97551809431498,9.172881062995176,2,True

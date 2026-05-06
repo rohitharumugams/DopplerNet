@@ -1,0 +1,6 @@
+sample_id,batch_id,filename,vehicle_class,trajectory_type,speed_mps,acceleration_mps2,direction_label,cpa_distance_m,cpa_time_sec,num_sources,is_crossing
+sample_0000001,B9_InteractionModeling,multi_object_0000001.wav,multi,busy_road,25.0,0.0,-1,5.0,5.84002889507488,3,True
+sample_0000002,B9_InteractionModeling,multi_object_0000002.wav,multi,busy_road,25.0,0.0,-1,5.0,6.4643575164620675,5,True
+sample_0000003,B9_InteractionModeling,multi_object_0000003.wav,multi,busy_road,25.0,0.0,-1,5.0,6.071304208264683,5,True
+sample_0000004,B9_InteractionModeling,multi_object_0000004.wav,multi,busy_road,25.0,0.0,-1,5.0,5.755357950913134,3,True
+sample_0000005,B9_InteractionModeling,multi_object_0000005.wav,multi,busy_road,25.0,0.0,-1,5.0,5.791727818231443,3,True

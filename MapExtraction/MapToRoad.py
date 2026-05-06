@@ -41,7 +41,7 @@ from pathlib import Path
 from skimage.morphology import skeletonize
 from skimage.measure import label, regionprops
 
-# Parameters 
+# Parameters
 
 ROAD_H = (73, 92);  ROAD_S = (10, 52);  ROAD_V = (108, 255)
 

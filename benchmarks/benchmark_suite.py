@@ -15,9 +15,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from audio.generation import generate_single_clip, generate_multi_object_clip, generate_random_parameters
 from visualization.validation import validate_scene_paths, save_validation_report
 
-# ============================================================
-# DATA GENERATION & LABELING
-# ============================================================
+# data generation & labeling
 
 def generate_test_batch(num_samples=5, batch_name="test_batch", force_crossing=False, road_angle=0.0, lane_width=4.0):
     """Generate a diverse batch of clips covering B1-B10."""
@@ -39,7 +37,7 @@ def generate_test_batch(num_samples=5, batch_name="test_batch", force_crossing=F
         'paths': {'selected': paths},
         'speed': {'randomize': True},
         'distance': {'randomize': True, 'min': 5, 'max': 100}, # Testing phase limit
-        'acceleration': {'randomize': True, 'min': -3, 'max': 3}, # B7
+        'acceleration': {'randomize': True, 'min': -3, 'max': 3}, # b7
         'angle': {'randomize': True},
         'atmosphere': {'randomize': True},
         'benchmarks': {
@@ -180,12 +178,12 @@ def generate_labels(batch_outputs_dir, output_csv):
                     'sample_id': sample_folder,
                     'batch_id': batch_id,
                     'speed_mps': labels.get('speed_mps', params.get('speed', 0)),
-                    'acceleration_mps2': labels.get('acceleration_mps2', params.get('acceleration', 0.0)), # B7
+                    'acceleration_mps2': labels.get('acceleration_mps2', params.get('acceleration', 0.0)), # b7
                     'cpa_distance_m': labels.get('cpa_distance_m', params.get('distance', 0)),
                     'trajectory_type': labels.get('trajectory_type', clip.get('path_type')),
-                    'direction_label': labels.get('direction_label', direction), # B2
+                    'direction_label': labels.get('direction_label', direction), # b2
                     'vehicle_class': labels.get('vehicle_class', clip.get('vehicle', 'multi' if num_sources > 1 else 'unknown')),
-                    'num_sources': num_sources, # B8
+                    'num_sources': num_sources, # b8
                     'audio_path': audio_rel_path.as_posix(),
                     'path_plot': path_plot,
                     'spectrogram_plot': spectrogram_plot
@@ -203,9 +201,7 @@ def generate_labels(batch_outputs_dir, output_csv):
     print(f"Generated {output_csv} with {len(samples)} samples.")
     return df
 
-# ============================================================
-# EVALUATION CORE
-# ============================================================
+# evaluation core
 
 def detect_cpa_labels(dataset_csv):
     """Detect CPA frames and add labels to dataset.csv."""
@@ -248,9 +244,7 @@ def generate_stats_report(dataset_csv, output_report, figures_dir):
     with open(output_report, 'w') as f: f.write("\n".join(report))
     print(f"Report saved to {output_report}")
 
-# ============================================================
-# EVALUATION SCORERS
-# ============================================================
+# evaluation scorers
 
 def evaluate_classification(preds_df, gt_df, target_col):
     """Evaluate classification accuracy (B2, B4, B9, B10)."""
@@ -304,9 +298,7 @@ def evaluate_multi_object(dataset_csv):
     print(f"Multi-Object Detection Rate: {acc:.4f}")
     return acc
 
-# ============================================================
-# ADVANCED BENCHMARKS
-# ============================================================
+# advanced benchmarks
 
 def generate_car_manifest(dataset_csv, output_json, n_base=10):
     """Generate counterfactual pairs for CAR benchmark."""
@@ -334,9 +326,7 @@ def evaluate_car(preds_df):
         acc = preds_df['correct'].mean()
         print(f"CAR Accuracy: {acc:.4f}")
 
-# ============================================================
-# MAIN ORCHESTRATOR
-# ============================================================
+# main orchestrator
 
 def main():
     parser = argparse.ArgumentParser(description="DopplerSim Initial Benchmark Suite (B1-B10)")

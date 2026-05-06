@@ -1,0 +1,142 @@
+SYSTEM FOR ACOUSTIC MOTION INFERENCE (DOPPLERSIM)
+TECHNICAL DOCUMENTATION
+
+1. PROBLEM DEFINITION
+
+Acoustic motion inference is formulated as an inverse problem where the objective is to estimate the kinematic parameters of a sound-emitting source (e.g., speed, direction, trajectory) from passive acoustic observations. Conventional audio systems often rely on classification-based approaches that categorize sounds into discrete labels. However, such methods fail to capture the continuous physical transformations induced by motion, such as the Doppler effect and distance-dependent attenuation. DopplerSim addresses this by implementing a physics-aware simulation and inference framework that maps high-dimensional audio features back to structured motion parameters.
+
+2. PHYSICAL MODELING
+
+The core of the system lies in its adherence to classical acoustics and kinematics. The following equations are implemented across the codebase to ensure physical fidelity.
+
+2.1 SPEED OF SOUND
+The speed of sound (c) is calculated based on atmospheric conditions (temperature and humidity), which significantly impact the propagation delay and Doppler shift.
+Formula:
+c = 331.3 * sqrt(1 + T / 273.15) + (RH / 100) * 0.6
+Where:
+- T: Temperature in Celsius (params['temperature'])
+- RH: Relative Humidity in percentage (params['humidity'])
+- 331.3: Speed of sound at 0 degrees Celsius (m/s)
+Implemented in: audio/audio_utils.py -> get_speed_of_sound()
+
+2.2 KINEMATICS AND TRAJECTORY
+Motion is modeled using longitudinal acceleration along a defined path.
+Formula:
+v(t) = v0 + a * t
+p(t) = p_c + u * (v0*t + 0.5*a*t^2 - s0)
+Where:
+- v0: Initial speed (speed_v0_mps)
+- a: Constant acceleration (accel_mps2)
+- p_c: Point of closest approach (min_distance_m)
+- u: Unit direction vector
+Implemented in: physics/straight_line.py -> calculate_straight_line_accelerated_doppler()
+
+2.3 RADIAL VELOCITY
+The Doppler shift is determined by the radial component of the source velocity relative to the observer.
+Formula:
+v_r = (v_vec . p) / |p|
+Where:
+- v_vec: Instantaneous velocity vector
+- p: Position vector relative to observer
+- . : Dot product
+Implemented in: physics/straight_line.py (Line 68), physics/parabola.py (Line 148)
+
+2.4 DOPPLER FREQUENCY TRANSFORMATION
+The observed frequency shift is modeled as a ratio applied to the source signal.
+Formula:
+f_ratio = c / (c + v_r)
+Where:
+- c: Speed of sound
+- v_r: Radial velocity
+Implemented in: physics/straight_line.py (Line 70)
+
+2.5 AMPLITUDE MODELING
+The system implements a combined amplitude model accounting for spatial spreading and convective boost.
+Formula:
+A_total = 10 * [1 / sqrt(r^2 + d_near^2)] * [c / (c + v_r)]
+Where:
+- r: Instantaneous distance to observer
+- d_near: Near-field radius (NEAR_FIELD_RADIUS = 2.0m) to prevent singularities
+- c / (c + v_r): Convective amplitude factor tied to the Doppler shift
+Implemented in: physics/straight_line.py (Line 73), physics/parabola.py (Line 162)
+
+2.6 RETARDED-TIME CORRECTION
+To account for finite propagation speed, the system implements retarded-time correction, ensuring that sound emitted at time t_emit arrives at the observer at t_obs.
+Formula:
+t_obs = t_emit + (r(t_emit) - r_cpa) / c
+Where:
+- r(t_emit): Distance at emission time
+- r_cpa: Minimum distance (CPA)
+- c: Speed of sound
+Implemented in: audio/audio_utils.py -> apply_retarded_time_correction()
+
+3. SYNTHETIC DATA GENERATION PIPELINE
+
+The generation pipeline creates diverse motion scenarios by sampling parameters and applying the physics models described above.
+
+- Trajectory Generation: Supports linear paths, parabolic curves (quadratics), and cubic Bezier curves. Parabolic paths use an arc-length parameterized mapping to prevent unrealistic speed explosions at the extremities.
+- Batch Processing: The app_batch.py and audio/generation.py modules handle large-scale generation, distributing vehicle types and path types based on user configuration.
+- Curriculum Scaling: Complexity is managed by varying speed ranges, distances, and the presence of acceleration.
+- Environmental Modeling: Randomization of temperature and humidity affects the speed of sound, introducing subtle variations in the Doppler signatures.
+
+4. MOTION REPRESENTATION
+
+Motion is represented through a suite of per-frame features extracted from the synthesized audio:
+- frequency.npy: Normalized dominant frequency tracking.
+- dfdt.npy: The rate of change of frequency (normalized), capturing the "sharpness" of the pass-by.
+- rms.npy: Root-mean-square energy, representing the amplitude envelope.
+- kinematics.npy: Ground truth kinematic data including Time, Velocity, Acceleration, and Alpha_eff.
+
+The system introduces a dimensionless metric for motion complexity:
+Alpha_eff = |a * d / v0^2|
+Where:
+- a: Acceleration
+- d: Closest distance
+- v0: Reference velocity
+This metric (stored in the 4th column of kinematics.npy) characterizes the relative influence of geometric vs. kinematic acceleration.
+
+5. MODEL ARCHITECTURE
+
+The system is designed for physics-informed learning. Instead of treating the model as a black box, it leverages the known physical relationships:
+- XPINN-style Approximation: The decomposition of frequency (Doppler) and amplitude (Distance) allows the model to disentangle speed from proximity.
+- Motion Regimes: The system explicitly labels clips with acceleration states, allowing models to distinguish between constant-velocity and non-uniform motion.
+
+6. MULTI-OBJECT HANDLING
+
+The system supports scenes with overlapping sources (num_sources > 1).
+- Signal Mixing: Multiple Doppler-shifted arrays are summed before feature extraction.
+- Disentanglement: The use of spectral top-K features (spec_topk.npy) preserves the strongest frequency components, aiding in the resolution of multiple moving sources.
+
+7. BENCHMARKING AND EVALUATION
+
+The framework includes a comprehensive suite of benchmarking tasks (B1-B9):
+- B1 Speed: Accuracy of velocity estimation.
+- B2 Direction: Classification of approach/recede and travel direction.
+- B3 Distance: Estimation of the closest point of approach (CPA) distance.
+- B4 Trajectory: Identification of path geometry (Straight vs. Curved).
+- B5 Time-to-Event: Prediction of relative time to CPA.
+- B6 Segmentation: Temporal localization of the high-intensity CPA window.
+- B7 Acceleration: Inference of longitudinal acceleration.
+
+Metrics used include Mean Absolute Error (MAE) for regression and Accuracy for classification. Implementation is found in audio/generation.py -> save_benchmark_datasets().
+
+8. ADVANCED CAPABILITIES
+
+- Trajectory Reconstruction: By combining radial velocity (Doppler) and amplitude cues, the system can approximate the 2D path of the source.
+- Counterfactual Reasoning: The simulator allows for "what-if" scenarios (e.g., "What if the vehicle was twice as fast?") by re-running the physics engine with modified parameters.
+
+9. KEY CHALLENGES AND LIMITATIONS
+
+- Ambiguity: A high-speed distant pass-by can produce a similar frequency slope to a low-speed close pass-by, requiring multi-modal cues (amplitude + frequency) for disambiguation.
+- Synthetic vs. Real Gap: While physics-accurate, factors like wind, multi-path reflections (ground bounce), and source directivity are current approximations.
+- Scaling: Multi-source scenes increase spectral complexity, making dominant frequency tracking more difficult.
+
+10. SYSTEM SUMMARY
+
+The DopplerSim pipeline operates as follows:
+1. Parameters (v0, a, d, theta) are sampled from configuration ranges.
+2. Physics Modules (straight_line.py, parabola.py, etc.) compute the instantaneous frequency ratios and amplitude envelopes.
+3. Retarded-time correction is applied to account for acoustic propagation delay.
+4. Audio Engine (audio_utils.py) synthesizes the Doppler-shifted signal via time-domain resampling or phase modulation.
+5. Feature Extraction (generation.py) computes spectrograms and physics-aligned .npy arrays.
+6. Benchmarking Suite organizes data into task-specific folders for model training and evaluation.

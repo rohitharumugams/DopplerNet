@@ -1,0 +1,24 @@
+[
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 41.0,
+    "acceleration": 0.0,
+    "offset": 11.968643238257293,
+    "direction": 1,
+    "delay": 4.313941491325139,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_VWPassat.wav"
+  },
+  {
+    "vehicle_name": "Peuguot3008",
+    "speed": 34.0,
+    "acceleration": 0.0,
+    "offset": 16.02867263240687,
+    "direction": -1,
+    "delay": 4.977406439864279,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_Peuguot3008.wav"
+  }
+]

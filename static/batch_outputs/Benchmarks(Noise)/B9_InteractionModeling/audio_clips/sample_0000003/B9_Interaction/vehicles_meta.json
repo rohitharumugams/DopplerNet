@@ -1,0 +1,24 @@
+[
+  {
+    "vehicle_name": "NissanQashQai",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 1.3327761757562706,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v1_NissanQashQai.wav"
+  },
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 25.0,
+    "acceleration": 0.0,
+    "offset": 5.0,
+    "direction": 1,
+    "delay": 1.386201462447945,
+    "path_type": "map_path",
+    "is_crossing": true,
+    "audio_file": "v2_VWPassat.wav"
+  }
+]

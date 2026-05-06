@@ -1,0 +1,1049 @@
+{
+  "batch_id": "B9_InteractionModeling",
+  "config": {
+    "output": {
+      "format": "wav",
+      "path": "static/batch_outputs/Benchmarks/",
+      "spectrogram_type": "cqt",
+      "generate_diagnostics": true
+    },
+    "vehicles": {
+      "selected": [
+        "KiaSportage",
+        "NissanQashQai",
+        "Peuguot3008",
+        "Peuguot307",
+        "RenaultScenic",
+        "VWPassat"
+      ]
+    },
+    "paths": {
+      "selected": [
+        "straight",
+        "parabola",
+        "bezier"
+      ]
+    },
+    "speed": {
+      "randomize": true,
+      "min": 10,
+      "max": 50
+    },
+    "distance": {
+      "randomize": true,
+      "min": 5,
+      "max": 100
+    },
+    "duration": {
+      "randomize": true,
+      "min": 10,
+      "max": 10
+    },
+    "angle": {
+      "randomize": true,
+      "min": -45,
+      "max": 45
+    },
+    "atmosphere": {
+      "randomize": true,
+      "temp_min": 15,
+      "temp_max": 35,
+      "hum_min": 30,
+      "hum_max": 70,
+      "add_air_noise": true,
+      "air_noise_strength": 8,
+      "air_noise_frequency_hz": 1200
+    },
+    "acceleration": {
+      "randomize": false,
+      "min": -3.5,
+      "max": 2.5
+    },
+    "batch": {
+      "total_clips": 5,
+      "mode": "auto",
+      "name": "B9_InteractionModeling"
+    },
+    "benchmarks": {
+      "enabled": true,
+      "selected": [
+        "B9"
+      ],
+      "params": {
+        "enable_acceleration": false,
+        "cpa_time": 5,
+        "cpa_window": 1,
+        "is_crossing": true,
+        "lane_width": 4,
+        "max_stagger": 5,
+        "vehicle_min": 2,
+        "vehicle_max": 5,
+        "include_opposite": true,
+        "road_angle": 0,
+        "road_shapes": [
+          "straight",
+          "parabola",
+          "bezier"
+        ],
+        "intersection_benchmark": true,
+        "intersection_angle_min": 30,
+        "intersection_angle_max": 150,
+        "intersection_half_arm": 90
+      }
+    },
+    "linear_overlap": {
+      "enabled": false,
+      "vehicle_min": 3,
+      "vehicle_max": 5,
+      "delay_min": 0.3,
+      "delay_max": 2,
+      "observer_distance": 18,
+      "generate_png_spectrograms": false
+    }
+  },
+  "clips": [
+    {
+      "filename": "multi_object_0000001.wav",
+      "index": 1,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "Peuguot3008",
+        "path_type": "map_path",
+        "params": {
+          "points": [
+            [
+              -90.0,
+              -0.5562355756923185
+            ],
+            [
+              -80.22222222222223,
+              -0.6855413652459923
+            ],
+            [
+              -70.44444444444444,
+              -0.3137189692130281
+            ],
+            [
+              -60.66666666666667,
+              -0.32099579627909114
+            ],
+            [
+              -50.88888888888889,
+              -0.4008910944111289
+            ],
+            [
+              -41.11111111111111,
+              -0.3198963239676748
+            ],
+            [
+              -31.333333333333336,
+              -0.2250240858242124
+            ],
+            [
+              -21.555555555555557,
+              -0.21102393866260014
+            ],
+            [
+              -11.777777777777786,
+              -0.08113079129934844
+            ],
+            [
+              -2.0,
+              -0.05039884666641248
+            ],
+            [
+              -1.6578558040300257,
+              -0.4021148271221655
+            ],
+            [
+              -1.125414389128329,
+              -0.6055424104835988
+            ],
+            [
+              -0.42038801629685163,
+              -0.7998278766944198
+            ],
+            [
+              0.09592468354971909,
+              -0.7288889117530545
+            ],
+            [
+              0.6579607972605399,
+              -0.9468548182972762
+            ],
+            [
+              1.3853965438316278,
+              -1.0059280046006702
+            ],
+            [
+              2.0,
+              -0.9374546850277548
+            ],
+            [
+              11.777777777777777,
+              -0.9631557328011617
+            ],
+            [
+              21.555555555555554,
+              -0.9865764162195805
+            ],
+            [
+              31.333333333333332,
+              -1.0177355584145795
+            ],
+            [
+              41.11111111111111,
+              -1.043842649855205
+            ],
+            [
+              50.88888888888889,
+              -1.1156291256602133
+            ],
+            [
+              60.666666666666664,
+              -1.00381879087808
+            ],
+            [
+              70.44444444444444,
+              -1.063375771964887
+            ],
+            [
+              80.22222222222221,
+              -1.1450905163673446
+            ],
+            [
+              90.0,
+              -1.2090173530052835
+            ]
+          ],
+          "speed": 15,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50
+        },
+        "delay": 1.1892854236243737,
+        "is_crossing": true,
+        "direction": 1
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 1.1892854236243737,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v1_Peuguot3008.wav"
+        },
+        {
+          "vehicle_name": "Peuguot307",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.05575131599280525,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v2_Peuguot307.wav"
+        },
+        {
+          "vehicle_name": "RenaultScenic",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 2.145059393772277,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v3_RenaultScenic.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 25.0,
+        "direction_label": -1,
+        "cpa_distance_m": 5.0,
+        "trajectory_type": "busy_road",
+        "num_sources": 3,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "Peuguot3008",
+          "Peuguot307",
+          "RenaultScenic"
+        ],
+        "cpa_time_sec": 6.130032044463152
+      },
+      "path_plot": "multi_object_0000001.png",
+      "sample_dir": "sample_0000001",
+      "num_sources": 3,
+      "individual_files": [
+        "v1_Peuguot3008.wav",
+        "v2_Peuguot307.wav",
+        "v3_RenaultScenic.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000002.wav",
+      "index": 2,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "VWPassat",
+        "path_type": "map_path",
+        "params": {
+          "points": [
+            [
+              -90.0,
+              -0.18092316481383597
+            ],
+            [
+              -80.22222222222223,
+              -0.3122629258086677
+            ],
+            [
+              -70.44444444444444,
+              -0.2978234033940432
+            ],
+            [
+              -60.66666666666667,
+              -0.3943919453228402
+            ],
+            [
+              -50.88888888888889,
+              -0.4122107782263501
+            ],
+            [
+              -41.11111111111111,
+              -0.4865260879907409
+            ],
+            [
+              -31.333333333333336,
+              -0.6322466426295218
+            ],
+            [
+              -21.555555555555557,
+              -0.6082752381016854
+            ],
+            [
+              -11.777777777777786,
+              -0.701186617122755
+            ],
+            [
+              -2.0,
+              -0.7854469155860804
+            ],
+            [
+              -1.4180907922465498,
+              -0.787953621787155
+            ],
+            [
+              -0.8441683793392123,
+              -0.7410094669742807
+            ],
+            [
+              -0.36934208161031135,
+              -0.9332737268447295
+            ],
+            [
+              0.03577794801044101,
+              -0.6992624747856817
+            ],
+            [
+              0.7488095409472405,
+              -0.7696337772847607
+            ],
+            [
+              1.3367424357027866,
+              -0.6152772103421327
+            ],
+            [
+              2.0,
+              -0.4943799901654895
+            ],
+            [
+              11.777777777777777,
+              -0.49041607537214554
+            ],
+            [
+              21.555555555555554,
+              -0.5198738686677256
+            ],
+            [
+              31.333333333333332,
+              -0.4775394155775255
+            ],
+            [
+              41.11111111111111,
+              -0.641692976176877
+            ],
+            [
+              50.88888888888889,
+              -0.5534395979406675
+            ],
+            [
+              60.666666666666664,
+              -0.6097825790602049
+            ],
+            [
+              70.44444444444444,
+              -0.684796625532546
+            ],
+            [
+              80.22222222222221,
+              -0.7849739033437868
+            ],
+            [
+              90.0,
+              -0.7811806715713869
+            ]
+          ],
+          "speed": 32,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50
+        },
+        "delay": 0.19350462509296784,
+        "is_crossing": true,
+        "direction": 1
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.19350462509296784,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v1_VWPassat.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 4.888348650072005,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v2_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "Peuguot307",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.3354581843709825,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v3_Peuguot307.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 1.8714594760935928,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v4_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 3.043621110519448,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v5_VWPassat.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 25.0,
+        "direction_label": -1,
+        "cpa_distance_m": 5.0,
+        "trajectory_type": "busy_road",
+        "num_sources": 5,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "VWPassat",
+          "KiaSportage",
+          "Peuguot307",
+          "KiaSportage",
+          "VWPassat"
+        ],
+        "cpa_time_sec": 7.066478409229798
+      },
+      "path_plot": "multi_object_0000002.png",
+      "sample_dir": "sample_0000002",
+      "num_sources": 5,
+      "individual_files": [
+        "v1_VWPassat.wav",
+        "v2_KiaSportage.wav",
+        "v3_Peuguot307.wav",
+        "v4_KiaSportage.wav",
+        "v5_VWPassat.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000003.wav",
+      "index": 3,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "NissanQashQai",
+        "path_type": "map_path",
+        "params": {
+          "points": [
+            [
+              -90.0,
+              0.3271201876955094
+            ],
+            [
+              -80.22222222222223,
+              0.2374575498895023
+            ],
+            [
+              -70.44444444444444,
+              0.4571467913993628
+            ],
+            [
+              -60.66666666666667,
+              0.38460539638556634
+            ],
+            [
+              -50.88888888888889,
+              0.36141752306024466
+            ],
+            [
+              -41.11111111111111,
+              0.3765524017292792
+            ],
+            [
+              -31.333333333333336,
+              0.3233508625267469
+            ],
+            [
+              -21.555555555555557,
+              0.35930604505783176
+            ],
+            [
+              -11.777777777777786,
+              0.3049939828372885
+            ],
+            [
+              -2.0,
+              0.270023092604887
+            ],
+            [
+              -1.3453657134321113,
+              0.22443268188139257
+            ],
+            [
+              -0.9167863129816193,
+              -0.2770457634799629
+            ],
+            [
+              -0.623592658403243,
+              -0.38887003383845176
+            ],
+            [
+              -0.0011560268852024158,
+              -0.8626799109031844
+            ],
+            [
+              0.23990337431946843,
+              -1.2020438693417852
+            ],
+            [
+              0.7035442102866316,
+              -1.627568999361264
+            ],
+            [
+              0.9343718729656038,
+              -2.0
+            ],
+            [
+              0.9366769880766463,
+              -11.777777777777777
+            ],
+            [
+              0.8752168101615023,
+              -21.555555555555554
+            ],
+            [
+              0.9758162042000148,
+              -31.333333333333332
+            ],
+            [
+              0.8561321532436478,
+              -41.11111111111111
+            ],
+            [
+              0.8648507249919263,
+              -50.88888888888889
+            ],
+            [
+              0.9725677138123555,
+              -60.666666666666664
+            ],
+            [
+              0.7917478972168541,
+              -70.44444444444444
+            ],
+            [
+              0.7528809381925291,
+              -80.22222222222221
+            ],
+            [
+              0.8700828116918689,
+              -90.0
+            ]
+          ],
+          "speed": 24,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50
+        },
+        "delay": 1.3327761757562706,
+        "is_crossing": true,
+        "direction": 1
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 1.3327761757562706,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v1_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "VWPassat",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 1.386201462447945,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v2_VWPassat.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 25.0,
+        "direction_label": -1,
+        "cpa_distance_m": 5.0,
+        "trajectory_type": "busy_road",
+        "num_sources": 2,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "NissanQashQai",
+          "VWPassat"
+        ],
+        "cpa_time_sec": 6.359488819102108
+      },
+      "path_plot": "multi_object_0000003.png",
+      "sample_dir": "sample_0000003",
+      "num_sources": 2,
+      "individual_files": [
+        "v1_NissanQashQai.wav",
+        "v2_VWPassat.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000004.wav",
+      "index": 4,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "Peuguot307",
+        "path_type": "map_path",
+        "params": {
+          "points": [
+            [
+              -90.0,
+              0.6783692072410379
+            ],
+            [
+              -80.22222222222223,
+              0.6818850721977747
+            ],
+            [
+              -70.44444444444444,
+              0.6446295351408562
+            ],
+            [
+              -60.66666666666667,
+              0.6157147978446769
+            ],
+            [
+              -50.88888888888889,
+              0.6552714787169407
+            ],
+            [
+              -41.11111111111111,
+              0.4271390680832777
+            ],
+            [
+              -31.333333333333336,
+              0.5019320598182161
+            ],
+            [
+              -21.555555555555557,
+              0.41952901177734947
+            ],
+            [
+              -11.777777777777786,
+              0.3657115023309175
+            ],
+            [
+              -2.0,
+              0.3505809072423882
+            ],
+            [
+              -1.688210399925277,
+              0.2680553341591764
+            ],
+            [
+              -1.3763672121429875,
+              0.5980541166453472
+            ],
+            [
+              -1.0074191698510506,
+              0.7055181117856842
+            ],
+            [
+              -0.9167922007549268,
+              0.7709586551259955
+            ],
+            [
+              -0.9580820599558473,
+              1.0717441083596966
+            ],
+            [
+              -0.9428326164174609,
+              1.2473390700768192
+            ],
+            [
+              -1.0056315169308458,
+              1.7287994497529073
+            ],
+            [
+              -5.881738434246897,
+              10.203983072595769
+            ],
+            [
+              -10.843313148622814,
+              18.62982183979907
+            ],
+            [
+              -15.731809997805694,
+              27.09785213214338
+            ],
+            [
+              -20.657479039149685,
+              35.544421049337096
+            ],
+            [
+              -25.414358300422897,
+              44.08844079149115
+            ],
+            [
+              -30.47600799489274,
+              52.45650124199807
+            ],
+            [
+              -35.2798595946563,
+              60.97340149188025
+            ],
+            [
+              -40.270457634250135,
+              69.3824836344562
+            ],
+            [
+              -44.93047586858107,
+              77.98242611658937
+            ]
+          ],
+          "speed": 32,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50
+        },
+        "delay": 3.053303534277088,
+        "is_crossing": true,
+        "direction": 1
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "Peuguot307",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 3.053303534277088,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v1_Peuguot307.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 4.058780808916202,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v2_Peuguot3008.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.22451612186433045,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v3_Peuguot3008.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 25.0,
+        "direction_label": -1,
+        "cpa_distance_m": 5.0,
+        "trajectory_type": "busy_road",
+        "num_sources": 3,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "Peuguot307",
+          "Peuguot3008",
+          "Peuguot3008"
+        ],
+        "cpa_time_sec": 7.445533488352539
+      },
+      "path_plot": "multi_object_0000004.png",
+      "sample_dir": "sample_0000004",
+      "num_sources": 3,
+      "individual_files": [
+        "v1_Peuguot307.wav",
+        "v2_Peuguot3008.wav",
+        "v3_Peuguot3008.wav"
+      ]
+    },
+    {
+      "filename": "multi_object_0000005.wav",
+      "index": 5,
+      "vehicle": "multi",
+      "path_type": "busy_road",
+      "parameters": {
+        "vehicle_name": "NissanQashQai",
+        "path_type": "map_path",
+        "params": {
+          "points": [
+            [
+              -90.0,
+              -0.29305542175037996
+            ],
+            [
+              -80.22222222222223,
+              -0.1408191801649851
+            ],
+            [
+              -70.44444444444444,
+              0.07055914584861128
+            ],
+            [
+              -60.66666666666667,
+              -0.17805065926618122
+            ],
+            [
+              -50.88888888888889,
+              -0.27617932507298215
+            ],
+            [
+              -41.11111111111111,
+              -0.11774884933458102
+            ],
+            [
+              -31.333333333333336,
+              -0.20091145300324523
+            ],
+            [
+              -21.555555555555557,
+              -0.18973754358243713
+            ],
+            [
+              -11.777777777777786,
+              -0.28012637081596614
+            ],
+            [
+              -2.0,
+              -0.2811524675867941
+            ],
+            [
+              -1.3385243318982676,
+              -0.0872242639492905
+            ],
+            [
+              -0.7061462416202899,
+              -0.041688306929574065
+            ],
+            [
+              -0.2888469574179343,
+              -0.029044000604440096
+            ],
+            [
+              0.3482084699185195,
+              -0.2317654101846472
+            ],
+            [
+              0.9427705860201296,
+              -0.27983161656579814
+            ],
+            [
+              1.4725955394432673,
+              -0.19306053720464467
+            ],
+            [
+              2.1993260215588264,
+              -0.19065558825178874
+            ],
+            [
+              10.682160750872065,
+              -5.0535104004270295
+            ],
+            [
+              19.12997357225239,
+              -9.97702493652007
+            ],
+            [
+              27.627429804850486,
+              -14.81455456212291
+            ],
+            [
+              36.13993150719342,
+              -19.62602466970394
+            ],
+            [
+              44.51992811332025,
+              -24.667000336193098
+            ],
+            [
+              53.039708559442175,
+              -29.465863289733615
+            ],
+            [
+              61.51334028526828,
+              -34.34465817153081
+            ],
+            [
+              70.00205374825896,
+              -39.19733071829255
+            ],
+            [
+              78.49852598726497,
+              -44.03656467079121
+            ]
+          ],
+          "speed": 14,
+          "duration": 10.0,
+          "temperature": 20,
+          "humidity": 50
+        },
+        "delay": 0.5139771657904046,
+        "is_crossing": true,
+        "direction": 1
+      },
+      "vehicles": [
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.5139771657904046,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v1_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "KiaSportage",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.17317195799639085,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v2_KiaSportage.wav"
+        },
+        {
+          "vehicle_name": "NissanQashQai",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 3.989847126117639,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v3_NissanQashQai.wav"
+        },
+        {
+          "vehicle_name": "Peuguot3008",
+          "speed": 25.0,
+          "acceleration": 0.0,
+          "offset": 5.0,
+          "direction": 1,
+          "delay": 0.45204721085490784,
+          "path_type": "map_path",
+          "is_crossing": true,
+          "audio_file": "v4_Peuguot3008.wav"
+        }
+      ],
+      "labels": {
+        "speed_mps": 25.0,
+        "direction_label": -1,
+        "cpa_distance_m": 5.0,
+        "trajectory_type": "busy_road",
+        "num_sources": 4,
+        "is_crossing": true,
+        "vehicle_class": "multi",
+        "v_identities": [
+          "NissanQashQai",
+          "KiaSportage",
+          "NissanQashQai",
+          "Peuguot3008"
+        ],
+        "cpa_time_sec": 6.282260865189835
+      },
+      "path_plot": "multi_object_0000005.png",
+      "sample_dir": "sample_0000005",
+      "num_sources": 4,
+      "individual_files": [
+        "v1_NissanQashQai.wav",
+        "v2_KiaSportage.wav",
+        "v3_NissanQashQai.wav",
+        "v4_Peuguot3008.wav"
+      ]
+    }
+  ],
+  "total_generated": 5,
+  "timestamp": "2026-05-07T01:55:26.108070"
+}

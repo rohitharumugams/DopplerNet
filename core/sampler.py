@@ -4,16 +4,12 @@ import numpy as np
 
 from core.config import SAMPLER_STATE_FILE
 
-# ============================================================
-# GLOBAL SAMPLER CACHE (PER BATCH)
-# ============================================================
+# global sampler cache (per batch)
 
 SAMPLERS = {}
 
 
-# ============================================================
-# FAST INTEGER CYCLIC SAMPLER (O(1), FULL COVERAGE)
-# ============================================================
+# fast integer cyclic sampler (o(1), full coverage)
 
 class CyclicIntegerSampler:
     def __init__(self, low, high, seed=None):

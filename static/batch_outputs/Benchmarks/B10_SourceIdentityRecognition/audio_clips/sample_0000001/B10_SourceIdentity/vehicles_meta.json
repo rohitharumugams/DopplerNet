@@ -1,0 +1,24 @@
+[
+  {
+    "vehicle_name": "Peuguot307",
+    "speed": 41.0,
+    "acceleration": 0.0,
+    "offset": 12.012736192867417,
+    "direction": 1,
+    "delay": 0.0,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_Peuguot307.wav"
+  },
+  {
+    "vehicle_name": "NissanQashQai",
+    "speed": 38.0,
+    "acceleration": 0.0,
+    "offset": 15.98539375751464,
+    "direction": -1,
+    "delay": 0.10999327722927221,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_NissanQashQai.wav"
+  }
+]

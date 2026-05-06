@@ -1,0 +1,1195 @@
+{
+  "car": "VWPassat",
+  "clips": [
+    {
+      "filename": "VWPassat_30.wav",
+      "index": 1,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 8.333333333333334,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 8.333333333333334,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_30.png",
+      "sample_dir": "sample_0000001"
+    },
+    {
+      "filename": "VWPassat_35.wav",
+      "index": 2,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 9.722222222222221,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 9.722222222222221,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_35.png",
+      "sample_dir": "sample_0000002"
+    },
+    {
+      "filename": "VWPassat_39.wav",
+      "index": 3,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 10.833333333333334,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 10.833333333333334,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_39.png",
+      "sample_dir": "sample_0000003"
+    },
+    {
+      "filename": "VWPassat_40.wav",
+      "index": 4,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 11.11111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 11.11111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_40.png",
+      "sample_dir": "sample_0000004"
+    },
+    {
+      "filename": "VWPassat_42.wav",
+      "index": 5,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 11.666666666666666,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 11.666666666666666,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_42.png",
+      "sample_dir": "sample_0000005"
+    },
+    {
+      "filename": "VWPassat_45.wav",
+      "index": 6,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 12.5,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 12.5,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_45.png",
+      "sample_dir": "sample_0000006"
+    },
+    {
+      "filename": "VWPassat_47.wav",
+      "index": 7,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 13.055555555555555,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 13.055555555555555,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_47.png",
+      "sample_dir": "sample_0000007"
+    },
+    {
+      "filename": "VWPassat_49.wav",
+      "index": 8,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 13.61111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 13.61111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_49.png",
+      "sample_dir": "sample_0000008"
+    },
+    {
+      "filename": "VWPassat_50.wav",
+      "index": 9,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 13.88888888888889,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 13.88888888888889,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_50.png",
+      "sample_dir": "sample_0000009"
+    },
+    {
+      "filename": "VWPassat_52.wav",
+      "index": 10,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 14.444444444444445,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 14.444444444444445,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_52.png",
+      "sample_dir": "sample_0000010"
+    },
+    {
+      "filename": "VWPassat_54.wav",
+      "index": 11,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 15.0,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 15.0,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_54.png",
+      "sample_dir": "sample_0000011"
+    },
+    {
+      "filename": "VWPassat_55.wav",
+      "index": 12,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 15.277777777777777,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 15.277777777777777,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_55.png",
+      "sample_dir": "sample_0000012"
+    },
+    {
+      "filename": "VWPassat_57.wav",
+      "index": 13,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 15.833333333333332,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 15.833333333333332,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_57.png",
+      "sample_dir": "sample_0000013"
+    },
+    {
+      "filename": "VWPassat_60.wav",
+      "index": 14,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 16.666666666666668,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 16.666666666666668,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_60.png",
+      "sample_dir": "sample_0000014"
+    },
+    {
+      "filename": "VWPassat_61.wav",
+      "index": 15,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 16.944444444444443,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 16.944444444444443,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_61.png",
+      "sample_dir": "sample_0000015"
+    },
+    {
+      "filename": "VWPassat_64.wav",
+      "index": 16,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 17.77777777777778,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 17.77777777777778,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_64.png",
+      "sample_dir": "sample_0000016"
+    },
+    {
+      "filename": "VWPassat_65.wav",
+      "index": 17,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 18.055555555555554,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 18.055555555555554,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_65.png",
+      "sample_dir": "sample_0000017"
+    },
+    {
+      "filename": "VWPassat_67.wav",
+      "index": 18,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 18.61111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 18.61111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_67.png",
+      "sample_dir": "sample_0000018"
+    },
+    {
+      "filename": "VWPassat_70.wav",
+      "index": 19,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 19.444444444444443,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 19.444444444444443,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_70.png",
+      "sample_dir": "sample_0000019"
+    },
+    {
+      "filename": "VWPassat_71.wav",
+      "index": 20,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 19.72222222222222,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 19.72222222222222,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_71.png",
+      "sample_dir": "sample_0000020"
+    },
+    {
+      "filename": "VWPassat_72.wav",
+      "index": 21,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 20.0,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 20.0,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_72.png",
+      "sample_dir": "sample_0000021"
+    },
+    {
+      "filename": "VWPassat_73.wav",
+      "index": 22,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 20.27777777777778,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 20.27777777777778,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_73.png",
+      "sample_dir": "sample_0000022"
+    },
+    {
+      "filename": "VWPassat_75.wav",
+      "index": 23,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 20.833333333333332,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 20.833333333333332,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_75.png",
+      "sample_dir": "sample_0000023"
+    },
+    {
+      "filename": "VWPassat_78.wav",
+      "index": 24,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 21.666666666666668,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 21.666666666666668,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_78.png",
+      "sample_dir": "sample_0000024"
+    },
+    {
+      "filename": "VWPassat_80.wav",
+      "index": 25,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 22.22222222222222,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 22.22222222222222,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_80.png",
+      "sample_dir": "sample_0000025"
+    },
+    {
+      "filename": "VWPassat_81.wav",
+      "index": 26,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 22.5,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 22.5,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_81.png",
+      "sample_dir": "sample_0000026"
+    },
+    {
+      "filename": "VWPassat_82.wav",
+      "index": 27,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 22.77777777777778,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 22.77777777777778,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_82.png",
+      "sample_dir": "sample_0000027"
+    },
+    {
+      "filename": "VWPassat_85.wav",
+      "index": 28,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 23.61111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 23.61111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_85.png",
+      "sample_dir": "sample_0000028"
+    },
+    {
+      "filename": "VWPassat_88.wav",
+      "index": 29,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 24.444444444444443,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 24.444444444444443,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_88.png",
+      "sample_dir": "sample_0000029"
+    },
+    {
+      "filename": "VWPassat_90.wav",
+      "index": 30,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 25.0,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 25.0,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_90.png",
+      "sample_dir": "sample_0000030"
+    },
+    {
+      "filename": "VWPassat_91.wav",
+      "index": 31,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 25.27777777777778,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 25.27777777777778,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_91.png",
+      "sample_dir": "sample_0000031"
+    },
+    {
+      "filename": "VWPassat_94.wav",
+      "index": 32,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 26.11111111111111,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 26.11111111111111,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_94.png",
+      "sample_dir": "sample_0000032"
+    },
+    {
+      "filename": "VWPassat_96.wav",
+      "index": 33,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 26.666666666666664,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 26.666666666666664,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_96.png",
+      "sample_dir": "sample_0000033"
+    },
+    {
+      "filename": "VWPassat_98.wav",
+      "index": 34,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 27.22222222222222,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 27.22222222222222,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_98.png",
+      "sample_dir": "sample_0000034"
+    },
+    {
+      "filename": "VWPassat_100.wav",
+      "index": 35,
+      "vehicle": "VWPassat",
+      "path_type": "straight",
+      "parameters": {
+        "speed": 27.77777777777778,
+        "distance": 0.5,
+        "angle": 0.0,
+        "duration": 10.0,
+        "acceleration": 0.0,
+        "temperature": 20,
+        "humidity": 50,
+        "clean_audio": true,
+        "apply_propagation_delay": false
+      },
+      "labels": {
+        "speed_mps": 27.77777777777778,
+        "acceleration_mps2": 0.0,
+        "direction_label": 0,
+        "cpa_distance_m": 0.5,
+        "trajectory_type": "straight",
+        "cpa_time_sec": 5.0,
+        "num_sources": 1,
+        "is_crossing": false,
+        "vehicle_class": "VWPassat"
+      },
+      "freq_ratio_range": {
+        "min": 1.0,
+        "max": 1.0
+      },
+      "path_plot": "VWPassat_100.png",
+      "sample_dir": "sample_0000035"
+    }
+  ]
+}

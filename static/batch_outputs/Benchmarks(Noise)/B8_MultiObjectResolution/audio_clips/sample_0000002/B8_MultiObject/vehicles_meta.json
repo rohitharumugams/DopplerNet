@@ -1,0 +1,46 @@
+[
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 27.0,
+    "acceleration": 0.0,
+    "offset": 11.231359147067865,
+    "direction": 1,
+    "delay": 3.8635636593080043,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v1_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "RenaultScenic",
+    "speed": 13.0,
+    "acceleration": 0.0,
+    "offset": 15.18704422125641,
+    "direction": -1,
+    "delay": 0.5368314229125731,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v2_RenaultScenic.wav"
+  },
+  {
+    "vehicle_name": "VWPassat",
+    "speed": 21.0,
+    "acceleration": 0.0,
+    "offset": 12.835557126079246,
+    "direction": 1,
+    "delay": 0.9221651945822429,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v3_VWPassat.wav"
+  },
+  {
+    "vehicle_name": "Peuguot3008",
+    "speed": 39.0,
+    "acceleration": 0.0,
+    "offset": 16.836560108739725,
+    "direction": -1,
+    "delay": 3.194609112569302,
+    "path_type": "bezier",
+    "is_crossing": true,
+    "audio_file": "v4_Peuguot3008.wav"
+  }
+]

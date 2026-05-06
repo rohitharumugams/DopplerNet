@@ -266,7 +266,7 @@ def run_mixed_generation(user_config):
                 
                 mixed_progress['generated_so_far'] += 1
 
-            # --- Post-process Car Folder ---
+            # Post-process Car Folder
             if not car_clips: continue
             
             # 1. Train/Valid Split (80/20)
@@ -289,12 +289,13 @@ def run_mixed_generation(user_config):
             # 3. dataset.csv
             with open(os.path.join(additional_dir, "dataset.csv"), 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['sample_id', 'filename', 'speed_kmph', 'speed_mps', 'distance_m', 'angle_deg'])
+                writer.writerow(['sample_id', 'filename', 'speed_kmph', 'speed_mps', 'acceleration_mps2', 'distance_m', 'angle_deg'])
                 for clip in car_clips:
                     p = clip['parameters']
                     writer.writerow([
                         clip['sample_dir'], clip['filename'], 
                         round(p['speed']*3.6, 2), p['speed'], 
+                        p.get('acceleration', 0.0),
                         p['distance'], p['angle']
                     ])
 
@@ -311,7 +312,7 @@ def run_mixed_generation(user_config):
                 log_f.write(f"Total Clips: {len(car_clips)}\n")
                 log_f.write(f"Output Format: VS13-Compatible\n")
 
-            mixed_progress['log_line'] = f"✓ Finalized {car_json_name}"
+            mixed_progress['log_line'] = f"[OK] Finalized {car_json_name}"
 
     except Exception as e:
         mixed_progress['log_line'] = f"Critical Error in mixed generation: {str(e)}"
