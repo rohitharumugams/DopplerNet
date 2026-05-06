@@ -1,0 +1,101 @@
+<mxfile host="app.diagrams.net" modified="2026-05-04T00:00:00.000Z" agent="DopplerNet" version="22.1.0" type="device">
+  <diagram id="pipeline-main" name="Synthesis pipeline">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="680" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="zone_in" value="" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;dashPattern=12 8;strokeWidth=2.5;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="32" y="96" width="318" height="334" as="geometry"/>
+        </mxCell>
+        <mxCell id="zone_proc" value="" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;dashed=1;dashPattern=12 8;strokeWidth=2.5;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="370" y="96" width="902" height="334" as="geometry"/>
+        </mxCell>
+        <mxCell id="zone_out" value="" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64842e;dashed=1;dashPattern=12 8;strokeWidth=2.5;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="1292" y="96" width="396" height="334" as="geometry"/>
+        </mxCell>
+        <mxCell id="hdr_in" value="Input" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1a5276;" vertex="1" parent="1">
+          <mxGeometry x="32" y="58" width="318" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="hdr_proc" value="Processing" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1e6b2e;" vertex="1" parent="1">
+          <mxGeometry x="370" y="58" width="902" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="hdr_out" value="Output" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#3d6b1f;" vertex="1" parent="1">
+          <mxGeometry x="1292" y="58" width="396" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="title" value="DopplerNet end-to-end synthesis (additional spectral processing beyond the buffer not shown)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=0;fontColor=#2c2c2c;" vertex="1" parent="1">
+          <mxGeometry x="32" y="16" width="1656" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="a1" value="Short monophonic&#xa;vehicle recordings" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.5;fontSize=11;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="52" y="118" width="276" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1" value="Path and scenario&#xa;parameters&#xa;(speed, geometry, duration, …)" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="52" y="198" width="276" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2" value="Temperature and relative&#xa;humidity for speed of&#xa;sound in air" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#f0f0f0;strokeColor=#888888;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="52" y="286" width="276" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="a2" value="Resample and normalize&#xa;Overlap-extend if&#xa;output longer than&#xa;source clip" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;fontSize=10;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="382" y="118" width="165" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="a3" value="Path model and kinematics&#xa;(straight, parabola,&#xa;Bezier, map polyline):&#xa;position, velocity,&#xa;radial velocity" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=1.5;fontSize=10;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="562" y="118" width="165" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="a4" value="Driving curves over time:&#xa;frequency ratio and gain;&#xa;softened inverse range,&#xa;convective factor, listener&#xa;compression, end fades" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=1.5;fontSize=9;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="742" y="118" width="168" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3" value="Retarded-time correction&#xa;(accelerating paths):&#xa;re-order ratio and gain&#xa;to arrival-time grid" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#f7f7f7;strokeColor=#999999;strokeWidth=1.5;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="925" y="118" width="142" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="a5" value="Time-domain warp:&#xa;extended source driven&#xa;by frequency-ratio curve,&#xa;cubic interpolation,&#xa;multiply by gain sequence" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#cce5ff;strokeColor=#36393d;strokeWidth=2;fontSize=10;fontStyle=1;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="1082" y="118" width="168" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="a6" value="Pass-by waveform&#xa;at fixed duration and&#xa;sampling rate" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#97d077;strokeColor=#64842e;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="122" width="340" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="p4" value="Propagation delay: initial&#xa;source-to-observer range&#xa;divided by speed of sound;&#xa;shifts waveform after warp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#f7f7f7;strokeColor=#999999;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1315" y="208" width="350" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext" value="Extended features from the same run: path plots; constant-Q, short-time Fourier, mel spectrograms; frame statistics; benchmarks; summed multi-source scenes" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#fafafa;strokeColor=#666666;strokeWidth=1.5;dashed=1;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1298" y="298" width="384" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2.5;strokeColor=#404040;endArrow=block;endFill=1;endSize=7;" edge="1" parent="1" source="a1" target="a2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2.5;strokeColor=#404040;endArrow=block;endFill=1;endSize=7;" edge="1" parent="1" source="a2" target="a3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2.5;strokeColor=#404040;endArrow=block;endFill=1;endSize=7;" edge="1" parent="1" source="a3" target="a4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2.5;strokeColor=#404040;endArrow=block;endFill=1;endSize=7;" edge="1" parent="1" source="a4" target="p3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2.5;strokeColor=#404040;endArrow=block;endFill=1;endSize=7;" edge="1" parent="1" source="p3" target="a5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2.5;strokeColor=#404040;endArrow=block;endFill=1;endSize=7;" edge="1" parent="1" source="a5" target="a6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ep1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#9673a6;endArrow=block;endFill=1;dashed=1;dashPattern=8 6;" edge="1" parent="1" source="p1" target="a3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ep2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#888888;endArrow=block;endFill=1;dashed=1;dashPattern=8 6;" edge="1" parent="1" source="p2" target="a4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ep4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#999999;endArrow=block;endFill=1;dashed=1;dashPattern=8 6;" edge="1" parent="1" source="a6" target="p4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ex" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1.5;strokeColor=#888888;endArrow=open;endSize=8;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="a6" target="ext">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1490" y="292"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg" value="Solid arrows: main audio buffer (including retarded-time between driving curves and warp). Purple dashed: path parameters. Gray dashed: atmosphere into driving curves only. Open dashed: parallel extended features." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="60" y="588" width="1600" height="44" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

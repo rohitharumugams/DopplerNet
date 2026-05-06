@@ -1,24 +1,27 @@
 import os
+import json
 import numpy as np
-import librosa
 import traceback
 import io
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, send_file
-import soundfile as sf
 from scipy import signal
 
 from audio.audio_utils import (
     apply_doppler_to_audio_fixed,
+    load_audio,
     save_audio,
+    write_soundfile,
     extend_audio_with_overlap,
     SR
 )
 from core.config import UPLOAD_FOLDER, DRONE_SOUNDS_FOLDER, SINGLE_OUTPUT_FOLDER
 from audio.generation import generate_single_clip
+from visualization.plot_utils import render_simulator_path_summary_png
 
 simulate_bp = Blueprint('simulate', __name__)
+
 
 def _apply_subtle_air_noise(audio, sr, strength_pct, center_freq_hz=1200.0):
     """
@@ -48,7 +51,7 @@ def _apply_subtle_air_noise(audio, sr, strength_pct, center_freq_hz=1200.0):
     peak = np.exp(-0.5 * ((freqs - center_hz) / sigma_hz) ** 2)
 
     # Broadband floor stays present across nearly all bins, with a tiny high-frequency
-    # boost so upper bins are not visually empty in spectrograms.
+    # boost so upper bins are not visually empty in the spectrogram.
     broad_floor = 0.42 + 0.20 * np.sqrt(np.clip(freqs / max(nyq, 1e-6), 0.0, 1.0))
 
     # Keep centered control influential, but avoid local-only energy islands.
@@ -75,6 +78,135 @@ def _apply_subtle_air_noise(audio, sr, strength_pct, center_freq_hz=1200.0):
     return np.clip(mixed, -1.0, 1.0)
 
 
+def parse_single_clip_simulation_form(form):
+    """
+    Parse the single-clip / custom-path form into (path_type, params, ui_path_key).
+    ui_path_key is the form's path selector ('straight', 'parabola', 'bezier', 'custom')
+    before remapping custom paths to map_trajectory.
+
+    Raises ValueError with a user-facing message on invalid input.
+    """
+    ui_path_key = form.get('path', 'straight')
+    path_type = ui_path_key
+
+    _dur_raw = form.get('audio_duration')
+    try:
+        duration = float(_dur_raw) if _dur_raw not in (None, '') else 5.0
+    except (TypeError, ValueError):
+        duration = 5.0
+    duration = float(max(0.5, min(300.0, duration)))
+
+    params = {
+        'duration': duration,
+        'apply_propagation_delay': False,
+    }
+
+    if path_type == 'straight':
+        speed = float(form.get('speed', 20.0))
+        h = float(form.get('h', 10.0))
+        angle = float(form.get('angle', 0.0))
+
+        params['speed'] = speed
+        params['distance'] = h
+        params['angle'] = angle
+
+    elif path_type == 'parabola':
+        speed = float(form.get('speed', 15.0))
+        a = float(form.get('a', 0.1))
+        h = float(form.get('h', 10.0))
+
+        params['speed'] = speed
+        params['a'] = a
+        params['h'] = h
+        params['distance'] = h
+
+    elif path_type == 'bezier':
+        speed = float(form.get('speed', 20.0))
+
+        params['speed'] = speed
+        params['x0'] = float(form.get('x0', -30))
+        params['y0'] = float(form.get('y0', 20))
+        params['x1'] = float(form.get('x1', -10))
+        params['y1'] = float(form.get('y1', 5))
+        params['x2'] = float(form.get('x2', 10))
+        params['y2'] = float(form.get('y2', 5))
+        params['x3'] = float(form.get('x3', 30))
+        params['y3'] = float(form.get('y3', 20))
+        params['distance'] = 10.0
+
+    elif path_type == 'custom':
+        raw_pts = form.get('custom_path_points', '')
+        try:
+            pts = json.loads(raw_pts)
+        except json.JSONDecodeError:
+            raise ValueError('Invalid custom path JSON')
+        if not isinstance(pts, list) or len(pts) < 2:
+            raise ValueError('Custom path must contain at least two points')
+        arr = np.asarray(pts, dtype=float)
+        if arr.ndim != 2 or arr.shape[1] != 2:
+            raise ValueError('Each custom path point must be [x, y] in meters')
+        if not np.all(np.isfinite(arr)):
+            raise ValueError('Custom path contains non-finite coordinates')
+        speed = float(form.get('speed', 20.0))
+        if speed <= 1e-6:
+            raise ValueError('Speed must be positive')
+        seg_lens = np.linalg.norm(np.diff(arr, axis=0), axis=1)
+        path_len_m = float(np.sum(seg_lens))
+        if path_len_m <= 1e-6:
+            raise ValueError('Path length must be positive')
+        duration_custom = path_len_m / speed
+        if duration_custom > 300.0:
+            raise ValueError(
+                f'At {speed:.2g} m/s this path needs {duration_custom:.1f}s to traverse (max 300s). '
+                'Increase speed or shorten the path.'
+            )
+        if duration_custom < 0.5:
+            raise ValueError(
+                f'Traverse time would be {duration_custom:.2f}s (minimum 0.5s). '
+                'Lengthen the path or reduce speed.'
+            )
+        params['speed'] = speed
+        params['points'] = arr
+        params['duration'] = float(duration_custom)
+        obs = np.array([0.0, 0.0], dtype=float)
+        dists = np.linalg.norm(arr - obs, axis=1)
+        params['distance'] = float(np.min(dists)) if dists.size else 10.0
+        path_type = 'map_trajectory'
+
+    else:
+        raise ValueError(f'Unknown path type: {path_type}')
+
+    return path_type, params, ui_path_key
+
+
+@simulate_bp.route('/api/path_plot_png', methods=['POST'])
+def path_plot_png():
+    """
+    Return a matplotlib PNG summary of the current path: axes in meters, path length,
+    duration T, speed v, and T = L/v (matches simulator physics for constant speed along path).
+    """
+    try:
+        path_type, params, ui_key = parse_single_clip_simulation_form(request.form)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    labels = {
+        'straight': 'Straight pass-by',
+        'parabola': 'Parabola',
+        'bezier': 'Bézier',
+        'custom': 'Custom drawn path',
+    }
+    display_label = labels.get(ui_key, path_type.replace('_', ' '))
+
+    try:
+        buf = render_simulator_path_summary_png(path_type, params, display_path_label=display_label)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': f'Plot generation failed: {str(e)}'}), 500
+
+    return send_file(buf, mimetype='image/png', download_name='doppler_path_summary.png')
+
+
 @simulate_bp.route('/simulate', methods=['POST'])
 def simulate_single():
     """
@@ -82,66 +214,15 @@ def simulate_single():
     Returns a WAV file blob that the frontend plays directly.
     """
     try:
-        # Basic inputs from form
-        path_type = request.form.get('path', 'straight')
         vehicle_type = request.form.get('vehicle_type', 'car')
 
-        # Match single-mode UI "Output Duration" (`audio_duration`, default 5 in template).
-        _dur_raw = request.form.get('audio_duration')
         try:
-            duration = float(_dur_raw) if _dur_raw not in (None, '') else 5.0
-        except (TypeError, ValueError):
-            duration = 5.0
-        duration = float(max(0.5, min(300.0, duration)))
+            path_type, params, _ui_key = parse_single_clip_simulation_form(request.form)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
 
         # Use lower-case name to match uploaded vehicle files (car.wav, train.wav, etc.)
         vehicle_name = vehicle_type.lower()
-
-        # Common parameters
-        params = {
-            'duration': duration,
-            # Avoid leading silence in single-sim downloads/playback.
-            'apply_propagation_delay': False
-        }
-
-        # Path-specific parameters (manual mode – you control signs here)
-        if path_type == 'straight':
-            speed = float(request.form.get('speed', 20.0))
-            h = float(request.form.get('h', 10.0))       # closest distance
-            angle = float(request.form.get('angle', 0.0))
-
-            params['speed'] = speed
-            params['distance'] = h
-            params['angle'] = angle
-
-        elif path_type == 'parabola':
-            speed = float(request.form.get('speed', 15.0))
-            a = float(request.form.get('a', 0.1))
-            h = float(request.form.get('h', 10.0))
-
-            params['speed'] = speed
-            params['a'] = a
-            params['h'] = h
-            # store something reasonable for filename/stats distance
-            params['distance'] = h
-
-        elif path_type == 'bezier':
-            speed = float(request.form.get('speed', 20.0))
-
-            params['speed'] = speed
-            params['x0'] = float(request.form.get('x0', -30))
-            params['y0'] = float(request.form.get('y0', 20))
-            params['x1'] = float(request.form.get('x1', -10))
-            params['y1'] = float(request.form.get('y1', 5))
-            params['x2'] = float(request.form.get('x2', 10))
-            params['y2'] = float(request.form.get('y2', 5))
-            params['x3'] = float(request.form.get('x3', 30))
-            params['y3'] = float(request.form.get('y3', 20))
-            # nominal distance just for filename
-            params['distance'] = 10.0
-
-        else:
-            return jsonify({'error': f'Unknown path type: {path_type}'}), 400
 
         # Minimal config reused from batch code
         config = {
@@ -185,12 +266,12 @@ def simulate_single():
         if not add_air_noise:
             return send_file(file_path, mimetype='audio/wav')
 
-        audio, sr = librosa.load(file_path, sr=SR, mono=True)
+        audio, sr = load_audio(file_path, sr=SR, mono=True)
         audio_with_noise = _apply_subtle_air_noise(
             audio, sr, air_noise_strength, air_noise_frequency_hz
         )
         wav_buffer = io.BytesIO()
-        sf.write(wav_buffer, audio_with_noise, sr, format='WAV', subtype='PCM_16')
+        write_soundfile(wav_buffer, audio_with_noise, sr, format='WAV', subtype='PCM_16')
         wav_buffer.seek(0)
         return send_file(wav_buffer, mimetype='audio/wav', download_name='single_simulation.wav')
 
@@ -280,7 +361,7 @@ def simulate_intersection():
                 continue
 
             # Load and process audio
-            audio_full, sr = librosa.load(vehicle_file, sr=SR, mono=True)
+            audio_full, sr = load_audio(vehicle_file, sr=SR, mono=True)
             audio = extend_audio_with_overlap(audio_full, duration * 2.0, SR)
             
             v_physics = physics_results[v_id]

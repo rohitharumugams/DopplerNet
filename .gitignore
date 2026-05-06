@@ -39,5 +39,8 @@ Thumbs.db
 # Local Notes
 ref_docs/
 
+# LaTeX paper (local draft)
+latex/
+
 # Environment variables
 .env

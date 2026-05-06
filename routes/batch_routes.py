@@ -40,40 +40,6 @@ LINEAR_OVERLAP_SPEEDS_MPS = [
 ]
 
 
-def upload_batch_to_gcs():
-    import subprocess
-    import time
-
-    local_output_dir = "static/batch_outputs"
-    if not os.path.isdir(local_output_dir) or not os.listdir(local_output_dir):
-        print("No local batch outputs found, skipping GCS upload.")
-        return None
-
-    run_id = str(int(time.time()))
-    destination = f"gs://vehicle_audio_source_sep/batch_outputs/run_{run_id}/"
-    print("Starting batch upload to GCS...")
-    print(f"Upload destination: {destination}")
-
-    subprocess.run(
-        [
-            "bash",
-            "-lc",
-            f'gsutil -m cp -r "{local_output_dir}"/* "{destination}"'
-        ],
-        check=False
-    )
-    return destination
-
-
-def cleanup_local_outputs():
-    import shutil
-    import os
-
-    shutil.rmtree("static/batch_outputs", ignore_errors=True)
-    os.makedirs("static/batch_outputs", exist_ok=True)
-    print("Local batch outputs cleanup completed.")
-
-
 def _save_spectrogram_npy(audio_array, output_path):
     """Save a lightweight STFT power spectrogram as .npy (no plotting)."""
     n_fft = 2048
@@ -326,9 +292,6 @@ def _run_linear_overlap_batch(config, start_time):
 
     elapsed_time = time.time() - start_time
     formatted_time = f"{elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)"
-
-    upload_batch_to_gcs()
-    cleanup_local_outputs()
 
     return jsonify({
         'success': True,
@@ -986,9 +949,6 @@ def batch_generate():
         elapsed_time = time.time() - start_time
         formatted_time = f"{elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)"
         print(f"Batch generation finished in {formatted_time}")
-
-        upload_batch_to_gcs()
-        cleanup_local_outputs()
 
         return jsonify({
             'success': True,

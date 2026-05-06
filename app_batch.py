@@ -45,7 +45,7 @@ if __name__ == '__main__':
     print(f"Vehicle sounds folder: {UPLOAD_FOLDER}")
     print(f"Batch output folder (default root): {OUTPUT_FOLDER}")
     print(f"Single-clip output folder: {SINGLE_OUTPUT_FOLDER}")
-    print(f"Server starting on http://0.0.0.0:5050")
+    print(f"Server starting on http://0.0.0.0:5001")
     print("=" * 60)
     print("\nNEW FEATURES:")
     print("  ✓ Path validation enabled by default")
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     print("  ✓ Batch validation statistics")
     print("=" * 60)
 
-    app.run(debug=True, host='0.0.0.0', port=5050)
+    app.run(debug=True, host='0.0.0.0', port=5001)
 
 
 # Reset everything (when needed)

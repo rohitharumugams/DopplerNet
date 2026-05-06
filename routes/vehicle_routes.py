@@ -6,11 +6,9 @@ import numpy as np
 
 from flask import Blueprint, request, jsonify
 
-from audio.audio_utils import SR
+from audio.audio_utils import SR, load_audio, write_soundfile
 from core.config import UPLOAD_FOLDER, DRONE_SOUNDS_FOLDER, SPECTROGRAM_FOLDER
 from visualization.plot_utils import save_spectrogram_to_file, save_audio_comparison_plot
-
-import soundfile as sf
 
 vehicle_bp = Blueprint('vehicle', __name__)
 
@@ -38,7 +36,7 @@ def upload_vehicle():
 
         # Load and check duration
         try:
-            audio, sr = librosa.load(temp_path, sr=SR, mono=True)
+            audio, sr = load_audio(temp_path, sr=SR, mono=True)
             duration = len(audio) / SR
 
             if not (2.5 <= duration <= 3.5):
@@ -52,7 +50,7 @@ def upload_vehicle():
             final_path = os.path.join(UPLOAD_FOLDER, filename)
 
             # Convert to WAV format
-            sf.write(final_path, audio, SR)
+            write_soundfile(final_path, audio, SR)
             os.remove(temp_path)
 
             return jsonify({
@@ -96,7 +94,7 @@ def list_vehicles():
                     if filename.lower().endswith(('.wav', '.mp3', '.ogg', '.flac')):
                         filepath = os.path.join(folder, filename)
                         try:
-                            audio, sr = librosa.load(filepath, sr=SR, mono=True)
+                            audio, sr = load_audio(filepath, sr=SR, mono=True)
                             duration = len(audio) / SR
                             # Remove any audio extension
                             vehicle_name = filename
@@ -167,7 +165,7 @@ def generate_spectrogram():
             return jsonify({'error': f"Vehicle sound '{vehicle_name}' not found"}), 404
 
         # Load audio
-        y, sr = librosa.load(vehicle_file, sr=SR)
+        y, sr = load_audio(vehicle_file, sr=SR)
 
         # Save to PNG
         file_id = f"{vehicle_name}_{int(time.time())}"
@@ -213,7 +211,7 @@ def upload_generate_spectrogram():
         file.save(temp_path)
 
         # Load and generate
-        y, sr = librosa.load(temp_path, sr=SR)
+        y, sr = load_audio(temp_path, sr=SR)
 
         plot_filename = f"spectrogram_{int(time.time())}.png"
         plot_path = os.path.join(SPECTROGRAM_FOLDER, plot_filename)
@@ -263,8 +261,8 @@ def compare_audio_clips():
         file_b.save(temp_b)
         temp_paths.extend([temp_a, temp_b])
 
-        y_a, _ = librosa.load(temp_a, sr=SR, mono=True)
-        y_b, _ = librosa.load(temp_b, sr=SR, mono=True)
+        y_a, _ = load_audio(temp_a, sr=SR, mono=True)
+        y_b, _ = load_audio(temp_b, sr=SR, mono=True)
         if len(y_a) == 0 or len(y_b) == 0:
             return jsonify({'error': 'One of the uploaded files appears empty or unreadable'}), 400
 

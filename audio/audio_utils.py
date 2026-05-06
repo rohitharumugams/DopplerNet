@@ -1,3 +1,4 @@
+import threading
 import numpy as np
 import soundfile as sf
 import librosa
@@ -6,6 +7,22 @@ from scipy.interpolate import interp1d
 
 SOUND_DURATION = 5  # Default seconds - will be overridden by user input
 SR = 22050  # Sample rate
+
+# libsndfile's MPEG path is not safely concurrent on macOS (crash with PC≈0x1 under parallel open).
+# Serialize all librosa + soundfile access across threads (e.g. Flask + background work).
+_AUDIO_IO_LOCK = threading.Lock()
+
+
+def load_audio(path, sr=SR, mono=True, **kwargs):
+    """Thread-safe ``librosa.load`` for WAV/MP3/etc."""
+    with _AUDIO_IO_LOCK:
+        return librosa.load(path, sr=sr, mono=mono, **kwargs)
+
+
+def write_soundfile(path_or_file, data, samplerate, **kwargs):
+    """Thread-safe ``soundfile.write``."""
+    with _AUDIO_IO_LOCK:
+        sf.write(path_or_file, data, samplerate, **kwargs)
 
 def get_speed_of_sound(temp_c, humidity_rh=50.0):
     """
@@ -42,7 +59,7 @@ def load_original_audio(audio_type='horn', duration=5):
 
     try:
         # Load without duration limit first to get the full file
-        y, original_sr = librosa.load(filename, sr=SR, mono=True)
+        y, original_sr = load_audio(filename, sr=SR, mono=True)
         original_duration = len(y) / SR
 
         print(f"Loaded {audio_type} audio from {filename}")
@@ -548,7 +565,7 @@ def save_audio(audio_data, output_path):
     """
     # Hard clip to valid range but do not rescale the whole clip
     audio_data = np.clip(audio_data, -1.0, 1.0)
-    sf.write(output_path, audio_data, SR)
+    write_soundfile(output_path, audio_data, SR)
     return len(audio_data) / SR
 
 

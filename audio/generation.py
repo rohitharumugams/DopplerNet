@@ -11,6 +11,7 @@ from audio.audio_utils import (
     apply_doppler_to_audio_fixed,
     apply_doppler_to_audio_fixed_alternative,
     apply_doppler_to_audio_fixed_advanced,
+    load_audio,
     save_audio,
     SR,
     apply_retarded_time_correction
@@ -775,7 +776,16 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
 
 def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', phase_offset=0.0, pitch_shift=1.0):
     """
-    Core logic to generate Doppler-shifted audio array.
+    Synthesize one pass-by clip (matches the paper pipeline figure).
+
+    Order: (1) speed of sound from temperature/humidity; (2) load clip, resample to ``SR``,
+    peak normalize; (3) overlap-extend the source if needed for duration; (4) path physics
+    producing ratio and gain sequences; (5) optional retarded-time correction on those
+    sequences for accelerating paths; (6) optional contour shaping; (7) time-domain warp
+    (resample/phase/spectral method); (8) optional propagation delay on the mixed waveform;
+    (9) optional spectral balance and realism enrichment before return.
+
+    Returns the final mono waveform plus the ratio and gain arrays used for diagnostics.
     """
     from audio.audio_utils import get_speed_of_sound
     
@@ -808,7 +818,7 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     if not vehicle_file:
         raise FileNotFoundError(f"No audio files found for vehicle '{vehicle_name}'")
 
-    audio_full, sr = librosa.load(vehicle_file, sr=SR, mono=True)
+    audio_full, sr = load_audio(vehicle_file, sr=SR, mono=True)
     
     # Normalize source to 1.0 peak to ensure audibility
     max_amp = np.max(np.abs(audio_full))
@@ -921,13 +931,25 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
 
     # Force tonal separation among identical vehicle models
     freq_ratios = freq_ratios * pitch_shift
-    # Moderate broadening: enough to avoid spiky CPA, without lifting early approach too much.
-    doppler_broaden = float(params.get('doppler_broaden', 1.12))
+
+    # Single-hump pass-by shaping assumes one CPA (attack → peak → release). Polyline / map paths can
+    # revisit the observer (loops, U-turns); that envelope forces decay after the first amplitude peak
+    # and crushes later legs — sounds like “always fading away” even when range decreases again.
+    uses_polyline_map_physics = (
+        path_type in ('map_trajectory', 'map_path')
+        or abs(float(params.get('road_curve_a', 0.0) or 0.0)) > 1e-12
+    )
+    if uses_polyline_map_physics:
+        doppler_broaden = float(params.get('doppler_broaden_map', 1.0))
+        passby_strength = float(params.get('passby_envelope_strength_map', 0.0))
+    else:
+        doppler_broaden = float(params.get('doppler_broaden', 1.12))
+        passby_strength = float(params.get('passby_envelope_strength', 0.82))
+
     freq_ratios, amplitudes = _broaden_doppler_curves(freq_ratios, amplitudes, doppler_broaden)
-    # Enforce a realistic pass-by contour (flatter onset/tail + gradual attack/release).
     amplitudes = _enforce_passby_envelope_shape(
         amplitudes,
-        strength=float(params.get('passby_envelope_strength', 0.82)),
+        strength=passby_strength,
         attack_gamma=float(params.get('passby_attack_gamma', 1.9)),
         release_gamma=float(params.get('passby_release_gamma', 1.45)),
         edge_floor=float(params.get('passby_edge_floor', 0.09)),
