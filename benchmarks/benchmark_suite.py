@@ -52,7 +52,7 @@ def generate_test_batch(num_samples=5, batch_name="test_batch", force_crossing=F
                 'max_stagger': 5.0,
                 'vehicle_min': 2,
                 'vehicle_max': 5,
-                'include_opposite': True
+                'include_opposite': True,
             }
         }
     }
@@ -118,6 +118,7 @@ def generate_test_batch(num_samples=5, batch_name="test_batch", force_crossing=F
             path_type = random.choice(paths)
             try:
                 params = generate_random_parameters(config, vehicle, path_type)
+                path_type = params.pop('_force_path_type', path_type)
                 print(f"[{i}/{num_samples}] Generating {vehicle} on {path_type} path as '{custom_name}'...")
                 
                 result = generate_single_clip(vehicle, path_type, params, str(audio_dir), batch_name, i, config, custom_filename=custom_name)
@@ -175,6 +176,19 @@ def generate_labels(batch_outputs_dir, output_csv):
                 spectrogram_plot = path_plot.replace('.png', '_spectrogram.png') if path_plot else ''
                 
                 audio_rel_path = Path(batch_meta_file.parent) / 'audio_clips' / sample_folder / filename
+
+                duration_s = float(params.get('duration', 10.0))
+                pass_by = bool(labels.get('pass_by_in_clip', params.get('pass_by_in_clip', True)))
+                cpa_time_sec = labels.get('cpa_time_sec')
+                if pass_by and cpa_time_sec is None:
+                    cpa_time_sec = params.get(
+                        'target_cpa_time',
+                        params.get('cpa_time', duration_s / 2.0),
+                    )
+                if not pass_by or cpa_time_sec is None:
+                    cpa_time_out = 'NA'
+                else:
+                    cpa_time_out = float(cpa_time_sec)
                 
                 samples.append({
                     'sample_id': sample_folder,
@@ -186,6 +200,11 @@ def generate_labels(batch_outputs_dir, output_csv):
                     'direction_label': labels.get('direction_label', direction), # B2
                     'vehicle_class': labels.get('vehicle_class', clip.get('vehicle', 'multi' if num_sources > 1 else 'unknown')),
                     'num_sources': num_sources, # B8
+                    'cpa_time_sec': cpa_time_out,
+                    'pass_by_in_clip': pass_by,
+                    'motion_scenario': labels.get(
+                        'motion_scenario', params.get('motion_scenario', 'pass_by' if pass_by else 'miss'),
+                    ),
                     'audio_path': audio_rel_path.as_posix(),
                     'path_plot': path_plot,
                     'spectrogram_plot': spectrogram_plot
@@ -195,7 +214,11 @@ def generate_labels(batch_outputs_dir, output_csv):
 
     if not samples:
         print("Warning: No metadata samples found!")
-        df = pd.DataFrame(columns=['sample_id', 'batch_id', 'speed_mps', 'acceleration_mps2', 'cpa_distance_m', 'trajectory_type', 'direction_label', 'vehicle_class', 'num_sources', 'audio_path', 'path_plot', 'spectrogram_plot'])
+        df = pd.DataFrame(columns=[
+            'sample_id', 'batch_id', 'speed_mps', 'acceleration_mps2', 'cpa_distance_m',
+            'trajectory_type', 'direction_label', 'vehicle_class', 'num_sources',
+            'cpa_time_sec', 'audio_path', 'path_plot', 'spectrogram_plot',
+        ])
     else:
         df = pd.DataFrame(samples)
         
@@ -207,31 +230,60 @@ def generate_labels(batch_outputs_dir, output_csv):
 # EVALUATION CORE
 # ============================================================
 
+def _resolve_feature_npy_paths(audio_path) -> tuple:
+    """Return (dfdt.npy, time.npy) paths under sample Common/ or sample root."""
+    sample_path = Path(audio_path).parent
+    for sub in ('Common', ''):
+        base = sample_path / sub if sub else sample_path
+        dfdt_file = base / 'dfdt.npy'
+        time_file = base / 'time.npy'
+        if dfdt_file.exists() and time_file.exists():
+            return dfdt_file, time_file
+    return None, None
+
+
 def detect_cpa_labels(dataset_csv):
-    """Detect CPA frames and add labels to dataset.csv."""
+    """Detect CPA frame indices; fill cpa_time_sec only when ground truth is missing."""
     df = pd.read_csv(dataset_csv)
     cpa_indices, cpa_times = [], []
+
+    has_gt_col = 'cpa_time_sec' in df.columns
     
-    for idx, row in df.iterrows():
-        sample_path = Path(row['audio_path']).parent
-        dfdt_file, time_file = sample_path / 'dfdt.npy', sample_path / 'time.npy'
-        
-        if not dfdt_file.exists():
-            cpa_indices.append(-1); cpa_times.append(-1.0); continue
-            
+    for _, row in df.iterrows():
+        existing_gt = None
+        if has_gt_col and pd.notna(row.get('cpa_time_sec')):
+            raw = row.get('cpa_time_sec')
+            if str(raw).strip().upper() not in ('NA', 'N/A', ''):
+                try:
+                    val = float(raw)
+                    if val >= 0.0:
+                        existing_gt = val
+                except (TypeError, ValueError):
+                    pass
+
+        dfdt_file, time_file = _resolve_feature_npy_paths(row['audio_path'])
+        if dfdt_file is None:
+            cpa_indices.append(-1)
+            cpa_times.append(existing_gt if existing_gt is not None else -1.0)
+            continue
+
         dfdt = np.load(dfdt_file)
         times = np.load(time_file)
-        dfdt_smoothed = np.convolve(dfdt, np.ones(5)/5, mode='same')
+        dfdt_smoothed = np.convolve(dfdt, np.ones(5) / 5, mode='same')
         zero_crossings = np.where(np.diff(np.sign(dfdt_smoothed)))[0]
-        
-        cpa_idx = zero_crossings[len(zero_crossings)//2] if len(zero_crossings) > 0 else len(dfdt) // 2
-        cpa_indices.append(cpa_idx)
-        cpa_times.append(times[cpa_idx])
-        
+
+        cpa_idx = (
+            zero_crossings[len(zero_crossings) // 2]
+            if len(zero_crossings) > 0
+            else len(dfdt) // 2
+        )
+        cpa_indices.append(int(cpa_idx))
+        cpa_times.append(existing_gt if existing_gt is not None else float(times[cpa_idx]))
+
     df['cpa_frame_idx'] = cpa_indices
     df['cpa_time_sec'] = cpa_times
     df.to_csv(dataset_csv, index=False)
-    print(f"Updated {dataset_csv} with CPA labels.")
+    print(f"Updated {dataset_csv} with CPA frame indices (ground-truth times preserved when present).")
 
 def generate_stats_report(dataset_csv, output_report, figures_dir):
     """Generate distribution report and histograms."""
@@ -378,6 +430,28 @@ def main():
     evaluate_regression(mock_preds, df, 'speed_mps')
     evaluate_regression(mock_preds, df, 'acceleration_mps2')
     evaluate_regression(mock_preds, df, 'cpa_distance_m')
+    if 'cpa_time_sec' in df.columns:
+        def _cpa_numeric(s):
+            if pd.isna(s):
+                return np.nan
+            if str(s).strip().upper() in ('NA', 'N/A'):
+                return np.nan
+            try:
+                v = float(s)
+                return v if v >= 0.0 else np.nan
+            except (TypeError, ValueError):
+                return np.nan
+
+        cpa_num = df['cpa_time_sec'].map(_cpa_numeric)
+        valid = cpa_num.notna()
+        if valid.any():
+            gt_b5 = df.loc[valid].copy()
+            gt_b5['cpa_time_sec'] = cpa_num[valid]
+            preds_b5 = mock_preds.loc[valid].copy()
+            preds_b5['cpa_time_sec'] = cpa_num[valid]
+            evaluate_regression(preds_b5, gt_b5, 'cpa_time_sec')
+        else:
+            print("Regression Results for cpa_time_sec: skipped (no pass-by CPA labels).")
     
     # B2, B4, B10 (Classification)
     evaluate_classification(df, df, 'trajectory_type')

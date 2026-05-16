@@ -259,8 +259,13 @@ def _infer_direction_info(path_type, params):
     """Return direction label and readable text for metadata/benchmarks."""
     is_reverse = False
     if path_type == 'straight':
-        angle = float(params.get('angle', 0.0)) % 360.0
-        is_reverse = (90.0 <= angle <= 270.0) or int(params.get('direction', 1)) == -1
+        from physics.straight_trajectory import is_miss_trajectory
+
+        if is_miss_trajectory(params) and 'track_vx' in params:
+            is_reverse = float(params['track_vx']) < 0.0
+        else:
+            angle = float(params.get('angle', 0.0)) % 360.0
+            is_reverse = (90.0 <= angle <= 270.0) or int(params.get('direction', 1)) == -1
     elif path_type == 'parabola':
         is_reverse = float(params.get('speed', 0.0)) < 0.0 or int(params.get('direction', 1)) == -1
     elif path_type == 'bezier':
@@ -339,9 +344,9 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
     # Keep a realistic pass-by contour by default:
     # flatter onset, gradual rise, and less early over-activation.
     cpa_hump_stabilize_strength = float(np.clip(float(p.get('cpa_hump_stabilize_strength', 0.0)), 0.0, 1.0))
-    start_flat_hold_s = float(p.get('start_flat_hold_s', 0.95))
-    start_flat_ramp_s = float(p.get('start_flat_ramp_s', 1.7))
-    start_flat_knee = float(p.get('start_flat_knee', 0.06))
+    start_flat_hold_s = float(p.get('start_flat_hold_s', 0.0))
+    start_flat_ramp_s = float(p.get('start_flat_ramp_s', 0.0))
+    start_flat_knee = float(p.get('start_flat_knee', 0.0))
 
     n = len(doppler_audio)
     if n == 0:
@@ -609,12 +614,54 @@ def calculate_distribution(config, current_batch_size):
     }
 
 
+def params_for_json(params):
+    """Strip non-serializable / internal keys before metadata JSON export."""
+    clean = {}
+    for key, val in (params or {}).items():
+        sk = str(key)
+        if sk.startswith('_'):
+            continue
+        if isinstance(val, np.ndarray):
+            continue
+        if isinstance(val, (np.floating, float)):
+            clean[key] = float(val)
+        elif isinstance(val, (np.integer, int)):
+            clean[key] = int(val)
+        elif isinstance(val, (np.bool_, bool)):
+            clean[key] = bool(val)
+        elif isinstance(val, (str, type(None))):
+            clean[key] = val
+        elif isinstance(val, (list, tuple)):
+            try:
+                clean[key] = [float(x) if isinstance(x, (np.floating, float)) else x for x in val]
+            except (TypeError, ValueError):
+                continue
+        else:
+            clean[key] = val
+    return clean
+
+
 # ============================================================
 # RANDOM PARAMETER GENERATION
 # ============================================================
 
-def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=False):
-    params = {}
+def generate_random_parameters(
+    config,
+    vehicle_name,
+    path_type,
+    force_symmetric=False,
+    *,
+    clip_index=None,
+    total_clips=None,
+    motion_pass_by=None,
+):
+    params = {'pass_by_in_clip': True}
+    if clip_index is not None:
+        params['_clip_index'] = int(clip_index)
+    if total_clips is not None:
+        params['_total_clips'] = int(total_clips)
+    if motion_pass_by is not None:
+        params['_motion_pass_by'] = bool(motion_pass_by)
 
     def get_sampler(key, lo, hi):
         if key not in SAMPLERS:
@@ -758,17 +805,29 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
         selected_benchmarks = bench_cfg.get('selected', [])
         bench_params = bench_cfg.get('params', {})
         
-        # B1–B6: fixed 10 s clips with user-specified CPA time range (physics + labels).
+        # B1–B6: 10 s clips; mix pass-by (random CPA time) and non-pass-by miss trajectories.
         from physics.cpa_timing import (
             DEFAULT_BENCH_DURATION_S,
             is_single_vehicle_benchmark_active,
             sample_benchmark_cpa_time,
         )
+        from physics.off_pass import configure_benchmark_motion
+
         if is_single_vehicle_benchmark_active(bench_cfg):
             params['duration'] = DEFAULT_BENCH_DURATION_S
-            t_cpa = sample_benchmark_cpa_time(bench_params, params['duration'])
-            params['target_cpa_time'] = t_cpa
-            params['cpa_time'] = t_cpa
+            scenario, pass_by = configure_benchmark_motion(
+                params,
+                bench_params,
+                path_type,
+                clip_index=params.get('_clip_index'),
+                total_clips=params.get('_total_clips'),
+            )
+            if pass_by and 'target_cpa_time' not in params:
+                t_cpa = sample_benchmark_cpa_time(bench_params, params['duration'])
+                params['target_cpa_time'] = t_cpa
+                params['cpa_time'] = t_cpa
+            elif not pass_by:
+                params['pass_by_in_clip'] = False
 
         # B6: Motion State Segmentation (CPA Window)
         if 'B6' in selected_benchmarks:
@@ -785,6 +844,20 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
                 # Force straight or intersection logic elsewhere? 
                 # For now just set the flag
                 pass
+
+    # Non-benchmark pass-by geometry (benchmark path configured in configure_benchmark_motion).
+    bench_enabled = bool(bench_cfg.get('enabled', False))
+    if params.get('pass_by_in_clip', True) and path_type in ('straight', 'parabola', 'bezier'):
+        if not bench_enabled:
+            from physics.off_pass import configure_passby_for_path
+
+            configure_passby_for_path(params, path_type)
+        if 'target_cpa_time' not in params:
+            from physics.cpa_timing import sample_benchmark_cpa_time
+
+            t_cpa = sample_benchmark_cpa_time({}, params['duration'])
+            params['target_cpa_time'] = t_cpa
+            params['cpa_time'] = t_cpa
 
     return params
 
@@ -807,7 +880,8 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     Returns the final mono waveform plus the ratio and gain arrays used for diagnostics.
     """
     from audio.audio_utils import get_speed_of_sound
-    
+    from physics.straight_trajectory import is_miss_trajectory
+
     # Calculate speed of sound once based on temperature and humidity
     c_sound = get_speed_of_sound(params.get('temperature', 20), params.get('humidity', 50))
     
@@ -880,7 +954,21 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     else:
         # Standard physics modules
         if path_type == 'straight':
-            if accel != 0:
+            from physics.straight_trajectory import _has_track_params
+
+            if is_miss_trajectory(params) and _has_track_params(params):
+                from physics.straight_line import calculate_straight_line_track_doppler
+
+                freq_ratios, amplitudes = calculate_straight_line_track_doppler(
+                    params['duration'],
+                    params['track_x0'],
+                    params['track_y0'],
+                    params['track_vx'],
+                    params['track_vy'],
+                    c_sound=c_sound,
+                    accel_mps2=accel,
+                )
+            elif accel != 0:
                 freq_ratios, amplitudes = calculate_straight_line_accelerated_doppler(
                     params['speed'],
                     accel,
@@ -908,7 +996,8 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
                 c_sound=c_sound,
                 angle_deg=angle_deg,
                 accel_mps2=accel,
-                cpa_time_s=cpa_time_s,
+                cpa_time_s=None if is_miss_trajectory(params) else cpa_time_s,
+                x_offset=float(params.get('parabola_x_offset', 0.0)),
             )
         elif path_type == 'bezier':
             freq_ratios, amplitudes = calculate_bezier_doppler(
@@ -925,7 +1014,7 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
                 c_sound=c_sound,
                 angle_deg=angle_deg,
                 accel_mps2=accel,
-                cpa_time_s=cpa_time_s,
+                cpa_time_s=None if is_miss_trajectory(params) else cpa_time_s,
             )
         elif path_type in ('map_trajectory', 'map_path'):
             freq_ratios, amplitudes = calculate_map_trajectory_doppler(
@@ -943,26 +1032,16 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
             num = len(freq_ratios)
             obs = np.array(params.get('observer_pos', (0.0, 0.0)), dtype=float).reshape(2, 1)
             if path_type == 'straight':
-                t = np.linspace(0.0, params['duration'], num, endpoint=False)
-                t0 = float(
-                    params.get(
-                        'target_cpa_time',
-                        params.get('cpa_time', params['duration'] / 2.0),
-                    )
-                )
-                dt = t - t0
-                v0 = float(params['speed'])
-                angle = np.deg2rad(float(params.get('angle', 0.0)))
-                u = np.array([np.cos(angle), np.sin(angle)])
-                n = np.array([-np.sin(angle), np.cos(angle)])
-                p_c = float(params.get('distance', 10.0)) * n
-                s_t = v0 * dt + 0.5 * accel * dt**2
-                p = p_c[:, None] + u[:, None] * s_t[None, :]
-                r = np.linalg.norm(p - obs, axis=0)
+                from physics.straight_trajectory import straight_track_positions
+
+                px, py, _, _, _ = straight_track_positions(params, num)
+                r = np.sqrt(px**2 + py**2)
             elif path_type == 'parabola':
                 x, y = sample_parabola_path_xy(
                     params['speed'], params['a'], params['h'], params['duration'], num,
-                    angle_deg=float(params.get('angle_deg', 0.0))
+                    angle_deg=float(params.get('angle_deg', 0.0)),
+                    cpa_time_s=None if is_miss_trajectory(params) else cpa_time_s,
+                    x_offset=float(params.get('parabola_x_offset', 0.0)),
                 )
                 p = np.vstack([x, y])
                 r = np.linalg.norm(p - obs, axis=0)
@@ -972,7 +1051,8 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
                     params['x0'], params['x1'], params['x2'], params['x3'],
                     params['y0'], params['y1'], params['y2'], params['y3'],
                     params['duration'], num,
-                    angle_deg=float(params.get('angle_deg', 0.0))
+                    angle_deg=float(params.get('angle_deg', 0.0)),
+                    cpa_time_s=None if is_miss_trajectory(params) else cpa_time_s,
                 )
                 p = np.vstack([x, y])
                 r = np.linalg.norm(p - obs, axis=0)
@@ -997,9 +1077,13 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     if uses_polyline_map_physics:
         doppler_broaden = float(params.get('doppler_broaden_map', 1.0))
         passby_strength = float(params.get('passby_envelope_strength_map', 0.0))
+    elif is_miss_trajectory(params):
+        doppler_broaden = float(params.get('doppler_broaden', 1.06))
+        passby_strength = float(params.get('passby_envelope_strength_miss', 0.0))
     else:
-        doppler_broaden = float(params.get('doppler_broaden', 1.12))
-        passby_strength = float(params.get('passby_envelope_strength', 0.82))
+        # Light contour only — level shape comes from path physics (natural pass-by).
+        doppler_broaden = float(params.get('doppler_broaden', 1.08))
+        passby_strength = float(params.get('passby_envelope_strength', 0.22))
 
     freq_ratios, amplitudes = _broaden_doppler_curves(freq_ratios, amplitudes, doppler_broaden)
     amplitudes = _enforce_passby_envelope_shape(
@@ -1025,15 +1109,10 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
             obs = np.array(params.get('observer_pos', (0.0, 0.0)), dtype=float)
             r0 = None
             if path_type == 'straight':
-                v0 = float(params.get('speed', 0.0))
-                angle = np.deg2rad(float(params.get('angle', 0.0)))
-                u = np.array([np.cos(angle), np.sin(angle)])
-                n = np.array([-np.sin(angle), np.cos(angle)])
-                t0 = float(params.get('duration', 10.0)) / 2.0
-                dt0 = -t0  # position at t=0
-                s0 = v0 * dt0 + 0.5 * float(params.get('acceleration', 0.0)) * (dt0 ** 2)
-                p_c = float(params.get('distance', 10.0)) * n
-                p0 = p_c + u * s0
+                from physics.straight_trajectory import straight_track_positions
+
+                px, py, _, _, _ = straight_track_positions(params, 2)
+                p0 = np.array([px[0], py[0]], dtype=float)
                 r0 = float(np.linalg.norm(p0 - obs))
             elif path_type == 'parabola':
                 x0, y0 = sample_parabola_path_xy(
@@ -1043,6 +1122,8 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
                     float(params.get('duration', 10.0)),
                     2,
                     angle_deg=float(params.get('angle_deg', 0.0)),
+                    cpa_time_s=None if is_miss_trajectory(params) else cpa_time_s,
+                    x_offset=float(params.get('parabola_x_offset', 0.0)),
                 )
                 p0 = np.array([x0[0], y0[0]], dtype=float)
                 r0 = float(np.linalg.norm(p0 - obs))
@@ -1056,6 +1137,7 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
                     float(params.get('duration', 10.0)),
                     2,
                     angle_deg=float(params.get('angle_deg', 0.0)),
+                    cpa_time_s=None if is_miss_trajectory(params) else cpa_time_s,
                 )
                 p0 = np.array([x0[0], y0[0]], dtype=float)
                 r0 = float(np.linalg.norm(p0 - obs))
@@ -1228,7 +1310,8 @@ def save_numpy_outputs(doppler_audio, sample_dir, spectrogram_type='cqt', config
             np.save(os.path.join(essential_dir, 'kinematics.npy'), kinematics)
         _save_numpy_visualization(
             doppler_audio, spec, frequency, dfdt, rms, spec_topk, time_arr,
-            spectrogram_type, essential_dir, generate_diagnostics=False, base_name=base_name
+            spectrogram_type, essential_dir, generate_diagnostics=False, base_name=base_name,
+            freq_bins=freq_bins, hop_length=HOP_LENGTH,
         )
 
     return {
@@ -1245,7 +1328,8 @@ def save_numpy_outputs(doppler_audio, sample_dir, spectrogram_type='cqt', config
 
 def _save_numpy_visualization(doppler_audio, spec, frequency, dfdt, rms,
                                spec_topk, time_arr, spectrogram_type, sample_dir,
-                               generate_diagnostics=True, base_name='spectrogram'):
+                               generate_diagnostics=True, base_name='spectrogram',
+                               freq_bins=None, hop_length=512):
     """
     Save separate white-background PNGs inside sample_dir.
     spectrogram.png is ALWAYS saved.
@@ -1266,14 +1350,21 @@ def _save_numpy_visualization(doppler_audio, spec, frequency, dfdt, rms,
         ax.yaxis.label.set_color('black')
         ax.title.set_color('#222222')
 
-    # ── 1. spectrogram.png  (webapp Spectrogram Generator settings) ───────────
+    # ── 1. spectrogram.png  (reuse CQT when available — avoids a second STFT per clip) ──
     try:
         fig, ax = plt.subplots(figsize=(10, 4), facecolor='white')
-        stft = librosa.stft(doppler_audio, n_fft=4096, hop_length=256)
-        D = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
-        librosa.display.specshow(D, sr=SR, x_axis='time', y_axis='hz',
-                                 ax=ax, hop_length=256)
-        ax.set_ylim(0, 2500)
+        if spectrogram_type == 'cqt' and freq_bins is not None:
+            D = librosa.amplitude_to_db(np.asarray(spec, dtype=np.float32), ref=np.max)
+            librosa.display.specshow(
+                D, sr=SR, x_axis='time', y_axis='hz', ax=ax,
+                hop_length=hop_length, fmin=float(freq_bins[0]),
+            )
+        else:
+            stft = librosa.stft(doppler_audio, n_fft=4096, hop_length=256)
+            D = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+            librosa.display.specshow(D, sr=SR, x_axis='time', y_axis='hz',
+                                     ax=ax, hop_length=256)
+            ax.set_ylim(0, 2500)
         ax.set_title(f'Spectrogram ({spectrogram_type.upper()})')
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
@@ -1399,14 +1490,29 @@ def save_benchmark_datasets(sample_dir, features, labels, params, config):
              {'trajectory': labels['trajectory_type']}, 
              {features['spec_filename'].replace('.npy', ''): features['spec']})
 
-    # B5: Time-to-Event
-    # Extra: time_to_cpa (relative time to CPA at each frame)
-    cpa_time = labels['cpa_time_sec']
-    time_arr = features['time']
-    time_to_cpa = cpa_time - time_arr
-    save_set('B5', 'B5_Time_To_Event', 
-             {'cpa_time': cpa_time}, 
-             {'time': time_arr, 'dfdt': features['dfdt'], 'time_to_cpa': time_to_cpa})
+    # B5: Time-to-Event (from recording-derived CPA time; skipped when no in-clip pass-by)
+    cpa_time = labels.get('cpa_time_sec')
+    if cpa_time is not None and labels.get('pass_by_in_clip', True):
+        time_arr = features['time']
+        time_to_cpa = float(cpa_time) - time_arr
+        save_set(
+            'B5', 'B5_Time_To_Event',
+            {'cpa_time': float(cpa_time)},
+            {'time': time_arr, 'dfdt': features['dfdt'], 'time_to_cpa': time_to_cpa},
+        )
+
+    # B6: CPA vicinity mask on the same timeline as the recording features
+    if (
+        cpa_time is not None
+        and labels.get('pass_by_in_clip', True)
+        and 'B6' in selected
+    ):
+        window = float(params.get('cpa_window', 1.0))
+        time_arr = features['time']
+        mask = np.abs(time_arr - float(cpa_time)) <= (window / 2.0)
+        b6_dir = os.path.join(sample_dir, 'B6_Segmentation')
+        os.makedirs(b6_dir, exist_ok=True)
+        np.save(os.path.join(b6_dir, 'segmentation_mask.npy'), mask.astype(np.bool_))
 
     # B7: Acceleration/Deceleration
     b7_features = {
@@ -1473,11 +1579,6 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
     if output_format == 'mp3':
         filename = filename.replace('.mp3', '.wav')
 
-    # ── Path plot ─────────────────────────────────────────────────────────────
-    # save_path_plot already handled dir creation
-    save_path_plot(path_type, params, common_dir, base_name)
-    save_path_plot(path_type, params, essential_dir, base_name)
-
     # ── Numpy feature arrays + visualization (saves to Common/ and Essential/) 
     spectrogram_type = config.get('output', {}).get('spectrogram_type', 'cqt')
     features = save_numpy_outputs(
@@ -1485,52 +1586,39 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         base_name=base_name, essential_dir=essential_dir, params=params
     )
 
-    # ── Benchmark Labels & B6 Mask ──────────────────────────────────────────
-    # Calculate ground-truth labels
-    speed_mps = params.get('speed', 0.0)
-    
-    # Direction: 0 for Left-to-Right (Approaching then Receding)
-    #            1 for Right-to-Left (Receding then Approaching)
+    # ── Benchmark labels: derived from this recording (path + final audio) ──
     direction_label, direction_text = _infer_direction_info(path_type, params)
-    
-    cpa_distance = params.get('distance', params.get('h', 0.0))
-    
-    # Calculate CPA Time
-    cpa_time = params.get('target_cpa_time', 5.0)
-    
-    num_sources = params.get('num_sources', 1)
-    is_crossing = params.get('is_crossing', False)
+    from physics.recording_labels import derive_recording_labels
 
-    labels = {
-        'speed_mps': speed_mps,
-        'acceleration_mps2': float(params.get('acceleration', 0.0)),
-        'direction_label': direction_label,
-        'direction_text': direction_text,
-        'cpa_distance_m': cpa_distance,
-        'trajectory_type': path_type,
-        'cpa_time_sec': cpa_time,
-        'num_sources': num_sources,
-        'is_crossing': is_crossing,
-        'vehicle_class': vehicle_name
-    }
+    labels = derive_recording_labels(
+        path_type,
+        params,
+        doppler_audio,
+        features,
+        vehicle_name,
+        direction_label,
+        direction_text,
+    )
+    params['cpa_time_sec'] = labels.get('cpa_time_sec')
+
+    # ── Path plot: CPA marker at designed target_cpa_time (matches synthesis warp) ──
+    plot_params = dict(params)
+    if labels.get('cpa_time_sec') is not None:
+        plot_params['cpa_time_sec'] = labels['cpa_time_sec']
+    plot_file = save_path_plot(path_type, plot_params, common_dir, base_name)
+    if plot_file:
+        src_plot = os.path.join(common_dir, plot_file)
+        dst_plot = os.path.join(essential_dir, plot_file)
+        if os.path.abspath(src_plot) != os.path.abspath(dst_plot):
+            shutil.copy2(src_plot, dst_plot)
 
     # B7 sanity: accelerated clips should not be spectrally flat.
     if abs(float(params.get('acceleration', 0.0))) > 1e-9:
         if float(np.std(features['frequency'])) < 1e-4:
             raise ValueError("Flat frequency evolution for accelerated clip; regenerate sample.")
 
-    # ── Save Benchmark-specific Datasets (B1-B5) ─────────────────────────────
+    # ── Export B1–B6 views of the same clip (folders unchanged) ───────────────
     save_benchmark_datasets(sample_dir, features, labels, params, config)
-
-    # B6 Motion State Segmentation Mask
-    if config.get('benchmarks', {}).get('enabled', False) and 'B6' in config.get('benchmarks', {}).get('selected', []):
-        window = params.get('cpa_window', 1.0)
-        time_arr = features['time']
-        # Mask is 1 if within window of CPA
-        mask = np.abs(time_arr - cpa_time) <= (window / 2.0)
-        b6_dir = os.path.join(sample_dir, 'B6_Segmentation')
-        os.makedirs(b6_dir, exist_ok=True)
-        np.save(os.path.join(b6_dir, 'segmentation_mask.npy'), mask.astype(np.bool_))
 
     return {
         'filename': filename,
@@ -1538,7 +1626,7 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         'vehicle': vehicle_name,
         'path_type': path_type,
         'direction_text': direction_text,
-        'parameters': params,
+        'parameters': params_for_json(params),
         'labels': labels,
         'freq_ratio_range': {
             'min': float(np.min(freq_ratios)),

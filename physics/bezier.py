@@ -1,7 +1,7 @@
 # bezier.py
 
 import numpy as np
-from audio.audio_utils import SR, apply_distance_fade
+from audio.audio_utils import SR
 
 C_SOUND = 343.0  # m/s
 NEAR_FIELD_RADIUS = 6.0  # m – broader near-field for smoother pass-by envelope
@@ -191,18 +191,18 @@ def calculate_bezier_doppler(
     xs0, xs1, xs2, xs3 = x0 * phys_scale, x1 * phys_scale, x2 * phys_scale, x3 * phys_scale
     ys0, ys1, ys2, ys3 = y0 * phys_scale, y1 * phys_scale, y2 * phys_scale, y3 * phys_scale
 
-    if abs(float(accel_mps2)) > 1e-9:
+    if cpa_time_s is not None:
+        from physics.cpa_timing import warp_tau_for_cpa
+
+        tau_cpa = _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3)
+        tau, dtaudt = warp_tau_for_cpa(t, T, float(cpa_time_s), tau_cpa)
+    elif abs(float(accel_mps2)) > 1e-9:
         # B7 constant-acceleration speed law + integrated progression.
         v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
         s_t = np.cumsum(v_t) * dt
         total_s = max(1e-9, float(s_t[-1]))
         tau = np.clip(s_t / total_s, 0.0, 1.0)
         dtaudt = v_t / total_s
-    elif cpa_time_s is not None:
-        from physics.cpa_timing import warp_tau_for_cpa
-
-        tau_cpa = _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3)
-        tau, dtaudt = warp_tau_for_cpa(t, T, float(cpa_time_s), tau_cpa)
     else:
         tau = t / T
         dtaudt = np.full_like(t, 1.0 / T)
@@ -242,8 +242,5 @@ def calculate_bezier_doppler(
     spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
     convective_amp = (c_sound / (c_sound + v_r))**1.1
     amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
-    
-    # Smooth fade-in/out to prevent abrupt spawning
-    amplitudes = apply_distance_fade(amplitudes, fade_duration_s=1.0)
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)

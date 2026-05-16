@@ -189,14 +189,7 @@ def extend_audio_with_overlap(original_audio, target_duration, sample_rate, star
     else:
         original_for_chunk = original_audio.copy()
 
-    # Optional short fade-in at the very start to avoid clicks
-    fade_in_length = min(int(sample_rate * 0.02), original_length // 10)  # 20ms or 10% of original
-    if fade_in_length > 0:
-        first_chunk = original_for_chunk.copy()
-        fade_in = np.linspace(0, 1, fade_in_length)
-        first_chunk[:fade_in_length] *= fade_in
-    else:
-        first_chunk = original_for_chunk
+    first_chunk = original_for_chunk
 
     # Copy first iteration completely
     first_copy_len = min(original_length, target_length)
@@ -251,12 +244,6 @@ def extend_audio_with_overlap(original_audio, target_duration, sample_rate, star
 
     print(f"  Extended audio using {iteration} iterations with smooth crossfades")
 
-    # Apply gentle fade out at the very end to avoid clicks
-    fade_length = min(int(sample_rate * 0.05), target_length // 20)  # 50ms or 5% of duration
-    if fade_length > 0:
-        fade_out_final = np.linspace(1, 0, fade_length)
-        extended_audio[-fade_length:] *= fade_out_final
-
     return extended_audio
 
 # Keep backward compatibility
@@ -300,14 +287,6 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
         freq_curve = np.convolve(freq_curve, kernel, mode='same')
         amp_curve = np.convolve(amp_curve, kernel, mode='same')
     
-    print("=" * 60)
-    print("APPLYING TRUE DOPPLER SHIFT FOR SPECTROGRAM VISIBILITY")
-    print("=" * 60)
-    print(f"Frequency ratio range: {np.min(freq_curve):.3f} to {np.max(freq_curve):.3f}")
-    print(f"Frequency variation: {np.std(freq_curve):.3f}")
-    print(f"Target output length: {target_length} samples ({target_length/SR:.2f}s)")
-    print(f"Original audio length: {len(original_audio)} samples ({len(original_audio)/SR:.2f}s)")
-    
     # NEW APPROACH: Proper time-domain resampling
     # For each output sample, calculate where to sample from the input
     # freq_ratio > 1 means higher pitch = faster playback = advance faster through input
@@ -316,18 +295,10 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
     # The key insight: we want the OUTPUT to have exactly target_length samples
     # spanning the full duration, and we sample from INPUT based on freq_ratios
     
-    # Build the input sample position for each output sample
-    # Start at position 0, and advance based on freq_ratio at each step
-    input_positions = np.zeros(target_length)
-    
-    for i in range(1, target_length):
-        # The frequency ratio tells us how fast to advance through the input
-        # freq_ratio = 1.0 means advance 1 sample per output sample (normal speed)
-        # freq_ratio = 1.1 means advance 1.1 samples per output sample (10% faster = higher pitch)
-        # freq_ratio = 0.9 means advance 0.9 samples per output sample (10% slower = lower pitch)
-        step = freq_curve[i]
-        input_positions[i] = input_positions[i-1] + step
-    
+    # Cumulative source read positions: pos[i] = sum(freq_curve[1:i+1]), pos[0] = 0.
+    # Vectorized (was a Python loop over ~220k samples per 10 s clip — major bottleneck).
+    input_positions = np.concatenate(([0.0], np.cumsum(freq_curve[1:], dtype=np.float64)))
+
     # Fix: Do not forcefully scale the entire curve to the max input position, 
     # as that artificially pitch shifts the audio by ignoring the true Doppler integral.
     # Only scale if we genuinely run out of input buffer to prevent index bounds errors.
@@ -345,11 +316,6 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
     
     # Apply amplitude modulation
     output *= amp_curve
-    
-    # Verify the effect strength
-    print(f"Input position range: 0 to {input_positions[-1]:.1f} (max: {len(original_audio)-1})")
-    print(f"Output length: {len(output)} samples (target: {target_length})")
-    print(f"Expected strong but smoother frequency sweeps in spectrogram")
     
     return output
 

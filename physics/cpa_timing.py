@@ -26,20 +26,13 @@ def sample_benchmark_cpa_time(
     duration_s: float = DEFAULT_BENCH_DURATION_S,
     margin_s: float = DEFAULT_CPA_MARGIN_S,
 ) -> float:
-    """Uniform CPA time in [cpa_time_min, cpa_time_max], clamped inside the clip."""
-    cpa_min = float(bench_params.get("cpa_time_min", bench_params.get("cpa_time", 3.0)))
-    cpa_max = float(bench_params.get("cpa_time_max", bench_params.get("cpa_time", 7.0)))
-    if cpa_min > cpa_max:
-        cpa_min, cpa_max = cpa_max, cpa_min
-    lo = margin_s
-    hi = float(duration_s) - margin_s
+    """Uniform CPA time over the clip (margins only), for pass-by benchmark clips."""
+    del bench_params  # reserved for future options; no min/max band
+    lo = float(margin_s)
+    hi = float(duration_s) - float(margin_s)
     if hi <= lo:
         return float(duration_s) / 2.0
-    cpa_min = max(lo, min(cpa_min, hi))
-    cpa_max = max(lo, min(cpa_max, hi))
-    if cpa_min > cpa_max:
-        cpa_min, cpa_max = cpa_max, cpa_min
-    return float(random.uniform(cpa_min, cpa_max))
+    return float(random.uniform(lo, hi))
 
 
 def parabola_tau_at_time(

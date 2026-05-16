@@ -1,6 +1,7 @@
 import io
 import os
 import traceback
+import textwrap
 import numpy as np
 
 import matplotlib
@@ -22,10 +23,15 @@ def _get_direction_text(path_type, params):
     """Infer path travel direction text for legend entries."""
     is_forward = True
     if path_type == 'straight':
-        angle = float(params.get('angle', 0.0)) % 360.0
-        is_forward = not (90.0 <= angle <= 270.0)
-        if int(params.get('direction', 1)) == -1:
-            is_forward = False
+        from physics.straight_trajectory import is_miss_trajectory
+
+        if is_miss_trajectory(params) and 'track_vx' in params:
+            is_forward = float(params['track_vx']) > 0.0
+        else:
+            angle = float(params.get('angle', 0.0)) % 360.0
+            is_forward = not (90.0 <= angle <= 270.0)
+            if int(params.get('direction', 1)) == -1:
+                is_forward = False
     elif path_type == 'parabola':
         is_forward = float(params.get('speed', 0.0)) >= 0.0
         if int(params.get('direction', 1)) == -1:
@@ -78,93 +84,56 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
             
             closest = None
         else:
-            # Pass-by pass logic
-            h = params.get('distance', 30.0) # Fallback to 30m if distance missing
-            angle = params.get('angle', 0.0)
-            # Optional explicit plotting time window for truncated clips.
-            t_start = float(params.get('plot_t_start', 0.0))
-            t_end = float(params.get('plot_t_end', duration))
-            if t_end <= t_start:
-                t_end = t_start + 1e-3
-            t = np.linspace(t_start, t_end, n_points)
-            t0 = float(
-                params.get('target_cpa_time', params.get('cpa_time', duration / 2.0))
-            )
-            dt = t - t0
+            from physics.recording_labels import cpa_index_on_path, path_xy_over_duration
+            from physics.straight_trajectory import is_miss_trajectory
 
-            theta = np.deg2rad(angle)
-            u = np.array([np.cos(theta), np.sin(theta)])
-            n = np.array([-np.sin(theta), np.cos(theta)])
+            t_plot, x, y = path_xy_over_duration(path_type, params, n_points)
 
-            p_c = h * n
-            v_vec = u * v
-            p = p_c[:, None] + v_vec[:, None] * dt[None, :]
+            cpa_t = params.get('target_cpa_time', params.get('cpa_time'))
+            if cpa_t is None and not is_miss_trajectory(params):
+                cpa_t = (
+                    params.get('cpa_time_path_sec')
+                    or params.get('cpa_time_sec')
+                )
 
-            x = p[0, :]
-            y = p[1, :]
+            if cpa_t is not None and np.isfinite(float(cpa_t)):
+                i_cpa = cpa_index_on_path(t_plot, float(cpa_t))
+                closest = (float(x[i_cpa]), float(y[i_cpa]))
+            else:
+                i_min = int(np.argmin(np.hypot(x, y)))
+                closest = (float(x[i_min]), float(y[i_min]))
 
             if is_absolute:
                 x = x + obs_pos[0]
                 y = y + obs_pos[1]
+                if closest is not None:
+                    closest = (closest[0] + obs_pos[0], closest[1] + obs_pos[1])
 
-            cx, cy = p_c
-            if is_absolute:
-                cx += obs_pos[0]
-                cy += obs_pos[1]
-            closest = (cx, cy)
+    elif path_type in ('parabola', 'bezier'):
+        from physics.recording_labels import cpa_index_on_path, path_xy_over_duration
+        from physics.straight_trajectory import is_miss_trajectory
 
-    elif path_type == 'parabola':
-        # Must match calculate_parabola_doppler: τ ∈ [-1,1], half-span refinement, y = a·x² + h, then angle_deg about origin
-        v = float(params['speed'])
-        a = float(params['a'])
-        h = float(params['h'])
-        angle_deg = float(params.get('angle_deg', 0.0))
+        t_plot, x, y = path_xy_over_duration(path_type, params, n_points)
+
         cpa_t = params.get('target_cpa_time', params.get('cpa_time'))
-        x, y = sample_parabola_path_xy(
-            v, a, h, float(duration), n_points, angle_deg=angle_deg, cpa_time_s=cpa_t
-        )
-        if is_absolute:
-            x = x + obs_pos[0]
-            y = y + obs_pos[1]
-        closest = None
+        if cpa_t is None and not is_miss_trajectory(params):
+            cpa_t = (
+                params.get('cpa_time_path_sec')
+                or params.get('cpa_time_sec')
+            )
 
-    elif path_type == 'bezier':
-        speed = float(params.get('speed', 20.0))
-        x0 = float(params.get('x0', 0))
-        x1 = float(params.get('x1', 0))
-        x2 = float(params.get('x2', 0))
-        x3 = float(params.get('x3', 0))
-        y0 = float(params.get('y0', 0))
-        y1 = float(params.get('y1', 0))
-        y2 = float(params.get('y2', 0))
-        y3 = float(params.get('y3', 0))
-        angle_deg = float(params.get('angle_deg', 0.0))
-        # Match calculate_bezier_doppler geometry: speed-rescaled control points
-        # and optional angle_deg rotation about the origin.
-        cpa_t = params.get('target_cpa_time', params.get('cpa_time'))
-        x, y = sample_bezier_path_xy(
-            speed,
-            x0,
-            x1,
-            x2,
-            x3,
-            y0,
-            y1,
-            y2,
-            y3,
-            float(duration),
-            n_points,
-            angle_deg=angle_deg,
-            cpa_time_s=cpa_t,
-        )
-
-        if is_absolute:
-            x = x + obs_pos[0]
-            y = y + obs_pos[1]
+        if cpa_t is not None and np.isfinite(float(cpa_t)):
+            i_cpa = cpa_index_on_path(t_plot, float(cpa_t))
+            closest = (float(x[i_cpa]), float(y[i_cpa]))
         else:
-            x = x - obs_pos[0]
-            y = y - obs_pos[1]
-        closest = None
+            i_min = int(np.argmin(np.hypot(x, y)))
+            closest = (float(x[i_min]), float(y[i_min]))
+
+        if is_absolute:
+            x = x + obs_pos[0]
+            y = y + obs_pos[1]
+            if closest is not None:
+                closest = (closest[0] + obs_pos[0], closest[1] + obs_pos[1])
 
     elif path_type in ('map_path', 'map_trajectory'):
         points = np.array(params['points'])
@@ -334,7 +303,12 @@ def render_simulator_path_summary_png(path_type, params, display_path_label=None
         cx, cy = closest
         ax.plot([0.0, cx], [0.0, cy], linestyle='--', color='gray', alpha=0.65, linewidth=1.0, zorder=2)
 
-    ax.set_aspect('equal')
+    from physics.road_frame import symmetric_limits_around_observer
+
+    xlim, ylim = symmetric_limits_around_observer(xa, ya, observer_xy=(0.0, 0.0))
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_aspect('equal', adjustable='box')
     ax.set_xlabel(r'$x$ (m)', fontsize=10)
     ax.set_ylabel(r'$y$ (m)', fontsize=10)
     ax.tick_params(labelsize=9)
@@ -385,48 +359,100 @@ def render_simulator_path_summary_png(path_type, params, display_path_label=None
     return buf
 
 
+def _square_axis_limits(x, y, observer_xy=(0.0, 0.0), *, min_half_span: float = 40.0, pad: float = 0.14):
+    """Equal half-span on x and y so the plot is visually square around the observer."""
+    x = np.asarray(x, dtype=float).ravel()
+    y = np.asarray(y, dtype=float).ravel()
+    ox, oy = float(observer_xy[0]), float(observer_xy[1])
+    hx = max(min_half_span, float(np.max(np.abs(x - ox))) if x.size else min_half_span)
+    hy = max(min_half_span * 0.35, float(np.max(np.abs(y - oy))) if y.size else min_half_span * 0.35)
+    half = max(hx, hy) * (1.0 + pad)
+    return (ox - half, ox + half), (oy - half, oy + half)
+
+
 def save_path_plot(path_type, params, output_dir, base_name):
     """
     Save a PNG path graph for this clip with realistic road aesthetics.
     """
     try:
-        x, y, closest = compute_path_points(path_type, params, n_points=200)
+        from physics.recording_labels import (
+            cpa_index_on_path,
+            path_xy_over_duration,
+            resolve_cpa_time_s,
+        )
+        from physics.straight_trajectory import is_miss_trajectory
+
+        duration = float(params.get('duration', 10.0))
+        t_plot, x, y = path_xy_over_duration(path_type, params, 201)
+
         plot_path = os.path.join(output_dir, f"{base_name}.png")
+        # Fixed canvas to guarantee identical image dimensions across all clips.
+        fig, ax = plt.subplots(figsize=(7.2, 7.2), dpi=120)
+        # Extra margins prevent clipping of ticks/labels/legend in exported PNGs.
+        fig.subplots_adjust(left=0.14, right=0.97, top=0.96, bottom=0.30)
 
-        fig, ax = plt.subplots(figsize=(6, 6))
-
-        # Build legend label ...
         label_parts = [f"Path ({path_type.capitalize()})"]
+        if is_miss_trajectory(params):
+            label_parts.append("miss")
+            if params.get('motion_scenario'):
+                label_parts.append(str(params['motion_scenario']))
+            if params.get('min_range_m') is not None:
+                label_parts.append(f"r_min={float(params['min_range_m']):.0f}m")
+        else:
+            label_parts.append("pass-by")
         for k in ['speed', 'distance', 'offset', 'angle', 'temperature', 'humidity']:
             if k in params:
                 val = params[k]
                 lbl = {'speed': 'v', 'distance': 'd', 'offset': 'off', 'angle': 'θ'}.get(k, k[0])
                 unit = {'speed': 'm/s', 'distance': 'm', 'offset': 'm', 'angle': '°'}.get(k, '')
                 label_parts.append(f"{lbl}={val}{unit}")
-        
+
         direction_text, direction_arrow = _get_direction_text(path_type, params)
         label_parts.append(f"dir={direction_text}{direction_arrow}")
-        full_label = ", ".join(label_parts)
+        # Wrap long metadata labels so legend text stays within canvas width.
+        full_label = textwrap.fill(
+            ", ".join(label_parts),
+            width=62,
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
 
-        # Path
-        ax.plot(x, y, linewidth=1.4, color='#1f77b4', label=full_label, zorder=5)
+        ax.plot(x, y, linewidth=2.0, color='#1f77b4', solid_capstyle='round', label=full_label, zorder=3)
 
-        # Observer at origin
-        ax.scatter([0], [0], marker='.', s=30, color='red', label="Observer", zorder=10)
+        ax.scatter([0], [0], marker='o', s=28, color='#d62728', edgecolors='white', linewidths=0.6,
+                   label="Observer", zorder=6)
 
-        if closest is not None:
-            cx, cy = closest
-            ax.plot([0, cx], [0, cy], linestyle='--', linewidth=1, color='gray', alpha=0.6, zorder=4)
+        i_start, i_end = 0, len(x) - 1
+        ax.scatter([x[i_start]], [y[i_start]], s=42, color='#2ca02c', edgecolors='white', linewidths=0.5,
+                   zorder=5, label='t=0s')
+        ax.scatter([x[i_end]], [y[i_end]], s=42, color='#ff7f0e', edgecolors='white', linewidths=0.5,
+                   zorder=5, label=f't={duration:.0f}s')
 
-        ax.axis('equal')
-        ax.xaxis.set_major_locator(ticker.MultipleLocator(30))
-        ax.grid(True, which="major", linestyle=':', alpha=0.4, zorder=0)
+        cpa_t = None
+        if not is_miss_trajectory(params):
+            cpa_t = resolve_cpa_time_s(params, duration)
+        if cpa_t is not None and np.isfinite(float(cpa_t)):
+            i_cpa = cpa_index_on_path(t_plot, float(cpa_t))
+            cx, cy = float(x[i_cpa]), float(y[i_cpa])
+            cpa_lbl = f'CPA {float(cpa_t):.2f}s'
+            ax.plot([0, cx], [0, cy], linestyle=(0, (4, 3)), linewidth=1.0, color='#666666', alpha=0.75, zorder=2)
+            ax.scatter([cx], [cy], s=120, color='#9467bd', marker='*', edgecolors='#3f2a4d', linewidths=0.6,
+                       zorder=7, label=cpa_lbl)
+
+        xlim, ylim = _square_axis_limits(x, y, observer_xy=(0.0, 0.0))
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax.set_aspect('equal', adjustable='box')
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(6))
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(6))
+        ax.grid(True, which='major', linestyle=':', alpha=0.35, color='#bbbbbb', zorder=0)
         ax.set_facecolor('#fafafa')
-        
-        # Legend at bottom
-        ax.legend(fontsize=8, loc='upper center', bbox_to_anchor=(0.5, -0.08), ncol=2)
+        ax.set_xlabel('x (m)', fontsize=9)
+        ax.set_ylabel('y (m)', fontsize=9)
 
-        fig.savefig(plot_path, dpi=100, bbox_inches="tight")
+        ax.legend(fontsize=8, loc='upper center', bbox_to_anchor=(0.5, -0.10), ncol=1, frameon=True)
+
+        fig.savefig(plot_path, dpi=120, pad_inches=0.10, facecolor='white')
         plt.close(fig)
         return os.path.basename(plot_path)
 
@@ -458,6 +484,7 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         fig_w = float(kwargs.get('fig_width', 15.5))
         fig_h = float(kwargs.get('fig_height', 7.0))
         fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+        fig.subplots_adjust(left=0.08, right=0.80, top=0.94, bottom=0.10)
         show_road_guides = bool(kwargs.get('show_road_guides', True))
         path_alpha = float(kwargs.get('path_alpha', 0.65))
         path_linewidth = float(kwargs.get('path_linewidth', 1.8))
@@ -725,7 +752,7 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         # Keep background plain for easier visual inspection.
         ax.set_facecolor('#fafafa')
 
-        fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+        fig.savefig(plot_path, dpi=150, pad_inches=0.10)
         plt.close(fig)
         return os.path.basename(plot_path)
 

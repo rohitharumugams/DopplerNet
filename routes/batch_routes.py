@@ -420,12 +420,43 @@ def batch_generate():
         clips_metadata = []
         generation_log = []
         clip_index = 1
+        slots_failed = 0
+
+        from physics.cpa_timing import is_single_vehicle_benchmark_active
+
+        bench_cfg_early = config.get('benchmarks', {}) or {}
+        bench_params_early = bench_cfg_early.get('params', {}) or {}
+        if is_single_vehicle_benchmark_active(bench_cfg_early):
+            pass_by_frac = float(bench_params_early.get('pass_by_fraction', 0.80))
+            pass_by_frac = max(0.0, min(1.0, pass_by_frac))
+            n_miss_clips = int(round(total_clips * (1.0 - pass_by_frac)))
+            n_miss_clips = max(0, min(total_clips, n_miss_clips))
+            motion_pass_by_flags = [True] * (total_clips - n_miss_clips) + [False] * n_miss_clips
+            random.shuffle(motion_pass_by_flags)
+        else:
+            motion_pass_by_flags = [True] * total_clips
 
         def _apply_direction_variant(path_kind, clip_params, want_reverse):
             """Force clip motion direction for direction-classification benchmarks."""
             if path_kind == 'straight':
-                clip_params['angle'] = 180 if want_reverse else 0
-                clip_params['direction'] = -1 if want_reverse else 1
+                if 'track_vx' in clip_params:
+                    vx = abs(float(clip_params['track_vx']))
+                    clip_params['track_vx'] = -vx if want_reverse else vx
+                    clip_params['angle'] = 180 if want_reverse else 0
+                    clip_params['direction'] = -1 if want_reverse else 1
+                    # Keep miss trajectories on one side of x=0 after direction flip.
+                    if 'track_x0' in clip_params:
+                        duration = max(1e-6, float(clip_params.get('duration', 10.0)))
+                        margin = 12.0
+                        min_abs_x0 = vx * duration + margin
+                        x0 = float(clip_params['track_x0'])
+                        if want_reverse:
+                            clip_params['track_x0'] = max(abs(x0), min_abs_x0)
+                        else:
+                            clip_params['track_x0'] = -max(abs(x0), min_abs_x0)
+                else:
+                    clip_params['angle'] = 180 if want_reverse else 0
+                    clip_params['direction'] = -1 if want_reverse else 1
             elif path_kind == 'parabola':
                 speed_abs = abs(float(clip_params.get('speed', 0.0)))
                 clip_params['speed'] = -speed_abs if want_reverse else speed_abs
@@ -850,35 +881,61 @@ def batch_generate():
                             road_bezier_bulge=road_bezier_bulge
                         )
                 else:
-                    # Standard single-source mode
-                    params = generate_random_parameters(config, vehicle_name, path_type)
-                    bench_cfg = config.get('benchmarks', {}) or {}
-                    bench_selected = bench_cfg.get('selected', []) or []
-                    bench_params = bench_cfg.get('params', {}) or {}
-                    direction_benchmark_active = (
-                        bool(bench_cfg.get('enabled', False))
-                        and ('B2' in bench_selected)
-                        and bool(bench_params.get('alternate_direction_clips', False))
-                    )
-                    if direction_benchmark_active:
-                        _apply_direction_variant(path_type, params, want_reverse=(i % 2 == 1))
-                    result = generate_single_clip(
-                        vehicle_name, path_type, params,
-                        audio_dir, batch_id, clip_index, config
-                    )
+                    # Standard single-source mode (retry on param/geometry failures)
+                    result = None
+                    last_err = None
+                    for attempt in range(8):
+                        try:
+                            params = generate_random_parameters(
+                                config,
+                                vehicle_name,
+                                path_type,
+                                clip_index=clip_index,
+                                total_clips=total_clips,
+                                motion_pass_by=motion_pass_by_flags[i],
+                            )
+                            path_type_use = params.pop('_force_path_type', path_type)
+                            params.pop('_clip_index', None)
+                            params.pop('_total_clips', None)
+                            params.pop('_motion_pass_by', None)
+                            bench_cfg = config.get('benchmarks', {}) or {}
+                            bench_selected = bench_cfg.get('selected', []) or []
+                            bench_params = bench_cfg.get('params', {}) or {}
+                            direction_benchmark_active = (
+                                bool(bench_cfg.get('enabled', False))
+                                and ('B2' in bench_selected)
+                                and bool(bench_params.get('alternate_direction_clips', False))
+                            )
+                            if direction_benchmark_active:
+                                _apply_direction_variant(
+                                    path_type_use, params, want_reverse=(i % 2 == 1)
+                                )
+                            result = generate_single_clip(
+                                vehicle_name, path_type_use, params,
+                                audio_dir, batch_id, clip_index, config
+                            )
+                            path_type = path_type_use
+                            break
+                        except Exception as e:
+                            last_err = e
+                            if attempt == 7:
+                                raise
+                    if result is None:
+                        raise last_err or RuntimeError('clip generation failed')
 
                 clips_metadata.append(result)
                 generation_log.append(f"Generated clip {clip_index}/{total_clips}: {result['filename']}")
                 print(f"Generated clip {clip_index}/{total_clips}")
-                save_progress(total_clips, clip_index)
+                save_progress(total_clips, len(clips_metadata))
                 clip_index += 1
 
             except Exception as e:
-                error_message = f"Error generating clip {clip_index}/{total_clips}: {str(e)}"
+                slots_failed += 1
+                error_message = f"Error generating slot {i + 1}/{total_clips}: {str(e)}"
                 traceback.print_exc()
                 generation_log.append(error_message)
                 print(error_message)
-                save_progress(total_clips, clip_index)
+                save_progress(total_clips, len(clips_metadata))
                 continue
 
         # Save metadata
@@ -938,7 +995,9 @@ def batch_generate():
         return jsonify({
             'success': True,
             'batch_id': batch_id,
+            'total_requested': total_clips,
             'total_generated': len(clips_metadata),
+            'slots_failed': slots_failed,
             'elapsed_time': elapsed_time,
             'formatted_time': formatted_time,
             'batch_directory': batch_dir,
