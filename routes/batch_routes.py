@@ -333,6 +333,21 @@ def batch_generate():
         if validation_error:
             return jsonify({'error': validation_error}), 400
 
+        bench_cfg_early = config.get('benchmarks', {}) or {}
+        if bench_cfg_early.get('enabled', False):
+            selected_early = set(bench_cfg_early.get('selected', []) or [])
+            single_b1_6 = selected_early & {'B1', 'B2', 'B3', 'B4', 'B5', 'B6'}
+            multi_b = selected_early & {'B8', 'B9', 'B10'}
+            if single_b1_6 and not multi_b:
+                dur = config.setdefault('duration', {})
+                if isinstance(dur, dict):
+                    dur['randomize'] = False
+                    dur['value'] = 10.0
+                    dur['min'] = 10.0
+                    dur['max'] = 10.0
+                else:
+                    config['duration'] = {'randomize': False, 'value': 10.0, 'min': 10.0, 'max': 10.0}
+
         if bool(config.get('linear_overlap', {}).get('enabled', False)):
             return _run_linear_overlap_batch(config, start_time)
 

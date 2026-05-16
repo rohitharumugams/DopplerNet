@@ -5,15 +5,27 @@ C_SOUND_STANDARD = 343.0  # m/s
 NEAR_FIELD_RADIUS = 6.0  # m – broader near-field to avoid sharp CPA peaks
 
 
-def calculate_straight_line_doppler(speed_mps, min_distance_m, angle_deg, duration_s, c_sound=343.0):
+def calculate_straight_line_doppler(
+    speed_mps, min_distance_m, angle_deg, duration_s, c_sound=343.0, cpa_time_s=None
+):
     """
     Straight-line pass-by with angle and near-field-safe amplitude.
     (Constant velocity variant)
     """
-    return calculate_straight_line_accelerated_doppler(speed_mps, 0.0, min_distance_m, angle_deg, duration_s, c_sound)
+    return calculate_straight_line_accelerated_doppler(
+        speed_mps, 0.0, min_distance_m, angle_deg, duration_s, c_sound, cpa_time_s=cpa_time_s
+    )
 
 
-def calculate_straight_line_accelerated_doppler(speed_v0_mps, accel_mps2, min_distance_m, angle_deg, duration_s, c_sound=343.0):
+def calculate_straight_line_accelerated_doppler(
+    speed_v0_mps,
+    accel_mps2,
+    min_distance_m,
+    angle_deg,
+    duration_s,
+    c_sound=343.0,
+    cpa_time_s=None,
+):
     """
     Straight-line pass-by with constant acceleration (B7).
     
@@ -32,7 +44,10 @@ def calculate_straight_line_accelerated_doppler(speed_v0_mps, accel_mps2, min_di
     """
     num_samples = int(round(SR * duration_s))
     t = np.linspace(0.0, duration_s, num_samples, endpoint=False)
-    t0 = duration_s / 2.0
+    if cpa_time_s is not None:
+        t0 = float(np.clip(cpa_time_s, 0.0, duration_s))
+    else:
+        t0 = duration_s / 2.0
     dt = t - t0
 
     # Instantaneous speed: v(t) = v0 + a * t

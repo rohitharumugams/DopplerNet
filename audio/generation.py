@@ -758,18 +758,18 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
         selected_benchmarks = bench_cfg.get('selected', [])
         bench_params = bench_cfg.get('params', {})
         
-        # B5: Time-to-Event Prediction (Target CPA Time)
-        if 'B5' in selected_benchmarks:
-            cpa_min = float(bench_params.get('cpa_time_min', bench_params.get('cpa_time', 5.0)))
-            cpa_max = float(bench_params.get('cpa_time_max', bench_params.get('cpa_time', 5.0)))
-            if cpa_min > cpa_max:
-                cpa_min, cpa_max = cpa_max, cpa_min
-            params['target_cpa_time'] = float(random.uniform(cpa_min, cpa_max))
-            # Clip must span CPA + margin; extend user duration only when necessary.
-            # (Old max(10, cpa+2) overwrote e.g. 9.5 s with 10 s whenever B5 was on.)
-            min_duration_for_cpa = params['target_cpa_time'] + 2.0
-            params['duration'] = float(max(float(params['duration']), min_duration_for_cpa))
-            
+        # B1–B6: fixed 10 s clips with user-specified CPA time range (physics + labels).
+        from physics.cpa_timing import (
+            DEFAULT_BENCH_DURATION_S,
+            is_single_vehicle_benchmark_active,
+            sample_benchmark_cpa_time,
+        )
+        if is_single_vehicle_benchmark_active(bench_cfg):
+            params['duration'] = DEFAULT_BENCH_DURATION_S
+            t_cpa = sample_benchmark_cpa_time(bench_params, params['duration'])
+            params['target_cpa_time'] = t_cpa
+            params['cpa_time'] = t_cpa
+
         # B6: Motion State Segmentation (CPA Window)
         if 'B6' in selected_benchmarks:
             params['cpa_window'] = bench_params.get('cpa_window', 1.0)
@@ -854,7 +854,10 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     # --- REALISTIC ROADS FIX: Global Curvature Integration ---
     road_curve_a = params.get('road_curve_a', 0.0)
     accel = float(params.get('acceleration', 0.0))
-    
+    cpa_time_s = params.get('target_cpa_time', params.get('cpa_time'))
+    if cpa_time_s is not None:
+        cpa_time_s = float(cpa_time_s)
+
     if road_curve_a != 0:
         # If the road is curved, we use Map Trajectory physics as it handles arbitrary (x,y)
         from visualization.plot_utils import compute_path_points
@@ -879,22 +882,50 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
         if path_type == 'straight':
             if accel != 0:
                 freq_ratios, amplitudes = calculate_straight_line_accelerated_doppler(
-                    params['speed'], accel, params['distance'], params.get('angle', 0), params['duration'], c_sound=c_sound
+                    params['speed'],
+                    accel,
+                    params['distance'],
+                    params.get('angle', 0),
+                    params['duration'],
+                    c_sound=c_sound,
+                    cpa_time_s=cpa_time_s,
                 )
             else:
                 freq_ratios, amplitudes = calculate_straight_line_doppler(
-                    params['speed'], params['distance'], params.get('angle', 0), params['duration'], c_sound=c_sound
+                    params['speed'],
+                    params['distance'],
+                    params.get('angle', 0),
+                    params['duration'],
+                    c_sound=c_sound,
+                    cpa_time_s=cpa_time_s,
                 )
         elif path_type == 'parabola':
             freq_ratios, amplitudes = calculate_parabola_doppler(
-                params['speed'], params['a'], params['h'], params['duration'],
-                c_sound=c_sound, angle_deg=angle_deg, accel_mps2=accel
+                params['speed'],
+                params['a'],
+                params['h'],
+                params['duration'],
+                c_sound=c_sound,
+                angle_deg=angle_deg,
+                accel_mps2=accel,
+                cpa_time_s=cpa_time_s,
             )
         elif path_type == 'bezier':
             freq_ratios, amplitudes = calculate_bezier_doppler(
-                params['speed'], params['x0'], params['x1'], params['x2'], params['x3'],
-                params['y0'], params['y1'], params['y2'], params['y3'], params['duration'],
-                c_sound=c_sound, angle_deg=angle_deg, accel_mps2=accel
+                params['speed'],
+                params['x0'],
+                params['x1'],
+                params['x2'],
+                params['x3'],
+                params['y0'],
+                params['y1'],
+                params['y2'],
+                params['y3'],
+                params['duration'],
+                c_sound=c_sound,
+                angle_deg=angle_deg,
+                accel_mps2=accel,
+                cpa_time_s=cpa_time_s,
             )
         elif path_type in ('map_trajectory', 'map_path'):
             freq_ratios, amplitudes = calculate_map_trajectory_doppler(
@@ -913,7 +944,12 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
             obs = np.array(params.get('observer_pos', (0.0, 0.0)), dtype=float).reshape(2, 1)
             if path_type == 'straight':
                 t = np.linspace(0.0, params['duration'], num, endpoint=False)
-                t0 = params['duration'] / 2.0
+                t0 = float(
+                    params.get(
+                        'target_cpa_time',
+                        params.get('cpa_time', params['duration'] / 2.0),
+                    )
+                )
                 dt = t - t0
                 v0 = float(params['speed'])
                 angle = np.deg2rad(float(params.get('angle', 0.0)))

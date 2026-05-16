@@ -51,17 +51,42 @@ def _rotate_vector_xy(vx, vy, angle_deg):
     return vx * cos_t - vy * sin_t, vx * sin_t + vy * cos_t
 
 
-def sample_parabola_path_xy(speed_mps, a, h, duration_s, n_points, angle_deg=0.0):
+def sample_parabola_path_xy(speed_mps, a, h, duration_s, n_points, angle_deg=0.0, cpa_time_s=None):
     """
     (x, y) samples matching calculate_parabola_doppler path geometry (for plots / overlays).
     """
-    _a, _h, _T, x, y, _dx, _dy, _dtaudt = _parabola_unrotated_geometry(speed_mps, a, h, duration_s, n_points)
+    n_points = max(4, int(n_points))
+    if cpa_time_s is not None and abs(float(cpa_time_s) - duration_s / 2.0) > 1e-6:
+        from physics.cpa_timing import parabola_tau_at_time
+
+        a, h, T, _, _, dx_dtau, _, _ = _parabola_unrotated_geometry(
+            speed_mps, a, h, duration_s, n_points
+        )
+        half_span_x = float(dx_dtau[0]) if dx_dtau.size else 0.0
+        t = np.linspace(0.0, duration_s, n_points, endpoint=False)
+        tau = parabola_tau_at_time(t, duration_s, float(cpa_time_s))
+        x = half_span_x * tau
+        y = a * x**2 + h
+    else:
+        _a, _h, _T, x, y, _dx, _dy, _dtaudt = _parabola_unrotated_geometry(
+            speed_mps, a, h, duration_s, n_points
+        )
     if angle_deg:
         return _rotate_point_xy(x, y, angle_deg)
     return x, y
 
 
-def calculate_parabola_doppler(speed_mps, a, h, duration_s, n_steps=None, c_sound=343.0, angle_deg=0.0, accel_mps2=0.0):
+def calculate_parabola_doppler(
+    speed_mps,
+    a,
+    h,
+    duration_s,
+    n_steps=None,
+    c_sound=343.0,
+    angle_deg=0.0,
+    accel_mps2=0.0,
+    cpa_time_s=None,
+):
     """
     Compute Doppler frequency ratios and amplitudes for a parabolic path.
 
@@ -108,27 +133,47 @@ def calculate_parabola_doppler(speed_mps, a, h, duration_s, n_steps=None, c_soun
     if n_steps < 4:
         n_steps = 4
 
-    a, h, _T, x, y, dx_dtau, dy_dtau, dtaudt = _parabola_unrotated_geometry(
+    a, h, T, _x0, _y0, dx_dtau, dy_dtau, dtaudt = _parabola_unrotated_geometry(
         speed_mps, a, h, duration_s, n_steps
     )
-    # B7: acceleration-aware progress along the path.
-    # Velocity law v(t)=v0+a*t with floor, then integrate to get monotonic travel.
+    half_span_x = float(dx_dtau[0]) if dx_dtau.size else 0.0
     t = np.linspace(0.0, duration_s, n_steps, endpoint=False)
     dt = max(1e-9, float(duration_s) / max(1, n_steps))
-    v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
-    s_t = np.cumsum(v_t) * dt
-    total_s = max(1e-9, float(s_t[-1]))
-    tau = -1.0 + 2.0 * (s_t / total_s)
 
-    # Rebuild geometry on accelerated tau progression.
-    half_span_x = float(dx_dtau[0]) if dx_dtau.size else 0.0
-    x = half_span_x * tau
-    y = a * x**2 + h
-    dx_dtau = np.full_like(x, half_span_x)
-    dy_dtau = 2.0 * a * x * half_span_x
-    dtaudt = 2.0 * v_t / total_s
-    vx_raw = dx_dtau * dtaudt
-    vy_raw = dy_dtau * dtaudt
+    if abs(float(accel_mps2)) > 1e-9:
+        # B7: acceleration-aware progress along the path.
+        v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
+        s_t = np.cumsum(v_t) * dt
+        total_s = max(1e-9, float(s_t[-1]))
+        tau = -1.0 + 2.0 * (s_t / total_s)
+        x = half_span_x * tau
+        y = a * x**2 + h
+        dx_dtau_path = np.full_like(x, half_span_x)
+        dy_dtau_path = 2.0 * a * x * half_span_x
+        dtaudt_path = 2.0 * v_t / total_s
+    elif cpa_time_s is not None:
+        from physics.cpa_timing import parabola_tau_at_time
+
+        t_cpa = float(np.clip(cpa_time_s, 1e-6, float(duration_s) - 1e-6))
+        tau = parabola_tau_at_time(t, duration_s, t_cpa)
+        x = half_span_x * tau
+        y = a * x**2 + h
+        dx_dtau_path = np.full_like(x, half_span_x)
+        dy_dtau_path = 2.0 * a * x * half_span_x
+        dtaudt_path = np.empty_like(t)
+        left = t <= t_cpa
+        dtaudt_path[left] = 1.0 / t_cpa
+        dtaudt_path[~left] = 1.0 / max(1e-9, float(duration_s) - t_cpa)
+    else:
+        tau = -1.0 + 2.0 * t / max(1e-9, float(duration_s))
+        x = half_span_x * tau
+        y = a * x**2 + h
+        dx_dtau_path = np.full_like(x, half_span_x)
+        dy_dtau_path = 2.0 * a * x * half_span_x
+        dtaudt_path = np.full_like(t, 2.0 / max(1e-9, float(duration_s)))
+
+    vx_raw = dx_dtau_path * dtaudt_path
+    vy_raw = dy_dtau_path * dtaudt_path
 
     if angle_deg:
         x, y = _rotate_point_xy(x, y, angle_deg)

@@ -965,16 +965,22 @@
           </div>
       
           <!-- Extra controls for specific benchmarks -->
-          <div id="extra-B5" class="method-section hidden">
-              <h4>B5: Time-to-Event Settings</h4>
+          <div id="extra-bench-cpa" class="method-section hidden">
+              <h4>CPA timing (B1-B6 single-vehicle clips)</h4>
+              <p class="param-label" style="margin-bottom: 8px;">Clips are 10 s. Closest-approach time is sampled in this range; paths are warped so CPA matches.</p>
               <div class="param-group">
-                  <label class="param-label">Target CPA Time Range (seconds from start)</label>
+                  <label class="param-label">CPA time range (seconds from clip start)</label>
                   <div class="input-row">
-                    <input type="number" id="benchmark_cpa_time_min" value="3" min="0.5" max="60" step="0.1">
+                    <input type="number" id="benchmark_cpa_time_min" value="2" min="0.5" max="9.5" step="0.1">
                     <span>to</span>
-                    <input type="number" id="benchmark_cpa_time_max" value="7" min="0.5" max="60" step="0.1">
+                    <input type="number" id="benchmark_cpa_time_max" value="8" min="0.5" max="9.5" step="0.1">
                   </div>
               </div>
+          </div>
+
+          <div id="extra-B5" class="method-section hidden">
+              <h4>B5: Time-to-Event</h4>
+              <p class="param-label">Ground-truth cpa_time_sec uses the CPA range above.</p>
           </div>
           <div id="extra-B2" class="method-section hidden">
               <h4>B2: Direction Identification Settings</h4>
@@ -2721,6 +2727,19 @@
           extra.classList.add('hidden');
         }
       }
+      updateBenchCpaPanel();
+    }
+
+    function updateBenchCpaPanel() {
+      const singleIds = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'];
+      const anySingle = singleIds.some((id) => {
+        const cb = document.querySelector(`.benchmark-cb[value="${id}"]`);
+        return cb && cb.checked && !cb.disabled;
+      });
+      const panel = document.getElementById('extra-bench-cpa');
+      if (panel) {
+        panel.classList.toggle('hidden', !anySingle);
+      }
     }
 
     function switchBenchGroup(group) {
@@ -2793,6 +2812,7 @@
         document.querySelectorAll('.benchmark-cb[data-group="single"]').forEach(cb => {
           cb.disabled = false;
         });
+        updateBenchCpaPanel();
       } else if (group === 'b7') {
         // Enable B7 only
         b7Group.style.opacity = '1';
@@ -2952,6 +2972,7 @@
         master.checked = false;
         master.indeterminate = true;
       }
+      updateBenchCpaPanel();
     }
 
     function handleB7Click(cb) {

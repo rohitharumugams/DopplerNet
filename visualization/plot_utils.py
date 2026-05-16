@@ -87,7 +87,9 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
             if t_end <= t_start:
                 t_end = t_start + 1e-3
             t = np.linspace(t_start, t_end, n_points)
-            t0 = float(params.get('cpa_time', duration / 2.0))
+            t0 = float(
+                params.get('target_cpa_time', params.get('cpa_time', duration / 2.0))
+            )
             dt = t - t0
 
             theta = np.deg2rad(angle)
@@ -117,7 +119,10 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
         a = float(params['a'])
         h = float(params['h'])
         angle_deg = float(params.get('angle_deg', 0.0))
-        x, y = sample_parabola_path_xy(v, a, h, float(duration), n_points, angle_deg=angle_deg)
+        cpa_t = params.get('target_cpa_time', params.get('cpa_time'))
+        x, y = sample_parabola_path_xy(
+            v, a, h, float(duration), n_points, angle_deg=angle_deg, cpa_time_s=cpa_t
+        )
         if is_absolute:
             x = x + obs_pos[0]
             y = y + obs_pos[1]
@@ -136,8 +141,21 @@ def compute_path_points(path_type, params, n_points=200, **kwargs):
         angle_deg = float(params.get('angle_deg', 0.0))
         # Match calculate_bezier_doppler geometry: speed-rescaled control points
         # and optional angle_deg rotation about the origin.
+        cpa_t = params.get('target_cpa_time', params.get('cpa_time'))
         x, y = sample_bezier_path_xy(
-            speed, x0, x1, x2, x3, y0, y1, y2, y3, float(duration), n_points, angle_deg=angle_deg
+            speed,
+            x0,
+            x1,
+            x2,
+            x3,
+            y0,
+            y1,
+            y2,
+            y3,
+            float(duration),
+            n_points,
+            angle_deg=angle_deg,
+            cpa_time_s=cpa_t,
         )
 
         if is_absolute:
