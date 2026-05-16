@@ -25,6 +25,10 @@ from audio.generation import (
     mix_audio_clips,
     generate_statistics
 )
+from physics.intersection_paths import (
+    build_intersection_waypoints,
+    intersection_observer_position,
+)
 from visualization.plot_utils import save_combined_path_plot, save_spectrogram_to_file
 from visualization.validation import validate_scene_paths, save_validation_report
 from audio.audio_utils import save_audio, SR
@@ -402,6 +406,26 @@ def batch_generate():
         generation_log = []
         clip_index = 1
 
+        def _apply_direction_variant(path_kind, clip_params, want_reverse):
+            """Force clip motion direction for direction-classification benchmarks."""
+            if path_kind == 'straight':
+                clip_params['angle'] = 180 if want_reverse else 0
+                clip_params['direction'] = -1 if want_reverse else 1
+            elif path_kind == 'parabola':
+                speed_abs = abs(float(clip_params.get('speed', 0.0)))
+                clip_params['speed'] = -speed_abs if want_reverse else speed_abs
+                clip_params['direction'] = -1 if want_reverse else 1
+            elif path_kind == 'bezier':
+                x0 = float(clip_params.get('x0', -1.0))
+                x3 = float(clip_params.get('x3', 1.0))
+                x1 = float(clip_params.get('x1', (x0 + x3) / 2.0))
+                x2 = float(clip_params.get('x2', (x0 + x3) / 2.0))
+                currently_reverse = x3 < x0
+                if want_reverse != currently_reverse:
+                    clip_params['x0'], clip_params['x3'] = x3, x0
+                    clip_params['x1'], clip_params['x2'] = x2, x1
+                clip_params['direction'] = -1 if want_reverse else 1
+
         for i in range(total_clips):
             vehicle_name = vehicle_list[i]
             path_type = path_list[i]
@@ -474,7 +498,9 @@ def batch_generate():
                         road_curve_a = 0.0
                         road_y_center = 0.0
                         half_arm = float(bench_params.get('intersection_half_arm', 90.0))
-                        lane_half = lane_width / 2.0
+                        # Median-to-edge distance; must match plot_utils intersection
+                        # guides (lane_half = lane_width there).
+                        lane_half = float(lane_width)
                         ia_min = float(bench_params.get('intersection_angle_min', 30.0))
                         ia_max = float(bench_params.get('intersection_angle_max', 150.0))
                         # Evenly cover the range across scenes via linear spacing.
@@ -483,15 +509,13 @@ def batch_generate():
                         else:
                             intersection_angle = (ia_min + ia_max) / 2.0
 
-                        # Observer placed 50% beyond the Q1 vertex of the
-                        # intersection (where primary upper edge meets secondary edge),
-                        # guaranteeing it is outside both roads.
+                        # Observer outside pavement at the same half-width as paths/ plot.
                         _ia_rad = math.radians(intersection_angle)
                         _ia_sin = math.sin(_ia_rad)
                         _ia_cos = math.cos(_ia_rad)
-                        vertex_x = lane_half * (1.0 + _ia_cos) / max(1e-6, _ia_sin)
-                        vertex_y = lane_half
-                        observer_pos = (1.5 * vertex_x, 1.5 * vertex_y)
+                        observer_pos = intersection_observer_position(
+                            float(lane_width), intersection_angle
+                        )
 
                         exits_by_approach = {
                             'W': ['E', 'N', 'S'],
@@ -504,77 +528,6 @@ def batch_generate():
                         # secondary road (N-S) is rotated by intersection_angle.
                         _sec_cos = _ia_cos
                         _sec_sin = _ia_sin
-
-                        def _arm_point(arm, dist_from_center, lane_pos):
-                            """(x, y) at `dist_from_center` along `arm`, offset by `lane_pos`."""
-                            if arm == 'W': return (-dist_from_center, lane_pos)
-                            if arm == 'E': return (dist_from_center, lane_pos)
-                            if arm == 'N':
-                                return (dist_from_center * _sec_cos - lane_pos * _sec_sin,
-                                        dist_from_center * _sec_sin + lane_pos * _sec_cos)
-                            return (-dist_from_center * _sec_cos - lane_pos * _sec_sin,
-                                    -dist_from_center * _sec_sin + lane_pos * _sec_cos)
-
-                        def _intersection_waypoints(start_arm, end_arm, half_span, lh, entry_lane, exit_lane):
-                            """Build waypoints with natural lane-following and drift."""
-                            pts = []
-                            n_arm = 10
-
-                            # Approach: gradual drift from a starting lateral position
-                            # toward entry_lane at the intersection edge.
-                            approach_start = entry_lane + random.uniform(-lh * 0.3, lh * 0.3)
-                            approach_start = max(-lh * 0.85, min(lh * 0.85, approach_start))
-                            for k in range(n_arm):
-                                frac = k / max(1, n_arm - 1)
-                                d = half_span + frac * (lh - half_span)
-                                lat = approach_start + frac * (entry_lane - approach_start)
-                                lat += random.uniform(-0.25, 0.25) * (1.0 - frac)
-                                lat = max(-lh * 0.9, min(lh * 0.9, lat))
-                                pts.append(_arm_point(start_arm, d, lat))
-
-                            entry_edge = _arm_point(start_arm, lh, entry_lane)
-                            exit_edge = _arm_point(end_arm, lh, exit_lane)
-
-                            is_straight = (
-                                frozenset((start_arm, end_arm)) == frozenset(('W', 'E'))
-                                or frozenset((start_arm, end_arm)) == frozenset(('N', 'S'))
-                            )
-
-                            n_turn = 6
-                            if is_straight:
-                                drift = random.uniform(-0.3, 0.3)
-                                for k in range(1, n_turn + 1):
-                                    t = k / (n_turn + 1)
-                                    x = entry_edge[0] + t * (exit_edge[0] - entry_edge[0])
-                                    y = entry_edge[1] + t * (exit_edge[1] - entry_edge[1])
-                                    s_curve = drift * math.sin(t * math.pi)
-                                    x += random.uniform(-0.15, 0.15) + s_curve
-                                    y += random.uniform(-0.15, 0.15) + s_curve
-                                    pts.append((x, y))
-                            else:
-                                pull_factor = random.uniform(0.15, 0.35)
-                                mid_x = (entry_edge[0] + exit_edge[0]) * pull_factor
-                                mid_y = (entry_edge[1] + exit_edge[1]) * pull_factor
-                                for k in range(1, n_turn + 1):
-                                    t = k / (n_turn + 1)
-                                    bx = (1-t)**2 * entry_edge[0] + 2*(1-t)*t * mid_x + t**2 * exit_edge[0]
-                                    by = (1-t)**2 * entry_edge[1] + 2*(1-t)*t * mid_y + t**2 * exit_edge[1]
-                                    bx += random.uniform(-0.15, 0.15)
-                                    by += random.uniform(-0.15, 0.15)
-                                    pts.append((bx, by))
-
-                            # Depart: drift away from exit_lane naturally.
-                            depart_end = exit_lane + random.uniform(-lh * 0.3, lh * 0.3)
-                            depart_end = max(-lh * 0.85, min(lh * 0.85, depart_end))
-                            for k in range(n_arm):
-                                frac = k / max(1, n_arm - 1)
-                                d = lh + frac * (half_span - lh)
-                                lat = exit_lane + frac * (depart_end - exit_lane)
-                                lat += random.uniform(-0.25, 0.25) * frac
-                                lat = max(-lh * 0.9, min(lh * 0.9, lat))
-                                pts.append(_arm_point(end_arm, d, lat))
-
-                            return pts
 
                         sel = config.get('vehicles', {}).get('selected', [vehicle_name])
                         temp = 20
@@ -618,9 +571,15 @@ def batch_generate():
                         for s_idx, (start_arm, end_arm) in enumerate(arm_assignments):
                             entry_lane = _get_lane_slot(start_arm, start_counts[start_arm])
                             exit_lane = _get_lane_slot('exit_' + end_arm, end_counts[end_arm])
-                            waypoints = _intersection_waypoints(
-                                start_arm, end_arm, half_arm, lane_half,
-                                entry_lane, exit_lane,
+                            waypoints = build_intersection_waypoints(
+                                start_arm,
+                                end_arm,
+                                half_arm,
+                                lane_half,
+                                entry_lane,
+                                exit_lane,
+                                _sec_cos,
+                                _sec_sin,
                             )
                             v_configs.append({
                                 'vehicle_name': random.choice(sel),
@@ -878,6 +837,16 @@ def batch_generate():
                 else:
                     # Standard single-source mode
                     params = generate_random_parameters(config, vehicle_name, path_type)
+                    bench_cfg = config.get('benchmarks', {}) or {}
+                    bench_selected = bench_cfg.get('selected', []) or []
+                    bench_params = bench_cfg.get('params', {}) or {}
+                    direction_benchmark_active = (
+                        bool(bench_cfg.get('enabled', False))
+                        and ('B2' in bench_selected)
+                        and bool(bench_params.get('alternate_direction_clips', False))
+                    )
+                    if direction_benchmark_active:
+                        _apply_direction_variant(path_type, params, want_reverse=(i % 2 == 1))
                     result = generate_single_clip(
                         vehicle_name, path_type, params,
                         audio_dir, batch_id, clip_index, config
@@ -912,7 +881,7 @@ def batch_generate():
         dataset_file = os.path.join(batch_dir, 'dataset.csv')
         csv_headers = [
             'sample_id', 'batch_id', 'filename', 'vehicle_class', 'trajectory_type',
-            'speed_mps', 'direction_label', 'cpa_distance_m', 'cpa_time_sec',
+            'speed_mps', 'direction_label', 'direction_text', 'cpa_distance_m', 'cpa_time_sec',
             'num_sources', 'is_crossing'
         ]
         
@@ -929,6 +898,7 @@ def batch_generate():
                     'trajectory_type': labels.get('trajectory_type', ''),
                     'speed_mps': labels.get('speed_mps', 0.0),
                     'direction_label': labels.get('direction_label', 0),
+                    'direction_text': labels.get('direction_text', ''),
                     'cpa_distance_m': labels.get('cpa_distance_m', 0.0),
                     'cpa_time_sec': labels.get('cpa_time_sec', 5.0),
                     'num_sources': labels.get('num_sources', 1),

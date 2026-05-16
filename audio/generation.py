@@ -255,6 +255,21 @@ def _shape_start_envelope(env, sr, hold_s=0.9, ramp_s=1.6, knee=0.07):
     return np.clip(out, 0.0, 1.0).astype(np.float32)
 
 
+def _infer_direction_info(path_type, params):
+    """Return direction label and readable text for metadata/benchmarks."""
+    is_reverse = False
+    if path_type == 'straight':
+        angle = float(params.get('angle', 0.0)) % 360.0
+        is_reverse = (90.0 <= angle <= 270.0) or int(params.get('direction', 1)) == -1
+    elif path_type == 'parabola':
+        is_reverse = float(params.get('speed', 0.0)) < 0.0 or int(params.get('direction', 1)) == -1
+    elif path_type == 'bezier':
+        is_reverse = float(params.get('x3', 0.0)) < float(params.get('x0', 0.0)) or int(params.get('direction', 1)) == -1
+    direction_label = 1 if is_reverse else 0
+    direction_text = 'right_to_left' if is_reverse else 'left_to_right'
+    return direction_label, direction_text
+
+
 def _stabilize_cpa_hump(out, env, sr, strength=0.30, win_fast_ms=30.0, win_slow_ms=360.0):
     """
     Stabilize RMS ripple near CPA where coherent harmonics are strongest.
@@ -745,7 +760,11 @@ def generate_random_parameters(config, vehicle_name, path_type, force_symmetric=
         
         # B5: Time-to-Event Prediction (Target CPA Time)
         if 'B5' in selected_benchmarks:
-            params['target_cpa_time'] = float(bench_params.get('cpa_time', 5.0))
+            cpa_min = float(bench_params.get('cpa_time_min', bench_params.get('cpa_time', 5.0)))
+            cpa_max = float(bench_params.get('cpa_time_max', bench_params.get('cpa_time', 5.0)))
+            if cpa_min > cpa_max:
+                cpa_min, cpa_max = cpa_max, cpa_min
+            params['target_cpa_time'] = float(random.uniform(cpa_min, cpa_max))
             # Clip must span CPA + margin; extend user duration only when necessary.
             # (Old max(10, cpa+2) overwrote e.g. 9.5 s with 10 s whenever B5 was on.)
             min_duration_for_cpa = params['target_cpa_time'] + 2.0
@@ -1389,7 +1408,8 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
     output_format = config.get('output', {}).get('format', 'wav')
     
     # Metadata-rich base name
-    meta_name = f"{vehicle_name}_{path_type}_{params['speed']}mps_{params['distance']}m_{index:07d}"
+    _, direction_text_for_name = _infer_direction_info(path_type, params)
+    meta_name = f"{vehicle_name}_{path_type}_{direction_text_for_name}_{params['speed']}mps_{params['distance']}m_{index:07d}"
     
     if custom_filename:
         # If it's a test sample, prepend the (test_N_) tag
@@ -1435,8 +1455,7 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
     
     # Direction: 0 for Left-to-Right (Approaching then Receding)
     #            1 for Right-to-Left (Receding then Approaching)
-    angle = params.get('angle', 0.0)
-    direction_label = 0 if (angle < 90 or angle > 270) else 1
+    direction_label, direction_text = _infer_direction_info(path_type, params)
     
     cpa_distance = params.get('distance', params.get('h', 0.0))
     
@@ -1450,6 +1469,7 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         'speed_mps': speed_mps,
         'acceleration_mps2': float(params.get('acceleration', 0.0)),
         'direction_label': direction_label,
+        'direction_text': direction_text,
         'cpa_distance_m': cpa_distance,
         'trajectory_type': path_type,
         'cpa_time_sec': cpa_time,
@@ -1481,6 +1501,7 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         'index': index,
         'vehicle': vehicle_name,
         'path_type': path_type,
+        'direction_text': direction_text,
         'parameters': params,
         'labels': labels,
         'freq_ratio_range': {
@@ -1819,6 +1840,11 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
             os.makedirs(b9_dir, exist_ok=True)
             np.save(os.path.join(b9_dir, 'label_is_crossing.npy'), np.array(is_crossing))
             np.save(os.path.join(b9_dir, 'label_num_sources.npy'), np.array(len(vehicles_configs)))
+            # Persist per-clip road intersection angle for downstream supervision.
+            np.save(
+                os.path.join(b9_dir, 'label_intersection_angle_deg.npy'),
+                np.array(float(intersection_angle), dtype=np.float32)
+            )
             np.save(os.path.join(b9_dir, 'label_per_vehicle_directions.npy'),
                     np.array([m['direction'] for m in per_vehicle_meta]))
             np.save(os.path.join(b9_dir, 'label_per_vehicle_offsets.npy'),

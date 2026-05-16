@@ -24,27 +24,31 @@ def write_soundfile(path_or_file, data, samplerate, **kwargs):
     with _AUDIO_IO_LOCK:
         sf.write(path_or_file, data, samplerate, **kwargs)
 
-def get_speed_of_sound(temp_c, humidity_rh=50.0):
+def get_speed_of_sound(temp_c, humidity_rh=50.0, p_pa=101325.0):
     """
-    Calculate speed of sound in air (m/s).
-    Formula: c = 331.3 * sqrt(1 + T/273.15)
-    Humidity adjustment: c_wet = c_dry * (1 + 0.16 * e/p)
-    Simplified humidity impact: c increases by ~0.1-0.6 m/s at high humidity.
+    Speed of sound in moist air (m/s) at near-standard pressure.
+
+    Uses saturation vapor pressure (Tetens, liquid water), specific humidity,
+    and c² ≈ γ R_d T (1 + 0.61 w) — the usual ideal-gas / virtual-temperature
+    form (consistent with meteorological acoustics practice; better RH and T
+    dependence than a fixed m/s-per-RH offset).
     """
-    # Base velocity at 0C
-    c_base = 331.3
-    
-    # Temperature effect (most significant)
-    # T in Kelvin: 273.15 + temp_c
-    # c = 331.3 * sqrt(T / 273.15)
-    c_dry = c_base * np.sqrt(1 + temp_c / 273.15)
-    
-    # Humidity effect (minor)
-    # Approx change: 0.1 m/s per 10% RH at 20C
-    # We'll use a linear approximation for humidity since it's a minor factor here
-    humidity_factor = (humidity_rh / 100.0) * 0.6 
-    
-    return c_dry + humidity_factor
+    T_c = float(temp_c)
+    Tk = T_c + 273.15
+    rh = max(0.0, min(float(humidity_rh), 100.0)) / 100.0
+    p = max(1000.0, float(p_pa))
+
+    # Saturation vapor pressure (Pa); Tetens-type, T in °C
+    es = 611.2 * np.exp(17.67 * T_c / (T_c + 243.5))
+    pv = rh * es
+    # Numerical guard: mixture formulas assume unsaturated bulk air
+    pv = min(pv, 0.49 * p)
+    w = 0.62198 * pv / (p - pv + 1e-12)
+
+    R_d = 287.058  # J/(kg·K), specific gas constant for dry air
+    gamma = 1.4
+    c = np.sqrt(gamma * R_d * Tk * (1.0 + 0.61 * w))
+    return float(c)
 
 def load_original_audio(audio_type='horn', duration=5):
     """Load the original audio based on vehicle type and duration"""
@@ -515,12 +519,15 @@ def apply_doppler_to_audio_fixed_advanced(original_audio, freq_ratios, amplitude
 
 def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=343.0):
     """
-    Apply observer-time alignment using a retarded-time approximation:
-    t_obs = t_emit + (r - r_cpa)/c.
+    Resample emission-time samples to (approximately) uniform *observer* time using
+    retarded arrival: t_obs = t_emit + r(t_emit) / c.
+
+    Used only for accelerating paths (B7). Subsonic motion keeps t_obs(t_emit)
+    monotone in typical pass-by geometry; samples are sorted and interpolated.
     """
     freq = np.asarray(freq_ratios, dtype=np.float32)
     amp = np.asarray(amplitudes, dtype=np.float32)
-    dist = np.asarray(distances, dtype=np.float32)
+    dist = np.asarray(distances, dtype=np.float64)
     n = min(len(freq), len(amp), len(dist))
     if n < 3:
         return freq, amp
@@ -529,9 +536,9 @@ def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=3
     amp = amp[:n]
     dist = np.maximum(dist[:n], 1e-6)
     dt = 1.0 / float(SR)
-    t_emit = np.arange(n, dtype=np.float32) * dt
-    r_cpa = float(np.min(dist))
-    t_obs = t_emit + (dist - r_cpa) / max(1e-6, float(c_sound))
+    c = max(1e-6, float(c_sound))
+    t_emit = np.arange(n, dtype=np.float64) * dt
+    t_obs = t_emit + dist / c
 
     order = np.argsort(t_obs)
     t_obs = t_obs[order]
@@ -545,7 +552,7 @@ def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=3
     if len(t_unique) < 3:
         return freq_ratios, amplitudes
 
-    out_t = np.linspace(float(t_unique[0]), float(t_unique[-1]), n, endpoint=False, dtype=np.float32)
+    out_t = np.linspace(float(t_unique[0]), float(t_unique[-1]), n, endpoint=False, dtype=np.float64)
     freq_corr = np.interp(out_t, t_unique, freq_unique).astype(np.float32)
     amp_corr = np.interp(out_t, t_unique, amp_unique).astype(np.float32)
     return freq_corr, amp_corr

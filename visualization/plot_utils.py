@@ -18,6 +18,25 @@ from physics.parabola import sample_parabola_path_xy
 from physics.bezier import sample_bezier_path_xy
 
 
+def _get_direction_text(path_type, params):
+    """Infer path travel direction text for legend entries."""
+    is_forward = True
+    if path_type == 'straight':
+        angle = float(params.get('angle', 0.0)) % 360.0
+        is_forward = not (90.0 <= angle <= 270.0)
+        if int(params.get('direction', 1)) == -1:
+            is_forward = False
+    elif path_type == 'parabola':
+        is_forward = float(params.get('speed', 0.0)) >= 0.0
+        if int(params.get('direction', 1)) == -1:
+            is_forward = False
+    elif path_type == 'bezier':
+        is_forward = float(params.get('x3', 0.0)) >= float(params.get('x0', 0.0))
+        if int(params.get('direction', 1)) == -1:
+            is_forward = False
+    return ('left_to_right', '→') if is_forward else ('right_to_left', '←')
+
+
 def compute_path_points(path_type, params, n_points=200, **kwargs):
     """Compute (x, y) path points for plotting"""
     duration = params.get('duration', 10.0)
@@ -367,6 +386,8 @@ def save_path_plot(path_type, params, output_dir, base_name):
                 unit = {'speed': 'm/s', 'distance': 'm', 'offset': 'm', 'angle': '°'}.get(k, '')
                 label_parts.append(f"{lbl}={val}{unit}")
         
+        direction_text, direction_arrow = _get_direction_text(path_type, params)
+        label_parts.append(f"dir={direction_text}{direction_arrow}")
         full_label = ", ".join(label_parts)
 
         # Path
@@ -544,24 +565,12 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
         # --- PLOT VEHICLE PATHS ---
         dotted_extension_m = float(kwargs.get('dotted_extension_m', 22.0))
         for i, path_type, params, vehicle_name, x, y in sampled_paths:
-            # Determine arrow based on directional intent in UNROTATED frame
-            # For straight/parabola it's usually speed/direction, for bezier it's x3 > x0
-            is_forward = True
-            if path_type == 'straight' and params.get('direction', 1) == -1:
-                is_forward = False
-            elif path_type == 'straight' and params.get('angle', 0) == 180:
-                is_forward = False
-            elif path_type == 'parabola' and params.get('speed', 1) < 0:
-                is_forward = False
-            elif path_type == 'bezier' and params.get('x3', 0) < params.get('x0', 0):
-                is_forward = False
-                
-            arrow = " →" if is_forward else " ←"
+            direction_text, arrow = _get_direction_text(path_type, params)
             speed_val = params.get('speed', None)
             dist_val = params.get('distance', params.get('h', params.get('offset', None)))
             speed_txt = f"{float(speed_val):.1f} m/s" if speed_val is not None else "n/a"
             dist_txt = f"{abs(float(dist_val)):.1f} m" if dist_val is not None else "n/a"
-            legend_label = f"V{i+1}: {vehicle_name} (v={speed_txt}, d={dist_txt}){arrow}"
+            legend_label = f"V{i+1}: {vehicle_name} (v={speed_txt}, d={dist_txt}, dir={direction_text}) {arrow}"
             line, = ax.plot(x, y, linewidth=path_linewidth, label=legend_label, alpha=path_alpha, zorder=5)
 
             # Add small dotted extrapolations before/after the solid segment so

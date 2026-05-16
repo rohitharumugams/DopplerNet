@@ -912,7 +912,7 @@
             <div id="group-single">
               <h4 style="font-size: 13px; color: #58a6ff; margin-bottom: 8px;">Single Vehicle Benchmarks</h4>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B1" onchange="updateSelectAllState()"> B1: Speed Estimation</label>
-              <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B2" onchange="updateSelectAllState()"> B2: Direction Identification</label>
+              <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B2" onchange="toggleBenchmarkExtra('B2'); updateSelectAllState()"> B2: Direction Identification</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B3" onchange="updateSelectAllState()"> B3: Distance Estimation</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B4" onchange="updateSelectAllState()"> B4: Trajectory Localization</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B5" onchange="toggleBenchmarkExtra('B5'); updateSelectAllState()"> B5: Time-to-Event Prediction</label>
@@ -968,9 +968,20 @@
           <div id="extra-B5" class="method-section hidden">
               <h4>B5: Time-to-Event Settings</h4>
               <div class="param-group">
-                  <label class="param-label">Target CPA Time (seconds from start)</label>
-                  <input type="number" id="benchmark_cpa_time" value="5" min="1" max="9">
+                  <label class="param-label">Target CPA Time Range (seconds from start)</label>
+                  <div class="input-row">
+                    <input type="number" id="benchmark_cpa_time_min" value="3" min="0.5" max="60" step="0.1">
+                    <span>to</span>
+                    <input type="number" id="benchmark_cpa_time_max" value="7" min="0.5" max="60" step="0.1">
+                  </div>
               </div>
+          </div>
+          <div id="extra-B2" class="method-section hidden">
+              <h4>B2: Direction Identification Settings</h4>
+              <label class="checkbox-label">
+                  <input type="checkbox" id="benchmark_alternate_directions" checked>
+                  Generate alternating opposite-direction clips (left-to-right / right-to-left)
+              </label>
           </div>
           <div id="extra-B6" class="method-section hidden">
               <h4>B6: Segmentation Settings</h4>
@@ -2803,7 +2814,7 @@
           cb.checked = false;
           cb.disabled = true;
           const val = cb.value;
-          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
         });
         document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
           cb.checked = false;
@@ -2838,7 +2849,7 @@
           cb.checked = false;
           cb.disabled = true;
           const val = cb.value;
-          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
         });
         document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
           cb.checked = false;
@@ -2877,7 +2888,7 @@
           cb.checked = false;
           cb.disabled = true;
           const val = cb.value;
-          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
         });
         document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
           cb.checked = false;
@@ -2912,9 +2923,9 @@
       const checkboxes = document.querySelectorAll('.benchmark-cb:not([disabled])');
       checkboxes.forEach(cb => {
         cb.checked = isChecked;
-        // Trigger extra sections (B5, B6, B8, B9)
+        // Trigger extra sections (B2, B5, B6, B8, B9)
         const val = cb.value;
-        if (['B5', 'B6', 'B7', 'B8', 'B9'].includes(val)) {
+        if (['B2', 'B5', 'B6', 'B7', 'B8', 'B9'].includes(val)) {
           toggleBenchmarkExtra(val);
         }
       });
@@ -3084,8 +3095,10 @@
           selected: selectedBenchmarkValues,
           params: {
             enable_acceleration: b7Enabled,
-            cpa_time: parseFloat(document.getElementById('benchmark_cpa_time').value),
+            cpa_time_min: parseFloat(document.getElementById('benchmark_cpa_time_min').value),
+            cpa_time_max: parseFloat(document.getElementById('benchmark_cpa_time_max').value),
             cpa_window: parseFloat(document.getElementById('benchmark_cpa_window').value),
+            alternate_direction_clips: !!document.getElementById('benchmark_alternate_directions')?.checked,
 
             is_crossing: document.getElementById('benchmark_is_crossing').checked,
             lane_width: parseFloat(document.getElementById('benchLaneWidth').value),
