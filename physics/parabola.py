@@ -1,7 +1,7 @@
 # parabola.py
 
 import numpy as np
-from audio.audio_utils import SR, apply_distance_fade
+from audio.audio_utils import SR
 
 # Speed of sound (m/s)
 C_SOUND = 343.0
@@ -51,17 +51,45 @@ def _rotate_vector_xy(vx, vy, angle_deg):
     return vx * cos_t - vy * sin_t, vx * sin_t + vy * cos_t
 
 
-def sample_parabola_path_xy(speed_mps, a, h, duration_s, n_points, angle_deg=0.0):
+def sample_parabola_path_xy(
+    speed_mps, a, h, duration_s, n_points, angle_deg=0.0, cpa_time_s=None, x_offset=0.0
+):
     """
     (x, y) samples matching calculate_parabola_doppler path geometry (for plots / overlays).
     """
-    _a, _h, _T, x, y, _dx, _dy, _dtaudt = _parabola_unrotated_geometry(speed_mps, a, h, duration_s, n_points)
+    n_points = max(4, int(n_points))
+    if cpa_time_s is not None:
+        # CPA-tied construction: closest approach occurs at the requested physical time.
+        t = np.linspace(0.0, duration_s, n_points, endpoint=False)
+        t_cpa = float(np.clip(cpa_time_s, 1e-6, float(duration_s) - 1e-6))
+        v_signed = float(speed_mps)
+        if abs(v_signed) < 1e-6:
+            v_signed = 1e-6
+        x_along = v_signed * (t - t_cpa)
+        x = x_along + float(x_offset)
+        y = a * x_along**2 + h
+    else:
+        _a, _h, _T, x, y, _dx, _dy, _dtaudt = _parabola_unrotated_geometry(
+            speed_mps, a, h, duration_s, n_points
+        )
+        x = x + float(x_offset)
     if angle_deg:
         return _rotate_point_xy(x, y, angle_deg)
     return x, y
 
 
-def calculate_parabola_doppler(speed_mps, a, h, duration_s, n_steps=None, c_sound=343.0, angle_deg=0.0, accel_mps2=0.0):
+def calculate_parabola_doppler(
+    speed_mps,
+    a,
+    h,
+    duration_s,
+    n_steps=None,
+    c_sound=343.0,
+    angle_deg=0.0,
+    accel_mps2=0.0,
+    cpa_time_s=None,
+    x_offset=0.0,
+):
     """
     Compute Doppler frequency ratios and amplitudes for a parabolic path.
 
@@ -108,27 +136,49 @@ def calculate_parabola_doppler(speed_mps, a, h, duration_s, n_steps=None, c_soun
     if n_steps < 4:
         n_steps = 4
 
-    a, h, _T, x, y, dx_dtau, dy_dtau, dtaudt = _parabola_unrotated_geometry(
+    a, h, T, _x0, _y0, dx_dtau, dy_dtau, dtaudt = _parabola_unrotated_geometry(
         speed_mps, a, h, duration_s, n_steps
     )
-    # B7: acceleration-aware progress along the path.
-    # Velocity law v(t)=v0+a*t with floor, then integrate to get monotonic travel.
+    half_span_x = float(dx_dtau[0]) if dx_dtau.size else 0.0
+    x_off = float(x_offset)
     t = np.linspace(0.0, duration_s, n_steps, endpoint=False)
     dt = max(1e-9, float(duration_s) / max(1, n_steps))
-    v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
-    s_t = np.cumsum(v_t) * dt
-    total_s = max(1e-9, float(s_t[-1]))
-    tau = -1.0 + 2.0 * (s_t / total_s)
 
-    # Rebuild geometry on accelerated tau progression.
-    half_span_x = float(dx_dtau[0]) if dx_dtau.size else 0.0
-    x = half_span_x * tau
-    y = a * x**2 + h
-    dx_dtau = np.full_like(x, half_span_x)
-    dy_dtau = 2.0 * a * x * half_span_x
-    dtaudt = 2.0 * v_t / total_s
-    vx_raw = dx_dtau * dtaudt
-    vy_raw = dy_dtau * dtaudt
+    if cpa_time_s is not None:
+        # Physics uses the same CPA-tied path model as plotting/labels.
+        t_cpa = float(np.clip(cpa_time_s, 1e-6, float(duration_s) - 1e-6))
+        v_signed = float(speed_mps)
+        if abs(v_signed) < 1e-6:
+            v_signed = 1e-6
+        x_along = v_signed * (t - t_cpa)
+        x = x_along + x_off
+        y = a * x_along**2 + h
+        vx_raw = np.full_like(t, v_signed)
+        vy_raw = 2.0 * a * x_along * v_signed
+    elif abs(float(accel_mps2)) > 1e-9:
+        # B7: acceleration-aware progress along the path.
+        v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
+        s_t = np.cumsum(v_t) * dt
+        total_s = max(1e-9, float(s_t[-1]))
+        tau = -1.0 + 2.0 * (s_t / total_s)
+        x_along = half_span_x * tau
+        x = x_along + x_off
+        y = a * x_along**2 + h
+        dx_dtau_path = np.full_like(t, half_span_x)
+        dy_dtau_path = 2.0 * a * x_along * half_span_x
+        dtaudt_path = 2.0 * v_t / total_s
+    else:
+        tau = -1.0 + 2.0 * t / max(1e-9, float(duration_s))
+        x_along = half_span_x * tau
+        x = x_along + x_off
+        y = a * x_along**2 + h
+        dx_dtau_path = np.full_like(t, half_span_x)
+        dy_dtau_path = 2.0 * a * x_along * half_span_x
+        dtaudt_path = np.full_like(t, 2.0 / max(1e-9, float(duration_s)))
+
+    if cpa_time_s is None:
+        vx_raw = dx_dtau_path * dtaudt_path
+        vy_raw = dy_dtau_path * dtaudt_path
 
     if angle_deg:
         x, y = _rotate_point_xy(x, y, angle_deg)
@@ -157,8 +207,5 @@ def calculate_parabola_doppler(speed_mps, a, h, duration_s, n_steps=None, c_soun
 
     # Combined amplitude with master gain and gamma compression for audibility
     amplitudes = (10.0 * (1.0 / r_eff) * (c_sound / (c_sound + v_r))**1.1)**0.7
-    
-    # Smooth fade-in/out to prevent abrupt spawning
-    amplitudes = apply_distance_fade(amplitudes, fade_duration_s=1.0)
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)

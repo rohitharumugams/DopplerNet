@@ -1,7 +1,7 @@
 # bezier.py
 
 import numpy as np
-from audio.audio_utils import SR, apply_distance_fade
+from audio.audio_utils import SR
 
 C_SOUND = 343.0  # m/s
 NEAR_FIELD_RADIUS = 6.0  # m – broader near-field for smoother pass-by envelope
@@ -75,20 +75,73 @@ def _scaled_bezier_geometry(speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_
     return x, y, vx, vy
 
 
-def sample_bezier_path_xy(speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_s, n_points, angle_deg=0.0):
+def _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3, n_scan=400):
+    tau = np.linspace(0.0, 1.0, max(32, int(n_scan)))
+    x = _cubic_bezier(tau, xs0, xs1, xs2, xs3)
+    y = _cubic_bezier(tau, ys0, ys1, ys2, ys3)
+    return float(tau[int(np.argmin(np.sqrt(x * x + y * y)))])
+
+
+def sample_bezier_path_xy(
+    speed_mps,
+    x0,
+    x1,
+    x2,
+    x3,
+    y0,
+    y1,
+    y2,
+    y3,
+    duration_s,
+    n_points,
+    angle_deg=0.0,
+    cpa_time_s=None,
+):
     """(x, y) samples that match calculate_bezier_doppler geometry."""
-    x, y, _vx, _vy = _scaled_bezier_geometry(
-        speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_s, n_points
-    )
+    n = max(4, int(n_points))
+    T = float(duration_s) if float(duration_s) > 0 else 1.0
+    t = np.linspace(0.0, T, n, endpoint=False)
+
+    dx_dtau_init = _cubic_bezier_derivative(t / T, x0, x1, x2, x3)
+    dy_dtau_init = _cubic_bezier_derivative(t / T, y0, y1, y2, y3)
+    speed_init = np.sqrt(dx_dtau_init**2 + dy_dtau_init**2) / T
+    mean_speed_init = np.mean(speed_init) if speed_init.size > 0 else 1.0
+    phys_scale = speed_mps / max(1e-6, mean_speed_init)
+    xs0, xs1, xs2, xs3 = x0 * phys_scale, x1 * phys_scale, x2 * phys_scale, x3 * phys_scale
+    ys0, ys1, ys2, ys3 = y0 * phys_scale, y1 * phys_scale, y2 * phys_scale, y3 * phys_scale
+
+    if cpa_time_s is not None:
+        from physics.cpa_timing import warp_tau_for_cpa
+
+        tau_cpa = _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3)
+        tau, _ = warp_tau_for_cpa(t, T, float(cpa_time_s), tau_cpa)
+        x = _cubic_bezier(tau, xs0, xs1, xs2, xs3)
+        y = _cubic_bezier(tau, ys0, ys1, ys2, ys3)
+    else:
+        x, y, _vx, _vy = _scaled_bezier_geometry(
+            speed_mps, x0, x1, x2, x3, y0, y1, y2, y3, duration_s, n
+        )
     if angle_deg:
         x, y = _rotate_point_xy(x, y, angle_deg)
     return x, y
 
 
-def calculate_bezier_doppler(speed_mps,
-                             x0, x1, x2, x3,
-                             y0, y1, y2, y3,
-                             duration_s, c_sound=343.0, angle_deg=0.0, accel_mps2=0.0):
+def calculate_bezier_doppler(
+    speed_mps,
+    x0,
+    x1,
+    x2,
+    x3,
+    y0,
+    y1,
+    y2,
+    y3,
+    duration_s,
+    c_sound=343.0,
+    angle_deg=0.0,
+    accel_mps2=0.0,
+    cpa_time_s=None,
+):
     """
     Cubic Bezier path with near-field-safe amplitude.
 
@@ -138,12 +191,21 @@ def calculate_bezier_doppler(speed_mps,
     xs0, xs1, xs2, xs3 = x0 * phys_scale, x1 * phys_scale, x2 * phys_scale, x3 * phys_scale
     ys0, ys1, ys2, ys3 = y0 * phys_scale, y1 * phys_scale, y2 * phys_scale, y3 * phys_scale
 
-    # B7 constant-acceleration speed law + integrated progression.
-    v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
-    s_t = np.cumsum(v_t) * dt
-    total_s = max(1e-9, float(s_t[-1]))
-    tau = np.clip(s_t / total_s, 0.0, 1.0)
-    dtaudt = v_t / total_s
+    if cpa_time_s is not None:
+        from physics.cpa_timing import warp_tau_for_cpa
+
+        tau_cpa = _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3)
+        tau, dtaudt = warp_tau_for_cpa(t, T, float(cpa_time_s), tau_cpa)
+    elif abs(float(accel_mps2)) > 1e-9:
+        # B7 constant-acceleration speed law + integrated progression.
+        v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
+        s_t = np.cumsum(v_t) * dt
+        total_s = max(1e-9, float(s_t[-1]))
+        tau = np.clip(s_t / total_s, 0.0, 1.0)
+        dtaudt = v_t / total_s
+    else:
+        tau = t / T
+        dtaudt = np.full_like(t, 1.0 / T)
 
     x = _cubic_bezier(tau, xs0, xs1, xs2, xs3)
     y = _cubic_bezier(tau, ys0, ys1, ys2, ys3)
@@ -180,8 +242,5 @@ def calculate_bezier_doppler(speed_mps,
     spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
     convective_amp = (c_sound / (c_sound + v_r))**1.1
     amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
-    
-    # Smooth fade-in/out to prevent abrupt spawning
-    amplitudes = apply_distance_fade(amplitudes, fade_duration_s=1.0)
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)

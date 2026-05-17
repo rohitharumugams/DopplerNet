@@ -1,10 +1,7 @@
 import numpy as np
-from audio.audio_utils import SR, apply_distance_fade
+from audio.audio_utils import SR
 
 NEAR_FIELD_RADIUS = 6.0
-# Long fades (e.g. 1 s) were meant to soften spawn/despawn but audibly duck the whole last second.
-# Short tapers remove edge clicks without a noticeable “drop off a cliff” at clip end.
-EDGE_FADE_S = 0.1
 
 
 def sample_map_path_xy(points, speed_mps, duration_s, n_points):
@@ -107,8 +104,5 @@ def calculate_map_trajectory_doppler(points, speed_mps, duration_s, observer_pos
     spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
     convective_amp = (c_sound / (c_sound + v_r))**1.1
     amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
-    
-    # Brief edge tapers only (full 1 s fade made the last ~1 s sound unnaturally quiet).
-    amplitudes = apply_distance_fade(amplitudes, fade_duration_s=EDGE_FADE_S)
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)

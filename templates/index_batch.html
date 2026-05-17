@@ -782,8 +782,11 @@
         <div style="margin-top: 16px; border-top: 1px solid #30363d; padding-top: 14px;">
           <label class="checkbox-label">
             <input type="checkbox" id="batchAddAirNoise" onchange="toggleBatchAirNoiseControls()">
-            Add subtle ambient air noise to batch clips
+            Add subtle ambient air noise to batch clips (optional)
           </label>
+          <p class="param-label" style="margin: 6px 0 0 24px; font-size: 12px; color: #8b949e;">
+            Benchmark mode defaults this OFF. Re-enable manually if needed.
+          </p>
           <div class="grid-2" style="margin-top: 10px;">
             <div class="param-group">
               <label class="param-label" for="batchAirNoiseStrength">Air Noise Strength (%)</label>
@@ -912,7 +915,7 @@
             <div id="group-single">
               <h4 style="font-size: 13px; color: #58a6ff; margin-bottom: 8px;">Single Vehicle Benchmarks</h4>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B1" onchange="updateSelectAllState()"> B1: Speed Estimation</label>
-              <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B2" onchange="updateSelectAllState()"> B2: Direction Identification</label>
+              <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B2" onchange="toggleBenchmarkExtra('B2'); updateSelectAllState()"> B2: Direction Identification</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B3" onchange="updateSelectAllState()"> B3: Distance Estimation</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B4" onchange="updateSelectAllState()"> B4: Trajectory Localization</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B5" onchange="toggleBenchmarkExtra('B5'); updateSelectAllState()"> B5: Time-to-Event Prediction</label>
@@ -965,12 +968,21 @@
           </div>
       
           <!-- Extra controls for specific benchmarks -->
+          <div id="extra-bench-cpa" class="method-section hidden">
+              <h4>CPA timing (B1-B6 single-vehicle clips)</h4>
+              <p class="param-label" style="margin-bottom: 8px;">Pass-by clips are 10 s with CPA time uniform over the clip (0.5–9.5 s). Non-pass-by clips use the same path type (straight, parabola, or bezier) with a wide miss; CPA time is NA.</p>
+          </div>
+
           <div id="extra-B5" class="method-section hidden">
-              <h4>B5: Time-to-Event Settings</h4>
-              <div class="param-group">
-                  <label class="param-label">Target CPA Time (seconds from start)</label>
-                  <input type="number" id="benchmark_cpa_time" value="5" min="1" max="9">
-              </div>
+              <h4>B5: Time-to-Event</h4>
+              <p class="param-label">Ground-truth cpa_time_sec for pass-by clips only; NA when there is no in-clip closest approach.</p>
+          </div>
+          <div id="extra-B2" class="method-section hidden">
+              <h4>B2: Direction Identification Settings</h4>
+              <label class="checkbox-label">
+                  <input type="checkbox" id="benchmark_alternate_directions" checked>
+                  Generate alternating opposite-direction clips (left-to-right / right-to-left)
+              </label>
           </div>
           <div id="extra-B6" class="method-section hidden">
               <h4>B6: Segmentation Settings</h4>
@@ -2694,9 +2706,30 @@
       }
     }
 
+    function getActiveBenchMode() {
+      const radio = document.querySelector('input[name="benchMode"]:checked');
+      return radio ? radio.value : 'single';
+    }
+
+    function getActiveBenchmarkCheckboxes() {
+      const mode = getActiveBenchMode();
+      return Array.from(
+        document.querySelectorAll(`.benchmark-cb[data-group="${mode}"]`)
+      ).filter((cb) => !cb.disabled);
+    }
+
     function toggleBenchmarkUI() {
       const isEnabled = document.getElementById('enableBenchmarks').checked;
       document.getElementById('benchmarkControls').style.display = isEnabled ? 'block' : 'none';
+      if (isEnabled) {
+        switchBenchGroup(getActiveBenchMode());
+        // Benchmark runs default to clean vehicle audio (no ambient noise bed).
+        const batchNoiseCb = document.getElementById('batchAddAirNoise');
+        if (batchNoiseCb) {
+          batchNoiseCb.checked = false;
+          toggleBatchAirNoiseControls();
+        }
+      }
     }
 
     function toggleBenchmarkExtra(id) {
@@ -2709,6 +2742,19 @@
         } else {
           extra.classList.add('hidden');
         }
+      }
+      updateBenchCpaPanel();
+    }
+
+    function updateBenchCpaPanel() {
+      const singleIds = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'];
+      const anySingle = singleIds.some((id) => {
+        const cb = document.querySelector(`.benchmark-cb[value="${id}"]`);
+        return cb && cb.checked && !cb.disabled;
+      });
+      const panel = document.getElementById('extra-bench-cpa');
+      if (panel) {
+        panel.classList.toggle('hidden', !anySingle);
       }
     }
 
@@ -2782,6 +2828,7 @@
         document.querySelectorAll('.benchmark-cb[data-group="single"]').forEach(cb => {
           cb.disabled = false;
         });
+        updateBenchCpaPanel();
       } else if (group === 'b7') {
         // Enable B7 only
         b7Group.style.opacity = '1';
@@ -2803,7 +2850,7 @@
           cb.checked = false;
           cb.disabled = true;
           const val = cb.value;
-          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
         });
         document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
           cb.checked = false;
@@ -2838,7 +2885,7 @@
           cb.checked = false;
           cb.disabled = true;
           const val = cb.value;
-          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
         });
         document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
           cb.checked = false;
@@ -2877,7 +2924,7 @@
           cb.checked = false;
           cb.disabled = true;
           const val = cb.value;
-          if (['B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
         });
         document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
           cb.checked = false;
@@ -2909,20 +2956,22 @@
 
     function toggleAllBenchmarks(master) {
       const isChecked = master.checked;
-      const checkboxes = document.querySelectorAll('.benchmark-cb:not([disabled])');
-      checkboxes.forEach(cb => {
+      getActiveBenchmarkCheckboxes().forEach((cb) => {
         cb.checked = isChecked;
-        // Trigger extra sections (B5, B6, B8, B9)
         const val = cb.value;
-        if (['B5', 'B6', 'B7', 'B8', 'B9'].includes(val)) {
+        if (['B2', 'B5', 'B6', 'B7', 'B8', 'B9'].includes(val)) {
           toggleBenchmarkExtra(val);
         }
+        if (val === 'B7') {
+          handleB7Click(cb);
+        }
       });
+      updateBenchCpaPanel();
     }
 
     function updateSelectAllState() {
       const master = document.getElementById('selectAllBenchmarks');
-      const checkboxes = document.querySelectorAll('.benchmark-cb:not([disabled])');
+      const checkboxes = getActiveBenchmarkCheckboxes();
       if (checkboxes.length === 0) {
         master.checked = false;
         master.indeterminate = false;
@@ -2941,6 +2990,7 @@
         master.checked = false;
         master.indeterminate = true;
       }
+      updateBenchCpaPanel();
     }
 
     function handleB7Click(cb) {
@@ -3084,8 +3134,8 @@
           selected: selectedBenchmarkValues,
           params: {
             enable_acceleration: b7Enabled,
-            cpa_time: parseFloat(document.getElementById('benchmark_cpa_time').value),
             cpa_window: parseFloat(document.getElementById('benchmark_cpa_window').value),
+            alternate_direction_clips: !!document.getElementById('benchmark_alternate_directions')?.checked,
 
             is_crossing: document.getElementById('benchmark_is_crossing').checked,
             lane_width: parseFloat(document.getElementById('benchLaneWidth').value),
@@ -3199,15 +3249,21 @@
           document.getElementById('resultBox').innerHTML = `<div class="error">Error: ${data.error}</div>`;
         } else {
           document.getElementById('batchTimer').textContent = 'Generation Complete';
+          const requested = data.total_requested ?? data.total_generated;
+          const generated = data.total_generated;
+          const pct = requested > 0 ? Math.round((generated / requested) * 100) : 100;
           document.getElementById('progressFill').style.width = '100%';
-          document.getElementById('progressFill').textContent = `${data.total_generated} / ${data.total_generated} (100%)`;
-          document.getElementById('progressLog').innerHTML += `<br><span class="success">✓ Batch generation complete!</span>`;
+          document.getElementById('progressFill').textContent = `${generated} / ${requested} (${pct}%)`;
+          const failNote = (data.slots_failed > 0)
+            ? `<br><span class="error">${data.slots_failed} slot(s) failed after retries — see log.</span>`
+            : '';
+          document.getElementById('progressLog').innerHTML += `<br><span class="success">✓ Batch generation complete!</span>${failNote}`;
 
           document.getElementById('resultBox').style.display = 'block';
           document.getElementById('resultBox').innerHTML = `
                     <h3 class="success">Batch Generated</h3>
                     <p>Batch ID: ${data.batch_id}</p>
-                    <p>Total Clips: ${data.total_generated}</p>
+                    <p>Clips: ${generated} / ${requested} requested</p>
                     <p>Time Taken: ${data.formatted_time}</p>
                     <p>Output Directory: ${data.batch_directory}</p>
                     <p>Metadata: ${data.metadata_file}</p>
@@ -5844,8 +5900,10 @@
       initCustomPathUI();
       initModeToggle();
       toggleDistribution();
+      toggleBenchmarkUI();
       toggleBatchAirNoiseControls();
       updateBatchAirNoiseStrengthLabel();
+      switchBenchGroup(getActiveBenchMode());
     });
 
     window.addEventListener('resize', resizeCanvas);

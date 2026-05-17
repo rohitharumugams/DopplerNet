@@ -24,27 +24,31 @@ def write_soundfile(path_or_file, data, samplerate, **kwargs):
     with _AUDIO_IO_LOCK:
         sf.write(path_or_file, data, samplerate, **kwargs)
 
-def get_speed_of_sound(temp_c, humidity_rh=50.0):
+def get_speed_of_sound(temp_c, humidity_rh=50.0, p_pa=101325.0):
     """
-    Calculate speed of sound in air (m/s).
-    Formula: c = 331.3 * sqrt(1 + T/273.15)
-    Humidity adjustment: c_wet = c_dry * (1 + 0.16 * e/p)
-    Simplified humidity impact: c increases by ~0.1-0.6 m/s at high humidity.
+    Speed of sound in moist air (m/s) at near-standard pressure.
+
+    Uses saturation vapor pressure (Tetens, liquid water), specific humidity,
+    and c² ≈ γ R_d T (1 + 0.61 w) — the usual ideal-gas / virtual-temperature
+    form (consistent with meteorological acoustics practice; better RH and T
+    dependence than a fixed m/s-per-RH offset).
     """
-    # Base velocity at 0C
-    c_base = 331.3
-    
-    # Temperature effect (most significant)
-    # T in Kelvin: 273.15 + temp_c
-    # c = 331.3 * sqrt(T / 273.15)
-    c_dry = c_base * np.sqrt(1 + temp_c / 273.15)
-    
-    # Humidity effect (minor)
-    # Approx change: 0.1 m/s per 10% RH at 20C
-    # We'll use a linear approximation for humidity since it's a minor factor here
-    humidity_factor = (humidity_rh / 100.0) * 0.6 
-    
-    return c_dry + humidity_factor
+    T_c = float(temp_c)
+    Tk = T_c + 273.15
+    rh = max(0.0, min(float(humidity_rh), 100.0)) / 100.0
+    p = max(1000.0, float(p_pa))
+
+    # Saturation vapor pressure (Pa); Tetens-type, T in °C
+    es = 611.2 * np.exp(17.67 * T_c / (T_c + 243.5))
+    pv = rh * es
+    # Numerical guard: mixture formulas assume unsaturated bulk air
+    pv = min(pv, 0.49 * p)
+    w = 0.62198 * pv / (p - pv + 1e-12)
+
+    R_d = 287.058  # J/(kg·K), specific gas constant for dry air
+    gamma = 1.4
+    c = np.sqrt(gamma * R_d * Tk * (1.0 + 0.61 * w))
+    return float(c)
 
 def load_original_audio(audio_type='horn', duration=5):
     """Load the original audio based on vehicle type and duration"""
@@ -185,14 +189,7 @@ def extend_audio_with_overlap(original_audio, target_duration, sample_rate, star
     else:
         original_for_chunk = original_audio.copy()
 
-    # Optional short fade-in at the very start to avoid clicks
-    fade_in_length = min(int(sample_rate * 0.02), original_length // 10)  # 20ms or 10% of original
-    if fade_in_length > 0:
-        first_chunk = original_for_chunk.copy()
-        fade_in = np.linspace(0, 1, fade_in_length)
-        first_chunk[:fade_in_length] *= fade_in
-    else:
-        first_chunk = original_for_chunk
+    first_chunk = original_for_chunk
 
     # Copy first iteration completely
     first_copy_len = min(original_length, target_length)
@@ -247,12 +244,6 @@ def extend_audio_with_overlap(original_audio, target_duration, sample_rate, star
 
     print(f"  Extended audio using {iteration} iterations with smooth crossfades")
 
-    # Apply gentle fade out at the very end to avoid clicks
-    fade_length = min(int(sample_rate * 0.05), target_length // 20)  # 50ms or 5% of duration
-    if fade_length > 0:
-        fade_out_final = np.linspace(1, 0, fade_length)
-        extended_audio[-fade_length:] *= fade_out_final
-
     return extended_audio
 
 # Keep backward compatibility
@@ -296,14 +287,6 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
         freq_curve = np.convolve(freq_curve, kernel, mode='same')
         amp_curve = np.convolve(amp_curve, kernel, mode='same')
     
-    print("=" * 60)
-    print("APPLYING TRUE DOPPLER SHIFT FOR SPECTROGRAM VISIBILITY")
-    print("=" * 60)
-    print(f"Frequency ratio range: {np.min(freq_curve):.3f} to {np.max(freq_curve):.3f}")
-    print(f"Frequency variation: {np.std(freq_curve):.3f}")
-    print(f"Target output length: {target_length} samples ({target_length/SR:.2f}s)")
-    print(f"Original audio length: {len(original_audio)} samples ({len(original_audio)/SR:.2f}s)")
-    
     # NEW APPROACH: Proper time-domain resampling
     # For each output sample, calculate where to sample from the input
     # freq_ratio > 1 means higher pitch = faster playback = advance faster through input
@@ -312,18 +295,10 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
     # The key insight: we want the OUTPUT to have exactly target_length samples
     # spanning the full duration, and we sample from INPUT based on freq_ratios
     
-    # Build the input sample position for each output sample
-    # Start at position 0, and advance based on freq_ratio at each step
-    input_positions = np.zeros(target_length)
-    
-    for i in range(1, target_length):
-        # The frequency ratio tells us how fast to advance through the input
-        # freq_ratio = 1.0 means advance 1 sample per output sample (normal speed)
-        # freq_ratio = 1.1 means advance 1.1 samples per output sample (10% faster = higher pitch)
-        # freq_ratio = 0.9 means advance 0.9 samples per output sample (10% slower = lower pitch)
-        step = freq_curve[i]
-        input_positions[i] = input_positions[i-1] + step
-    
+    # Cumulative source read positions: pos[i] = sum(freq_curve[1:i+1]), pos[0] = 0.
+    # Vectorized (was a Python loop over ~220k samples per 10 s clip — major bottleneck).
+    input_positions = np.concatenate(([0.0], np.cumsum(freq_curve[1:], dtype=np.float64)))
+
     # Fix: Do not forcefully scale the entire curve to the max input position, 
     # as that artificially pitch shifts the audio by ignoring the true Doppler integral.
     # Only scale if we genuinely run out of input buffer to prevent index bounds errors.
@@ -341,11 +316,6 @@ def apply_true_doppler_shift(original_audio, freq_ratios, amplitudes):
     
     # Apply amplitude modulation
     output *= amp_curve
-    
-    # Verify the effect strength
-    print(f"Input position range: 0 to {input_positions[-1]:.1f} (max: {len(original_audio)-1})")
-    print(f"Output length: {len(output)} samples (target: {target_length})")
-    print(f"Expected strong but smoother frequency sweeps in spectrogram")
     
     return output
 
@@ -515,12 +485,15 @@ def apply_doppler_to_audio_fixed_advanced(original_audio, freq_ratios, amplitude
 
 def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=343.0):
     """
-    Apply observer-time alignment using a retarded-time approximation:
-    t_obs = t_emit + (r - r_cpa)/c.
+    Resample emission-time samples to (approximately) uniform *observer* time using
+    retarded arrival: t_obs = t_emit + r(t_emit) / c.
+
+    Used only for accelerating paths (B7). Subsonic motion keeps t_obs(t_emit)
+    monotone in typical pass-by geometry; samples are sorted and interpolated.
     """
     freq = np.asarray(freq_ratios, dtype=np.float32)
     amp = np.asarray(amplitudes, dtype=np.float32)
-    dist = np.asarray(distances, dtype=np.float32)
+    dist = np.asarray(distances, dtype=np.float64)
     n = min(len(freq), len(amp), len(dist))
     if n < 3:
         return freq, amp
@@ -529,9 +502,9 @@ def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=3
     amp = amp[:n]
     dist = np.maximum(dist[:n], 1e-6)
     dt = 1.0 / float(SR)
-    t_emit = np.arange(n, dtype=np.float32) * dt
-    r_cpa = float(np.min(dist))
-    t_obs = t_emit + (dist - r_cpa) / max(1e-6, float(c_sound))
+    c = max(1e-6, float(c_sound))
+    t_emit = np.arange(n, dtype=np.float64) * dt
+    t_obs = t_emit + dist / c
 
     order = np.argsort(t_obs)
     t_obs = t_obs[order]
@@ -545,7 +518,7 @@ def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=3
     if len(t_unique) < 3:
         return freq_ratios, amplitudes
 
-    out_t = np.linspace(float(t_unique[0]), float(t_unique[-1]), n, endpoint=False, dtype=np.float32)
+    out_t = np.linspace(float(t_unique[0]), float(t_unique[-1]), n, endpoint=False, dtype=np.float64)
     freq_corr = np.interp(out_t, t_unique, freq_unique).astype(np.float32)
     amp_corr = np.interp(out_t, t_unique, amp_unique).astype(np.float32)
     return freq_corr, amp_corr
