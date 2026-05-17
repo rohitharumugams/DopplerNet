@@ -367,8 +367,11 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
         env, sr, hold_s=start_flat_hold_s, ramp_s=start_flat_ramp_s, knee=start_flat_knee
     )
     env_sq = (env * env).astype(np.float32)
-    # Sharper CPA weighting for broadband splash (still smooth — env already Savitzky–Golay filtered).
-    env_splash = np.power(env, 1.65).astype(np.float32)
+    # Gate synthetic layers by distance: quiet when the vehicle is far (reduces abrupt pre-CPA grain).
+    gate_pow = float(np.clip(float(p.get('enrichment_gate_power', 2.0)), 1.0, 4.0))
+    env_gate = np.power(env, gate_pow).astype(np.float32)
+    # CPA broadband splash — slightly softer than before so highs do not jump in one step.
+    env_splash = np.power(env, float(p.get('enrichment_splash_power', 1.35))).astype(np.float32)
 
     out = doppler_audio.astype(np.float32).copy()
 
@@ -381,7 +384,7 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
             output='sos',
         )
         body = signal.sosfilt(sos_body, out)
-        out = out + rng.uniform(0.11, 0.19) * body.astype(np.float32)
+        out = out + rng.uniform(0.11, 0.19) * env_gate * body.astype(np.float32)
     except ValueError:
         pass
 
@@ -394,7 +397,7 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
         band_noise = signal.lfilter(b_bp, a_bp, white).astype(np.float32)
         band_noise /= (np.max(np.abs(band_noise)) + 1e-8)
         texture_level = bb_scale * rng.uniform(0.055, 0.11)
-        out += texture_level * env * band_noise
+        out += texture_level * env_gate * band_noise
 
     # (2) Wow/flutter before distance-dependent coloring (kinematics on sustained spectrum).
     out = _apply_harmonic_jitter(out, sr, rng, amount=wow_flutter_amount)
@@ -410,7 +413,7 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
         b_mid, a_mid = signal.butter(3, [mid_lo, mid_hi], btype='bandpass')
         mid_noise = signal.lfilter(b_mid, a_mid, _pink_noise(n, rng)).astype(np.float32)
         mid_noise /= (np.max(np.abs(mid_noise)) + 1e-8)
-        out += bb_scale * rng.uniform(0.12, 0.20) * (0.28 + 0.72 * env) * mid_noise
+        out += bb_scale * rng.uniform(0.12, 0.20) * env_gate * mid_noise
 
     # (5) CPA broadband air / tire / wind — peaks at closest approach; fills 0.3–8 kHz in the plot.
     for lo_hz, hi_hz, gain_lo, gain_hi in (
@@ -427,12 +430,12 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
         g = bb_scale * rng.uniform(gain_lo, gain_hi)
         out += g * env_splash * layer.astype(np.float32)
 
-    # (6) Scene noise floor — real mics show textured grain across the band, not empty purple.
+    # (6) Scene noise floor — follows vehicle loudness (no full-clip hiss when far away).
     floor_db = rng.uniform(-44.0, -34.0)
     floor_amp = 10.0 ** (floor_db / 20.0)
     ambient = (0.35 * rng.standard_normal(n).astype(np.float32) + 0.65 * _pink_noise(n, rng))
     ambient /= (np.max(np.abs(ambient)) + 1e-8)
-    out += bb_scale * floor_amp * ambient
+    out += bb_scale * floor_amp * env_sq * ambient
 
     # (7) Light reverberation (spreads energy slightly in time/frequency).
     out = _add_light_reverb(out, sr, rng, amount=roadside_reverb_amount)
@@ -1083,15 +1086,15 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     else:
         # Light contour only — level shape comes from path physics (natural pass-by).
         doppler_broaden = float(params.get('doppler_broaden', 1.08))
-        passby_strength = float(params.get('passby_envelope_strength', 0.22))
+        passby_strength = float(params.get('passby_envelope_strength', 0.18))
 
     freq_ratios, amplitudes = _broaden_doppler_curves(freq_ratios, amplitudes, doppler_broaden)
     amplitudes = _enforce_passby_envelope_shape(
         amplitudes,
         strength=passby_strength,
-        attack_gamma=float(params.get('passby_attack_gamma', 1.9)),
+        attack_gamma=float(params.get('passby_attack_gamma', 1.55)),
         release_gamma=float(params.get('passby_release_gamma', 1.45)),
-        edge_floor=float(params.get('passby_edge_floor', 0.09)),
+        edge_floor=float(params.get('passby_edge_floor', 0.04)),
     )
 
     if method == 'spectral':
@@ -1531,7 +1534,16 @@ def save_benchmark_datasets(sample_dir, features, labels, params, config):
 
 def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, index, config, custom_filename=None):
     """Generate a single clip: organized into Common/, Essential/, and Benchmark folders"""
-    doppler_audio, freq_ratios, amplitudes = get_doppler_audio_array(vehicle_name, path_type, params)
+    synth_params = dict(params)
+    bench_cfg = (config.get('benchmarks', {}) or {}) if isinstance(config, dict) else {}
+    if bench_cfg.get('enabled', False):
+        # Slightly cleaner onset for B1–B6 benchmark clips.
+        synth_params.setdefault('enrichment_gate_power', 2.4)
+        synth_params.setdefault('passby_attack_gamma', 1.45)
+        synth_params.setdefault('passby_edge_floor', 0.03)
+    doppler_audio, freq_ratios, amplitudes = get_doppler_audio_array(
+        vehicle_name, path_type, synth_params
+    )
     atm_cfg = config.get('atmosphere', {}) if isinstance(config, dict) else {}
     if bool(atm_cfg.get('add_air_noise', False)):
         noise_strength = float(atm_cfg.get('air_noise_strength', 8.0))
