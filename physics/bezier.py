@@ -191,28 +191,75 @@ def calculate_bezier_doppler(
     xs0, xs1, xs2, xs3 = x0 * phys_scale, x1 * phys_scale, x2 * phys_scale, x3 * phys_scale
     ys0, ys1, ys2, ys3 = y0 * phys_scale, y1 * phys_scale, y2 * phys_scale, y3 * phys_scale
 
+    # Build dense arc-length table for exact mapping
+    N_dense = 10000
+    tau_dense = np.linspace(0.0, 1.0, N_dense)
+    dx_dtau_dense = _cubic_bezier_derivative(tau_dense, xs0, xs1, xs2, xs3)
+    dy_dtau_dense = _cubic_bezier_derivative(tau_dense, ys0, ys1, ys2, ys3)
+    ds_dtau_dense = np.sqrt(dx_dtau_dense**2 + dy_dtau_dense**2)
+    s_dense = np.concatenate(([0.0], np.cumsum(0.5 * (ds_dtau_dense[1:] + ds_dtau_dense[:-1])) * (1.0 / (N_dense - 1))))
+    total_L = s_dense[-1]
+
+    # Time-zero alignment with CPA
+    tau_cpa = _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3)
+    s_cpa = np.interp(tau_cpa, tau_dense, s_dense)
+    
     if cpa_time_s is not None:
-        from physics.cpa_timing import warp_tau_for_cpa
-
-        tau_cpa = _bezier_tau_at_closest_approach(xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3)
-        tau, dtaudt = warp_tau_for_cpa(t, T, float(cpa_time_s), tau_cpa)
-    elif abs(float(accel_mps2)) > 1e-9:
-        # B7 constant-acceleration speed law + integrated progression.
-        v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * t)
-        s_t = np.cumsum(v_t) * dt
-        total_s = max(1e-9, float(s_t[-1]))
-        tau = np.clip(s_t / total_s, 0.0, 1.0)
-        dtaudt = v_t / total_s
+        t_cpa = float(np.clip(cpa_time_s, 0.0, T))
     else:
-        tau = t / T
-        dtaudt = np.full_like(t, 1.0 / T)
-
+        t_cpa = T / 2.0
+    
+    dt_arr = t - t_cpa
+    v_t = np.maximum(1e-3, float(speed_mps) + float(accel_mps2) * dt_arr)
+    s_t = s_cpa + float(speed_mps) * dt_arr + 0.5 * float(accel_mps2) * dt_arr**2
+    
+    # Map physical distance s(t) back to curve parameter tau
+    tau = np.interp(s_t, s_dense, tau_dense)
+    valid_mask = (s_t >= 0.0) & (s_t <= total_L)
+    
     x = _cubic_bezier(tau, xs0, xs1, xs2, xs3)
     y = _cubic_bezier(tau, ys0, ys1, ys2, ys3)
-    dx_dtau = _cubic_bezier_derivative(tau, xs0, xs1, xs2, xs3)
-    dy_dtau = _cubic_bezier_derivative(tau, ys0, ys1, ys2, ys3)
-    vx_raw = dx_dtau * dtaudt
-    vy_raw = dy_dtau * dtaudt
+    
+    dx_dtau_actual = _cubic_bezier_derivative(tau, xs0, xs1, xs2, xs3)
+    dy_dtau_actual = _cubic_bezier_derivative(tau, ys0, ys1, ys2, ys3)
+    ds_dtau_actual = np.maximum(np.sqrt(dx_dtau_actual**2 + dy_dtau_actual**2), 1e-9)
+    
+    # Extrapolate out-of-bounds positions along tangent
+    # At tau = 0
+    dx_0 = _cubic_bezier_derivative(0.0, xs0, xs1, xs2, xs3)
+    dy_0 = _cubic_bezier_derivative(0.0, ys0, ys1, ys2, ys3)
+    ds_0 = max(np.hypot(dx_0, dy_0), 1e-9)
+    ux_0, uy_0 = dx_0 / ds_0, dy_0 / ds_0
+    x_0, y_0 = _cubic_bezier(0.0, xs0, xs1, xs2, xs3), _cubic_bezier(0.0, ys0, ys1, ys2, ys3)
+    
+    mask_before = (s_t < 0.0)
+    x[mask_before] = x_0 + ux_0 * s_t[mask_before]
+    y[mask_before] = y_0 + uy_0 * s_t[mask_before]
+    
+    # At tau = 1
+    dx_1 = _cubic_bezier_derivative(1.0, xs0, xs1, xs2, xs3)
+    dy_1 = _cubic_bezier_derivative(1.0, ys0, ys1, ys2, ys3)
+    ds_1 = max(np.hypot(dx_1, dy_1), 1e-9)
+    ux_1, uy_1 = dx_1 / ds_1, dy_1 / ds_1
+    x_1, y_1 = _cubic_bezier(1.0, xs0, xs1, xs2, xs3), _cubic_bezier(1.0, ys0, ys1, ys2, ys3)
+    
+    mask_after = (s_t > total_L)
+    s_excess = s_t[mask_after] - total_L
+    x[mask_after] = x_1 + ux_1 * s_excess
+    y[mask_after] = y_1 + uy_1 * s_excess
+    
+    # Velocity raw is tangent * v_t
+    vx_raw = np.zeros_like(t)
+    vy_raw = np.zeros_like(t)
+    
+    vx_raw[valid_mask] = (dx_dtau_actual[valid_mask] / ds_dtau_actual[valid_mask]) * v_t[valid_mask]
+    vy_raw[valid_mask] = (dy_dtau_actual[valid_mask] / ds_dtau_actual[valid_mask]) * v_t[valid_mask]
+    
+    vx_raw[mask_before] = ux_0 * v_t[mask_before]
+    vy_raw[mask_before] = uy_0 * v_t[mask_before]
+    
+    vx_raw[mask_after] = ux_1 * v_t[mask_after]
+    vy_raw[mask_after] = uy_1 * v_t[mask_after]
 
     # Rotate path if angle is non-zero
     if angle_deg:
@@ -239,8 +286,9 @@ def calculate_bezier_doppler(
     freq_ratios = c_sound / (c_sound + v_r)
 
     # Combined amplitude with master gain and gamma compression for audibility
-    spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-    convective_amp = (c_sound / (c_sound + v_r))**1.1
-    amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
+    r_ref = 10.0
+    spatial_amp = r_ref / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
+    convective_amp = (c_sound / (c_sound + v_r))**1.0
+    amplitudes = (spatial_amp * convective_amp)**0.7
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)

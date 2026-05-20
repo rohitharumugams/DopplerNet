@@ -158,6 +158,32 @@
       gap: 20px;
     }
 
+    .grid-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .accel-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      cursor: not-allowed;
+    }
+
+    .section-disabled {
+      opacity: 0.6;
+    }
+
+    @keyframes highlightWarning {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); color: #ff9e96; }
+      100% { transform: scale(1); }
+    }
+
     .btn {
       background-color: #238636;
       color: white;
@@ -653,6 +679,17 @@
     <div id="batchMode">
 
       <div class="section">
+        <h3 class="section-title">Simulation Mode</h3>
+        <div class="param-group">
+          <label class="param-label" for="simulationMode">Physics Mode:</label>
+          <select id="simulationMode" style="width: 100%;">
+            <option value="cv">Constant Velocity (CV) - Pure constant speed</option>
+            <option value="ca">Constant Acceleration (CA) - Physically verified varying speed</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
         <h3 class="section-title">Path Types</h3>
 
         <label class="checkbox-label">
@@ -711,7 +748,7 @@
         <div id="vehicleSelectionCheckboxes"></div>
       </div>
 
-      <div class="grid-3">
+      <div class="grid-4">
         <div class="section">
           <h3 class="section-title">Speed</h3>
           <p class="param-label">Each clip will use a random speed between these values.</p>
@@ -724,6 +761,26 @@
           <div class="param-group">
             <label class="param-label">Maximum Speed (1-100 m/s)</label>
             <input type="number" id="speedMax" value="50" min="1" max="100">
+          </div>
+        </div>
+
+        <div class="section" id="accelerationSection" style="position: relative;">
+          <div id="accelerationOverlay" class="accel-overlay" style="display: none;"></div>
+          <h3 class="section-title">Acceleration</h3>
+          <p class="param-label">Each clip will use a random acceleration between these values.</p>
+
+          <div class="param-group">
+            <label class="param-label" id="labelAccelMin">Minimum Acceleration (-8 to 8 m/s²)</label>
+            <input type="number" id="accelMin" value="0" min="-8" max="8" step="0.1">
+          </div>
+
+          <div class="param-group">
+            <label class="param-label" id="labelAccelMax">Maximum Acceleration (-8 to 8 m/s²)</label>
+            <input type="number" id="accelMax" value="0" min="-8" max="8" step="0.1">
+          </div>
+
+          <div id="accelWarning" style="color: #ff7b72; font-size: 12px; margin-top: 8px; line-height: 1.4; display: none; font-weight: 500;">
+            ⚠️ Acceleration can only be modified in Constant Acceleration mode.
           </div>
         </div>
 
@@ -1582,7 +1639,7 @@
             <h4>Audio Duration</h4>
             <div class="param-group">
               <label class="param-label" for="audio_duration">Output Duration (seconds):</label>
-              <input name="audio_duration" type="number" id="audio_duration" step="any" value="5" min="1" max="20"
+              <input name="audio_duration" type="number" id="audio_duration" step="any" value="10" min="1" max="20"
                 oninput="updateDistance(); drawPath();">
             </div>
             <div class="method-info">
@@ -3074,8 +3131,16 @@
       const accMax = Number.isFinite(b7MaxInput) ? b7MaxInput : 2.5;
 
       const benchMode = (document.querySelector('input[name="benchMode"]:checked') || {}).value || 'single';
+      const simulationMode = document.getElementById('simulationMode') ? document.getElementById('simulationMode').value : 'cv';
+
+      // Read global Acceleration inputs with strict physics hard bounds [-8.0, 8.0]
+      const accelMinRaw = clamp(document.getElementById('accelMin')?.value || 0, -8, 8, 0);
+      const accelMaxRaw = clamp(document.getElementById('accelMax')?.value || 0, -8, 8, 0);
+      const accelMinVal = Math.min(accelMinRaw, accelMaxRaw);
+      const accelMaxVal = Math.max(accelMinRaw, accelMaxRaw);
 
       const config = {
+        simulation_mode: simulationMode,
         output: {
           format: document.querySelector('input[name="outputFormat"]:checked').value,
           path: document.getElementById('savePath').textContent,
@@ -3120,9 +3185,10 @@
           air_noise_frequency_hz: parseFloat(document.getElementById('batchAirNoiseFrequencyHz')?.value || '1200')
         },
         acceleration: {
-          randomize: b7Enabled,
-          min: Math.min(accMin, accMax),
-          max: Math.max(accMin, accMax)
+          randomize: simulationMode === 'ca' || b7Enabled,
+          min: simulationMode === 'ca' ? accelMinVal : (b7Enabled ? Math.min(accMin, accMax) : 0.0),
+          max: simulationMode === 'ca' ? accelMaxVal : (b7Enabled ? Math.max(accMin, accMax) : 0.0),
+          value: 0.0
         },
         batch: {
           total_clips: parseInt(document.getElementById('totalClips').value),
@@ -3690,6 +3756,78 @@
       drawPath();
     }
 
+    function initAccelerationUI() {
+      const simModeSelect = document.getElementById('simulationMode');
+      const accelMin = document.getElementById('accelMin');
+      const accelMax = document.getElementById('accelMax');
+      const overlay = document.getElementById('accelerationOverlay');
+      const warning = document.getElementById('accelWarning');
+      const section = document.getElementById('accelerationSection');
+
+      if (!simModeSelect || !accelMin || !accelMax) return;
+
+      function updateUIState() {
+        const mode = simModeSelect.value;
+        if (mode === 'cv') {
+          accelMin.value = 0.0;
+          accelMax.value = 0.0;
+          accelMin.disabled = true;
+          accelMax.disabled = true;
+          accelMin.style.backgroundColor = '#21262d';
+          accelMin.style.color = '#8b949e';
+          accelMin.style.cursor = 'not-allowed';
+          accelMax.style.backgroundColor = '#21262d';
+          accelMax.style.color = '#8b949e';
+          accelMax.style.cursor = 'not-allowed';
+          overlay.style.display = 'block';
+          section.classList.add('section-disabled');
+        } else {
+          accelMin.disabled = false;
+          accelMax.disabled = false;
+          accelMin.style.backgroundColor = '';
+          accelMin.style.color = '';
+          accelMin.style.cursor = '';
+          accelMax.style.backgroundColor = '';
+          accelMax.style.color = '';
+          accelMax.style.cursor = '';
+          overlay.style.display = 'none';
+          warning.style.display = 'none';
+          section.classList.remove('section-disabled');
+
+          accelMin.value = -3.5;
+          accelMax.value = 2.5;
+        }
+      }
+
+      function enforceAccelLimits(e) {
+        let val = parseFloat(e.target.value);
+        if (isNaN(val)) return;
+        if (val < -8.0) {
+          e.target.value = -8.0;
+        } else if (val > 8.0) {
+          e.target.value = 8.0;
+        }
+      }
+
+      simModeSelect.addEventListener('change', updateUIState);
+
+      overlay.addEventListener('click', () => {
+        if (simModeSelect.value === 'cv') {
+          warning.style.display = 'block';
+          warning.style.animation = 'none';
+          warning.offsetHeight; /* trigger reflow */
+          warning.style.animation = 'highlightWarning 0.5s ease';
+        }
+      });
+
+      accelMin.addEventListener('change', enforceAccelLimits);
+      accelMax.addEventListener('change', enforceAccelLimits);
+      accelMin.addEventListener('input', enforceAccelLimits);
+      accelMax.addEventListener('input', enforceAccelLimits);
+
+      updateUIState();
+    }
+
     function loadPresetProfile(presetName) {
       const preset = PRESET_PROFILES[presetName];
       if (!preset) return;
@@ -3726,7 +3864,7 @@
 
       const timeStr = timeElement.value;
       const speedStr = speedElement.value;
-      const duration = parseFloat(durationElement.value) || 5;
+      const duration = parseFloat(durationElement.value) || 10;
 
       if (!timeStr || !speedStr) {
         validationDiv.classList.add("hidden");
@@ -3884,7 +4022,7 @@
 
       if (!durationElement || !distanceElement || !pathElement || !modeElement) return;
 
-      const duration = parseFloat(durationElement.value) || 5;
+      const duration = parseFloat(durationElement.value) || 10;
       const path = pathElement.value;
       const mode = modeElement.value;
 
@@ -4049,7 +4187,7 @@
       if (!pathElement || !durationElement || !modeElement) return;
 
       const path = pathElement.value;
-      const duration = parseFloat(durationElement.value) || 5;
+      const duration = parseFloat(durationElement.value) || 10;
       const mode = modeElement.value;
 
       let currentX = 0, currentY = 0;
@@ -5904,6 +6042,7 @@
       toggleBatchAirNoiseControls();
       updateBatchAirNoiseStrengthLabel();
       switchBenchGroup(getActiveBenchMode());
+      initAccelerationUI();
     });
 
     window.addEventListener('resize', resizeCanvas);

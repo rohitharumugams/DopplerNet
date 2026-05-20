@@ -101,8 +101,9 @@ def calculate_map_trajectory_doppler(points, speed_mps, duration_s, observer_pos
             v_r = np.sum(v * p_rel, axis=0) / np.maximum(r, 1e-9)
 
     freq_ratios = c_sound / (c_sound + v_r)
-    spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-    convective_amp = (c_sound / (c_sound + v_r))**1.1
-    amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
+    r_ref = 10.0
+    spatial_amp = r_ref / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
+    convective_amp = (c_sound / (c_sound + v_r))**1.0
+    amplitudes = (spatial_amp * convective_amp)**0.7
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)

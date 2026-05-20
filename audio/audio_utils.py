@@ -506,10 +506,17 @@ def apply_retarded_time_correction(freq_ratios, amplitudes, distances, c_sound=3
     t_emit = np.arange(n, dtype=np.float64) * dt
     t_obs = t_emit + dist / c
 
-    order = np.argsort(t_obs)
-    t_obs = t_obs[order]
-    freq = freq[order]
-    amp = amp[order]
+    # Retarded time must be strictly monotonically increasing for subsonic vehicles.
+    # We must NEVER use np.argsort to mask folding, as folding implies unphysical kinematics
+    # (e.g. supersonic speeds or trajectory discontinuities).
+    diffs = np.diff(t_obs)
+    if np.any(diffs < 0):
+        # Allow a tiny floating point margin before failing (1 ns)
+        if np.any(diffs < -1e-8):
+            raise ValueError("Retarded time folded. Supersonic or unphysical trajectory detected.")
+        else:
+            # Fix minor floating point non-monotonicity by strictly non-decreasing
+            t_obs = np.maximum.accumulate(t_obs)
 
     # Deduplicate possible equal timestamps for stable interpolation.
     t_unique, unique_idx = np.unique(t_obs, return_index=True)

@@ -91,9 +91,9 @@ def parse_single_clip_simulation_form(form):
 
     _dur_raw = form.get('audio_duration')
     try:
-        duration = float(_dur_raw) if _dur_raw not in (None, '') else 5.0
+        duration = float(_dur_raw) if _dur_raw not in (None, '') else 10.0
     except (TypeError, ValueError):
-        duration = 5.0
+        duration = 10.0
     duration = float(max(0.5, min(300.0, duration)))
 
     params = {

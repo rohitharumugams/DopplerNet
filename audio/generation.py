@@ -769,22 +769,50 @@ def generate_random_parameters(
         params['y1'] = dist + get_sampler("by1_gen", -2, 5)
         params['y2'] = dist + get_sampler("by2_gen", -2, 5)
 
-    # -------- ACCELERATION (B7) --------
-    bench_cfg = config.get('benchmarks', {})
-    selected_benchmarks = bench_cfg.get('selected', [])
-    bench_params = bench_cfg.get('params', {})
-    b7_enabled = ('B7' in selected_benchmarks) and bool(bench_params.get('enable_acceleration', False))
-    use_accel_randomization = b7_enabled or (
-        not bench_cfg.get('enabled', False) and config.get('acceleration', {}).get('randomize', False)
-    )
-    if use_accel_randomization:
-        # Default to a small range if not specified
+    # -------- ACCELERATION (CV / CA Modes) --------
+    sim_mode = str(config.get('simulation_mode', 'cv')).lower()
+    params['simulation_mode'] = sim_mode
+
+    if sim_mode == 'cv':
+        # Constant Velocity (CV) Mode: Force acceleration to exactly 0.0
+        params['acceleration'] = 0.0
+    else:
+        # Constant Acceleration (CA) Mode: Enable randomized acceleration
+        bench_cfg = config.get('benchmarks', {})
+        selected_benchmarks = bench_cfg.get('selected', [])
+        
         acc_cfg = config.get('acceleration', {})
-        amin, amax = acc_cfg.get('min', -5), acc_cfg.get('max', 5)
+        amin_raw = acc_cfg.get('min', -3.5)
+        amax_raw = acc_cfg.get('max', 2.5)
+
+        # Enforce global bounds [-8.0, 8.0]
+        amin = max(-8.0, min(8.0, float(amin_raw)))
+        amax = max(-8.0, min(8.0, float(amax_raw)))
+            
         lo, hi = int(min(amin, amax)), int(max(amin, amax))
         params['acceleration'] = get_sampler("acceleration", lo, hi)
-    else:
-        params['acceleration'] = config.get('acceleration', {}).get('value', 0.0)
+
+    # --- KINEMATIC & IDENTIFIABILITY VALIDATION ---
+    accel = float(params.get('acceleration', 0.0))
+    if abs(accel) > 1e-9:
+        v_cpa = float(params.get('speed', 1.0))
+        d_cpa = float(params.get('distance', params.get('h', 1.0)))
+        dur = float(params.get('duration', 10.0))
+        
+        # 1. Effective acceleration identifiability metric
+        v_cpa_sq = max(v_cpa**2, 1e-6)
+        alpha_eff = abs(accel) * d_cpa / v_cpa_sq
+        if alpha_eff < 0.05:
+            raise ValueError(f"Acceleration too weak for distance/speed (alpha_eff={alpha_eff:.3f} < 0.05)")
+        
+        # 2. No Reversal / Speed Limit constraint
+        # Determine the maximum time from CPA. In the worst case, t_cpa could be 0 or dur.
+        # Ensure velocity is strictly positive throughout the whole duration.
+        v_start = v_cpa - accel * dur
+        v_end = v_cpa + accel * dur
+        
+        if v_start < 1.0 or v_end < 1.0:
+            raise ValueError(f"Trajectory contains unphysical reversal or near-stop speeds. v_start={v_start:.1f}, v_end={v_end:.1f}")
 
     # -------- ATMOSPHERE --------
     tmin, tmax = DEFAULT_RANGES['temperature']

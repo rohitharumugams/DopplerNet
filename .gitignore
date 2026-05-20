@@ -21,6 +21,8 @@ static/batch_outputs/
 static/single_outputs/
 static/spectrograms/
 static/vehicle_sounds_raw/
+benchmarks/test_output/
+
 
 # IDE
 .vscode/
@@ -36,8 +38,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Local Notes
+# Local Notes and Tests
 ref_docs/
+*.pdf
+*test*.py
 
 # LaTeX paper (local draft)
 latex/

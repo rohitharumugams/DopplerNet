@@ -53,9 +53,10 @@ def calculate_straight_line_track_doppler(
     v_r = (v_vec_x * x + v_vec_y * y) / r_safe
 
     freq_ratios = c_sound / (c_sound + v_r)
-    spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-    convective_amp = (c_sound / (c_sound + v_r)) ** 1.1
-    amplitudes = (10.0 * spatial_amp * convective_amp) ** 0.7
+    r_ref = 10.0
+    spatial_amp = r_ref / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
+    convective_amp = (c_sound / (c_sound + v_r)) ** 1.0
+    amplitudes = (spatial_amp * convective_amp) ** 0.7
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)
 
 
@@ -104,8 +105,9 @@ def calculate_straight_line_accelerated_doppler(
     v_r = (v_x * x + v_y * y) / r_safe
     
     freq_ratios = c_sound / (c_sound + v_r)
-    spatial_amp = 1.0 / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
-    convective_amp = (c_sound / (c_sound + v_r))**1.1
-    amplitudes = (10.0 * spatial_amp * convective_amp)**0.7
+    r_ref = 10.0
+    spatial_amp = r_ref / np.sqrt(r**2 + NEAR_FIELD_RADIUS**2)
+    convective_amp = (c_sound / (c_sound + v_r))**1.0
+    amplitudes = (spatial_amp * convective_amp)**0.7
     
     return freq_ratios.astype(np.float32), amplitudes.astype(np.float32)
