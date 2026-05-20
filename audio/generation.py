@@ -46,13 +46,15 @@ def _preflight_vehicle_spectrum(y, sr):
     hp_hz = 45.0
     try:
         sos_hp = signal.butter(2, hp_hz, btype='high', output='sos', fs=float(sr))
-        x_hp = signal.sosfilt(sos_hp, x)
+        zi_hp = signal.sosfilt_zi(sos_hp) * x[0]
+        x_hp, _ = signal.sosfilt(sos_hp, x, zi=zi_hp)
         # Less raw sub bleed — roadside captures usually sound “fuller” ~120–200 Hz than library WAVs.
         x_mix = 0.86 * x_hp + 0.14 * x
     except TypeError:
         try:
             sos_hp = signal.butter(2, min(0.99, hp_hz / nyq), btype='high', output='sos')
-            x_hp = signal.sosfilt(sos_hp, x)
+            zi_hp = signal.sosfilt_zi(sos_hp) * x[0]
+            x_hp, _ = signal.sosfilt(sos_hp, x, zi=zi_hp)
             x_mix = 0.86 * x_hp + 0.14 * x
         except ValueError:
             x_mix = x.copy()
@@ -62,12 +64,14 @@ def _preflight_vehicle_spectrum(y, sr):
     if hi_hz > lo_hz + 20.0:
         try:
             sos_b = signal.butter(2, [lo_hz, hi_hz], btype='band', output='sos', fs=float(sr))
-            band = signal.sosfilt(sos_b, x_mix)
+            zi_b = signal.sosfilt_zi(sos_b) * x_mix[0]
+            band, _ = signal.sosfilt(sos_b, x_mix, zi=zi_b)
             x_mix = x_mix + 0.30 * band.astype(np.float32)
         except TypeError:
             try:
                 sos_b = signal.butter(2, [lo_hz / nyq, hi_hz / nyq], btype='band', output='sos')
-                band = signal.sosfilt(sos_b, x_mix)
+                zi_b = signal.sosfilt_zi(sos_b) * x_mix[0]
+                band, _ = signal.sosfilt(sos_b, x_mix, zi=zi_b)
                 x_mix = x_mix + 0.30 * band.astype(np.float32)
             except ValueError:
                 pass
@@ -78,14 +82,16 @@ def _preflight_vehicle_spectrum(y, sr):
     if road_hi > road_lo + 25.0:
         try:
             sos_r = signal.butter(2, [road_lo, road_hi], btype='band', output='sos', fs=float(sr))
-            road_body = signal.sosfilt(sos_r, x_mix)
+            zi_r = signal.sosfilt_zi(sos_r) * x_mix[0]
+            road_body, _ = signal.sosfilt(sos_r, x_mix, zi=zi_r)
             x_mix = x_mix + 0.16 * road_body.astype(np.float32)
         except (TypeError, ValueError):
             try:
                 sos_r = signal.butter(
                     2, [road_lo / nyq, road_hi / nyq], btype='band', output='sos'
                 )
-                road_body = signal.sosfilt(sos_r, x_mix)
+                zi_r = signal.sosfilt_zi(sos_r) * x_mix[0]
+                road_body, _ = signal.sosfilt(sos_r, x_mix, zi=zi_r)
                 x_mix = x_mix + 0.16 * road_body.astype(np.float32)
             except ValueError:
                 pass
@@ -383,7 +389,8 @@ def _enrich_spectral_realism(doppler_audio, amplitudes, sr, rng, params=None):
             btype='band',
             output='sos',
         )
-        body = signal.sosfilt(sos_body, out)
+        zi_body = signal.sosfilt_zi(sos_body) * out[0]
+        body, _ = signal.sosfilt(sos_body, out, zi=zi_body)
         out = out + rng.uniform(0.11, 0.19) * env_gate * body.astype(np.float32)
     except ValueError:
         pass
@@ -878,17 +885,26 @@ def generate_random_parameters(
 
     # Non-benchmark pass-by geometry (benchmark path configured in configure_benchmark_motion).
     bench_enabled = bool(bench_cfg.get('enabled', False))
-    if params.get('pass_by_in_clip', True) and path_type in ('straight', 'parabola', 'bezier'):
-        if not bench_enabled:
+
+    forced = params.pop("_motion_pass_by", None)
+    if forced is not None:
+        params['pass_by_in_clip'] = bool(forced)
+
+    # If the benchmark already configured motion (i.e. we called configure_benchmark_motion), it already consumed _motion_pass_by.
+    # If forced is NOT None, it means configure_benchmark_motion was skipped, so we configure manually.
+    if forced is not None or not bench_enabled:
+        if params.get('pass_by_in_clip', True) and path_type in ('straight', 'parabola', 'bezier'):
             from physics.off_pass import configure_passby_for_path
-
             configure_passby_for_path(params, path_type)
-        if 'target_cpa_time' not in params:
-            from physics.cpa_timing import sample_benchmark_cpa_time
-
-            t_cpa = sample_benchmark_cpa_time({}, params['duration'])
-            params['target_cpa_time'] = t_cpa
-            params['cpa_time'] = t_cpa
+            if 'target_cpa_time' not in params:
+                from physics.cpa_timing import sample_benchmark_cpa_time
+                t_cpa = sample_benchmark_cpa_time({}, params['duration'])
+                params['target_cpa_time'] = t_cpa
+                params['cpa_time'] = t_cpa
+        elif not params.get('pass_by_in_clip', True) and path_type in ('straight', 'parabola', 'bezier'):
+            from physics.off_pass import configure_miss_for_path, sample_benchmark_motion_scenario
+            scenario = sample_benchmark_motion_scenario(force_pass_by=False)
+            configure_miss_for_path(params, scenario, path_type)
 
     return params
 
@@ -1135,7 +1151,7 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     # Propagation delay (arrival-time realism): shift waveform by r0 / c_sound,
     # where r0 is source-observer distance at path start.
     # This adds travel-time latency without altering Doppler physics itself.
-    if bool(params.get('apply_propagation_delay', True)):
+    if bool(params.get('apply_propagation_delay', False)):
         try:
             obs = np.array(params.get('observer_pos', (0.0, 0.0)), dtype=float)
             r0 = None
@@ -1206,6 +1222,13 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
     seed = int(np.random.randint(0, 2**31 - 1))
     rng = np.random.default_rng(seed)
     doppler_audio = _enrich_spectral_realism(doppler_audio, amplitudes, SR, rng, params)
+
+    # Apply a 30ms half-cosine fade-in to eliminate any residual startup clicks
+    fade_samples = int(0.030 * SR)
+    if len(doppler_audio) > fade_samples and fade_samples > 0:
+        t_fade = np.arange(fade_samples)
+        fade_curve = 0.5 * (1.0 - np.cos(np.pi * t_fade / fade_samples))
+        doppler_audio[:fade_samples] = doppler_audio[:fade_samples] * fade_curve
 
     return doppler_audio, freq_ratios, amplitudes
 
@@ -1673,7 +1696,9 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
             'max': float(np.max(freq_ratios))
         },
         'path_plot': f"{base_name}.png",
-        'sample_dir': f'sample_{index:07d}'
+        'sample_dir': f'sample_{index:07d}',
+        'acceleration': float(params.get('acceleration', 0.0)),
+        'pass_by_in_clip': bool(params.get('pass_by_in_clip', True))
     }
 
 
@@ -1772,10 +1797,30 @@ def generate_statistics(clips_metadata, config):
         elif 'offset' in params: # B8/B9 fallback
             distances.append(abs(params['offset']))
         elif 'h' in params: # Parabola fallback
-            distances.append(params['h'])
-            
-    format_stats("Distance Statistics", distances, "m")
+            distances.append(abs(params['h']))
+    format_stats("CPA Distance Statistics", distances, "m")
     stats.append("")
+
+    stats.append("Pass-by Distribution:")
+    pass_by_count = sum(1 for clip in clips_metadata if clip.get('pass_by_in_clip', True))
+    non_pass_by_count = total_clips - pass_by_count
+    stats.append(f"  Pass-by: {pass_by_count} clips ({pass_by_count / total_clips * 100:.1f}%)")
+    stats.append(f"  Non Pass-by: {non_pass_by_count} clips ({non_pass_by_count / total_clips * 100:.1f}%)")
+    stats.append("")
+
+    stats.append("Acceleration Mode (CV/CA):")
+    cv_count = 0
+    ca_count = 0
+    for clip in clips_metadata:
+        accel = clip.get('acceleration', clip.get('parameters', {}).get('acceleration', 0.0))
+        if abs(accel) < 1e-6:
+            cv_count += 1
+        else:
+            ca_count += 1
+    stats.append(f"  Constant Velocity (CV): {cv_count} clips ({cv_count / total_clips * 100:.1f}%)")
+    stats.append(f"  Constant Acceleration (CA): {ca_count} clips ({ca_count / total_clips * 100:.1f}%)")
+    stats.append("")
+
 
     # Duration statistics
     durations = [clip['parameters']['duration'] for clip in clips_metadata if clip.get('parameters') and 'duration' in clip['parameters']]

@@ -194,7 +194,7 @@ def generate_labels(batch_outputs_dir, output_csv):
                     'sample_id': sample_folder,
                     'batch_id': batch_id,
                     'speed_mps': labels.get('speed_mps', params.get('speed', 0)),
-                    'acceleration_mps2': labels.get('acceleration_mps2', params.get('acceleration', 0.0)), # B7
+                    'acceleration': clip.get('acceleration', labels.get('acceleration', params.get('acceleration', 0.0))), # B7
                     'cpa_distance_m': labels.get('cpa_distance_m', params.get('distance', 0)),
                     'trajectory_type': labels.get('trajectory_type', clip.get('path_type')),
                     'direction_label': labels.get('direction_label', direction), # B2
@@ -215,9 +215,9 @@ def generate_labels(batch_outputs_dir, output_csv):
     if not samples:
         print("Warning: No metadata samples found!")
         df = pd.DataFrame(columns=[
-            'sample_id', 'batch_id', 'speed_mps', 'acceleration_mps2', 'cpa_distance_m',
+            'sample_id', 'batch_id', 'speed_mps', 'acceleration', 'cpa_distance_m',
             'trajectory_type', 'direction_label', 'vehicle_class', 'num_sources',
-            'cpa_time_sec', 'audio_path', 'path_plot', 'spectrogram_plot',
+            'cpa_time_sec', 'pass_by_in_clip', 'audio_path', 'path_plot', 'spectrogram_plot',
         ])
     else:
         df = pd.DataFrame(samples)

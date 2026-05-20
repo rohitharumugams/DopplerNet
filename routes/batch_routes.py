@@ -426,15 +426,17 @@ def batch_generate():
 
         bench_cfg_early = config.get('benchmarks', {}) or {}
         bench_params_early = bench_cfg_early.get('params', {}) or {}
-        if is_single_vehicle_benchmark_active(bench_cfg_early):
-            pass_by_frac = float(bench_params_early.get('pass_by_fraction', 0.80))
-            pass_by_frac = max(0.0, min(1.0, pass_by_frac))
-            n_miss_clips = int(round(total_clips * (1.0 - pass_by_frac)))
-            n_miss_clips = max(0, min(total_clips, n_miss_clips))
-            motion_pass_by_flags = [True] * (total_clips - n_miss_clips) + [False] * n_miss_clips
-            random.shuffle(motion_pass_by_flags)
-        else:
-            motion_pass_by_flags = [True] * total_clips
+        # Unconditionally enforce 8:2 distribution (8 True, 2 False) block by block for single-source pass-by logic
+        motion_pass_by_flags = []
+        for j in range(0, total_clips, 10):
+            block_size = min(10, total_clips - j)
+            if block_size == 10:
+                block = [True] * 8 + [False] * 2
+            else:
+                n_pass = int(round(block_size * 0.8))
+                block = [True] * n_pass + [False] * (block_size - n_pass)
+            random.shuffle(block)
+            motion_pass_by_flags.extend(block)
 
         def _apply_direction_variant(path_kind, clip_params, want_reverse):
             """Force clip motion direction for direction-classification benchmarks."""
@@ -953,8 +955,8 @@ def batch_generate():
         dataset_file = os.path.join(batch_dir, 'dataset.csv')
         csv_headers = [
             'sample_id', 'batch_id', 'filename', 'vehicle_class', 'trajectory_type',
-            'speed_mps', 'direction_label', 'direction_text', 'cpa_distance_m', 'cpa_time_sec',
-            'num_sources', 'is_crossing'
+            'speed_mps', 'acceleration', 'direction_label', 'direction_text', 'cpa_distance_m', 'cpa_time_sec',
+            'num_sources', 'is_crossing', 'pass_by_in_clip'
         ]
         
         with open(dataset_file, 'w', newline='') as f:
@@ -969,12 +971,14 @@ def batch_generate():
                     'vehicle_class': labels.get('vehicle_class', ''),
                     'trajectory_type': labels.get('trajectory_type', ''),
                     'speed_mps': labels.get('speed_mps', 0.0),
+                    'acceleration': clip.get('acceleration', labels.get('acceleration', 0.0)),
                     'direction_label': labels.get('direction_label', 0),
                     'direction_text': labels.get('direction_text', ''),
                     'cpa_distance_m': labels.get('cpa_distance_m', 0.0),
                     'cpa_time_sec': labels.get('cpa_time_sec', 5.0),
                     'num_sources': labels.get('num_sources', 1),
-                    'is_crossing': labels.get('is_crossing', False)
+                    'is_crossing': labels.get('is_crossing', False),
+                    'pass_by_in_clip': str(clip.get('pass_by_in_clip', True)).lower()
                 })
 
         # Save log
