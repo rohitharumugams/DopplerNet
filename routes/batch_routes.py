@@ -2,6 +2,7 @@ import os
 import json
 import math
 import random
+import shutil
 import time
 import traceback
 import base64
@@ -16,6 +17,11 @@ from flask import Blueprint, request, jsonify, send_from_directory
 from core.config import OUTPUT_FOLDER
 from core.sampler import SAMPLERS
 from core.progress import load_progress, save_progress
+from core.batch_parallel import (
+    resolve_batch_worker_count,
+    run_planned_jobs_parallel,
+    finalize_staged_clip,
+)
 from audio.generation import (
     validate_batch_config,
     calculate_distribution,
@@ -310,6 +316,97 @@ def _run_linear_overlap_batch(config, start_time):
     })
 
 
+def _plan_single_clip_job(
+    config,
+    vehicle_name,
+    path_type,
+    clip_index,
+    total_clips,
+    motion_pass_by,
+    slot_index,
+    apply_direction_variant,
+):
+    """Sequential parameter draw (SAMPLERS); synthesis happens in a worker."""
+    params = generate_random_parameters(
+        config,
+        vehicle_name,
+        path_type,
+        clip_index=clip_index,
+        total_clips=total_clips,
+        motion_pass_by=motion_pass_by,
+    )
+    path_type_use = params.pop('_force_path_type', path_type)
+    params.pop('_clip_index', None)
+    params.pop('_total_clips', None)
+    params.pop('_motion_pass_by', None)
+
+    bench_cfg = config.get('benchmarks', {}) or {}
+    bench_selected = bench_cfg.get('selected', []) or []
+    bench_params = bench_cfg.get('params', {}) or {}
+    direction_benchmark_active = (
+        bool(bench_cfg.get('enabled', False))
+        and ('B2' in bench_selected)
+        and bool(bench_params.get('alternate_direction_clips', False))
+    )
+    if direction_benchmark_active:
+        apply_direction_variant(path_type_use, params, want_reverse=(slot_index % 2 == 1))
+
+    return {
+        'kind': 'single',
+        'vehicle_name': vehicle_name,
+        'path_type': path_type_use,
+        'params': params,
+    }
+
+
+def _run_single_clip_sequential_fallback(
+    config,
+    vehicle_name,
+    path_type,
+    audio_dir,
+    batch_id,
+    output_clip_index,
+    total_clips,
+    motion_pass_by,
+    slot_index,
+    apply_direction_variant,
+):
+    """Same retry loop as pre-parallel batch (regenerates params on failure)."""
+    last_err = None
+    for attempt in range(8):
+        try:
+            planned = _plan_single_clip_job(
+                config,
+                vehicle_name,
+                path_type,
+                slot_index + 1,
+                total_clips,
+                motion_pass_by,
+                slot_index,
+                apply_direction_variant,
+            )
+            return generate_single_clip(
+                planned['vehicle_name'],
+                planned['path_type'],
+                planned['params'],
+                audio_dir,
+                batch_id,
+                output_clip_index,
+                config,
+            ), planned['path_type']
+        except Exception as e:
+            last_err = e
+            if attempt == 7:
+                raise
+    raise last_err or RuntimeError('clip generation failed')
+
+
+def _remove_staging_sample(audio_dir, staging_index):
+    staging_dir = os.path.join(audio_dir, f'sample_{staging_index:07d}')
+    if os.path.isdir(staging_dir):
+        shutil.rmtree(staging_dir, ignore_errors=True)
+
+
 @batch_bp.route('/api/batch_generate', methods=['POST'])
 def batch_generate():
     """Generate batch of Doppler simulations"""
@@ -419,7 +516,7 @@ def batch_generate():
 
         clips_metadata = []
         generation_log = []
-        clip_index = 1
+        planned_jobs = []
         slots_failed = 0
 
         from physics.cpa_timing import is_single_vehicle_benchmark_active
@@ -642,12 +739,18 @@ def batch_generate():
                                 'direction': 1,
                             })
 
-                        result = generate_multi_object_clip(
-                            v_configs, audio_dir, batch_id, clip_index, config,
-                            observer_pos=observer_pos, road_curve_a=road_curve_a,
-                            road_y_center=road_y_center,
-                            intersection_angle=intersection_angle
-                        )
+                        planned_jobs.append((i, {
+                            'kind': 'multi',
+                            'v_configs': v_configs,
+                            'audio_dir': audio_dir,
+                            'batch_id': batch_id,
+                            'clip_index': i + 1,
+                            'config': config,
+                            'observer_pos': list(observer_pos),
+                            'road_curve_a': road_curve_a,
+                            'road_y_center': road_y_center,
+                            'intersection_angle': intersection_angle,
+                        }))
                     else:
                         # Force even vehicle count for equal distribution across lanes.
                         if num_sources % 2 != 0:
@@ -873,61 +976,41 @@ def batch_generate():
                                 'speed': speed,
                             })
                         
-                        result = generate_multi_object_clip(
-                            v_configs, audio_dir, batch_id, clip_index, config, 
-                            observer_pos=observer_pos, road_curve_a=road_curve_a,
-                            road_y_center=road_y_center,
-                            road_shape=road_shape,
-                            road_bezier_bulge=road_bezier_bulge
-                        )
+                        planned_jobs.append((i, {
+                            'kind': 'multi',
+                            'v_configs': v_configs,
+                            'audio_dir': audio_dir,
+                            'batch_id': batch_id,
+                            'clip_index': i + 1,
+                            'config': config,
+                            'observer_pos': list(observer_pos),
+                            'road_curve_a': road_curve_a,
+                            'road_y_center': road_y_center,
+                            'road_shape': road_shape,
+                            'road_bezier_bulge': road_bezier_bulge,
+                            'intersection_angle': 90.0,
+                        }))
                 else:
-                    # Standard single-source mode (retry on param/geometry failures)
-                    result = None
-                    last_err = None
-                    for attempt in range(8):
-                        try:
-                            params = generate_random_parameters(
-                                config,
-                                vehicle_name,
-                                path_type,
-                                clip_index=clip_index,
-                                total_clips=total_clips,
-                                motion_pass_by=motion_pass_by_flags[i],
-                            )
-                            path_type_use = params.pop('_force_path_type', path_type)
-                            params.pop('_clip_index', None)
-                            params.pop('_total_clips', None)
-                            params.pop('_motion_pass_by', None)
-                            bench_cfg = config.get('benchmarks', {}) or {}
-                            bench_selected = bench_cfg.get('selected', []) or []
-                            bench_params = bench_cfg.get('params', {}) or {}
-                            direction_benchmark_active = (
-                                bool(bench_cfg.get('enabled', False))
-                                and ('B2' in bench_selected)
-                                and bool(bench_params.get('alternate_direction_clips', False))
-                            )
-                            if direction_benchmark_active:
-                                _apply_direction_variant(
-                                    path_type_use, params, want_reverse=(i % 2 == 1)
-                                )
-                            result = generate_single_clip(
-                                vehicle_name, path_type_use, params,
-                                audio_dir, batch_id, clip_index, config
-                            )
-                            path_type = path_type_use
-                            break
-                        except Exception as e:
-                            last_err = e
-                            if attempt == 7:
-                                raise
-                    if result is None:
-                        raise last_err or RuntimeError('clip generation failed')
-
-                clips_metadata.append(result)
-                generation_log.append(f"Generated clip {clip_index}/{total_clips}: {result['filename']}")
-                print(f"Generated clip {clip_index}/{total_clips}")
-                save_progress(total_clips, len(clips_metadata))
-                clip_index += 1
+                    planned = _plan_single_clip_job(
+                        config,
+                        vehicle_name,
+                        path_type,
+                        i + 1,
+                        total_clips,
+                        motion_pass_by_flags[i],
+                        i,
+                        _apply_direction_variant,
+                    )
+                    planned_jobs.append((i, {
+                        'kind': 'single',
+                        'vehicle_name': planned['vehicle_name'],
+                        'path_type': planned['path_type'],
+                        'params': planned['params'],
+                        'audio_dir': audio_dir,
+                        'batch_id': batch_id,
+                        'clip_index': i + 1,
+                        'config': config,
+                    }))
 
             except Exception as e:
                 slots_failed += 1
@@ -935,8 +1018,103 @@ def batch_generate():
                 traceback.print_exc()
                 generation_log.append(error_message)
                 print(error_message)
-                save_progress(total_clips, len(clips_metadata))
+                save_progress(total_clips, len(planned_jobs))
                 continue
+
+        # ── Parallel synthesis (params already fixed per slot above) ─────────────
+        job_by_slot = {slot: job for slot, job in planned_jobs}
+        n_workers = resolve_batch_worker_count(config)
+        print(
+            f"Parallel batch synthesis: {len(planned_jobs)} clips, "
+            f"{n_workers} worker process(es)"
+        )
+
+        outcomes = run_planned_jobs_parallel(
+            planned_jobs,
+            total_clips=total_clips,
+            max_workers=n_workers,
+            config=config,
+        )
+
+        next_clip_index = 1
+        for i in range(total_clips):
+            if i not in job_by_slot:
+                continue
+
+            job = job_by_slot[i]
+            staging_index = i + 1
+            outcome = outcomes.get(i)
+            path_type = job.get('path_type', path_list[i])
+
+            if outcome and outcome.get('success') and outcome.get('result'):
+                result = finalize_staged_clip(
+                    audio_dir,
+                    outcome['result'],
+                    staging_index,
+                    next_clip_index,
+                )
+                clips_metadata.append(result)
+                generation_log.append(
+                    f"Generated clip {next_clip_index}/{total_clips}: {result['filename']}"
+                )
+                print(f"Generated clip {next_clip_index}/{total_clips}")
+                next_clip_index += 1
+                continue
+
+            err_msg = (outcome or {}).get('error', 'unknown error')
+            generation_log.append(
+                f"Parallel synthesis failed slot {i + 1}/{total_clips}: {err_msg}; retrying"
+            )
+            print(generation_log[-1])
+
+            try:
+                if job['kind'] == 'single':
+                    result, path_type = _run_single_clip_sequential_fallback(
+                        config,
+                        job['vehicle_name'],
+                        job['path_type'],
+                        audio_dir,
+                        batch_id,
+                        next_clip_index,
+                        total_clips,
+                        motion_pass_by_flags[i],
+                        i,
+                        _apply_direction_variant,
+                    )
+                elif job['kind'] == 'multi':
+                    _remove_staging_sample(audio_dir, staging_index)
+                    result = generate_multi_object_clip(
+                        job['v_configs'],
+                        audio_dir,
+                        batch_id,
+                        next_clip_index,
+                        job['config'],
+                        observer_pos=tuple(job['observer_pos']),
+                        road_curve_a=float(job['road_curve_a']),
+                        road_y_center=float(job['road_y_center']),
+                        road_shape=job.get('road_shape', 'parabola'),
+                        road_bezier_bulge=float(job.get('road_bezier_bulge', 0.0)),
+                        intersection_angle=float(job.get('intersection_angle', 90.0)),
+                    )
+                else:
+                    raise RuntimeError(f"Unknown job kind: {job.get('kind')}")
+
+                _remove_staging_sample(audio_dir, staging_index)
+                clips_metadata.append(result)
+                generation_log.append(
+                    f"Generated clip {next_clip_index}/{total_clips}: {result['filename']} (fallback)"
+                )
+                print(f"Generated clip {next_clip_index}/{total_clips} (fallback)")
+                next_clip_index += 1
+            except Exception as e:
+                slots_failed += 1
+                _remove_staging_sample(audio_dir, staging_index)
+                error_message = f"Error generating slot {i + 1}/{total_clips}: {str(e)}"
+                traceback.print_exc()
+                generation_log.append(error_message)
+                print(error_message)
+
+        save_progress(total_clips, len(clips_metadata))
 
         # Save metadata
         metadata_file = os.path.join(batch_dir, f'metadata_{batch_id}.json')
@@ -998,6 +1176,7 @@ def batch_generate():
             'total_requested': total_clips,
             'total_generated': len(clips_metadata),
             'slots_failed': slots_failed,
+            'parallel_workers': n_workers,
             'elapsed_time': elapsed_time,
             'formatted_time': formatted_time,
             'batch_directory': batch_dir,

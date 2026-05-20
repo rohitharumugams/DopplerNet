@@ -90,6 +90,16 @@ python3 app_batch.py
 ```
 The server will start at: `http://localhost:5001`
 
+### Batch performance (multi-core)
+
+Standard batch generation (`/api/batch_generate`) plans all parameters **sequentially** (same `SAMPLERS` / randomization as before), then synthesizes clips in **parallel worker processes**.
+
+- Default worker count: `min(CPU count − 2, 40)` (e.g. ~46 workers on a 48-vCPU VM).
+- Override via JSON: `"batch": { "workers": 32, ... }`
+- Or environment: `DOPPLERNET_BATCH_WORKERS=32 python3 app_batch.py`
+
+Set `"workers": 1` to force single-process synthesis (debugging).
+
 ---
 
 ## Operational Modes
