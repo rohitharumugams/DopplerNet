@@ -92,11 +92,14 @@ The server will start at: `http://localhost:5001`
 
 ### Batch performance (multi-core)
 
-Standard batch generation (`/api/batch_generate`) plans all parameters **sequentially** (same `SAMPLERS` / randomization as before), then synthesizes clips in **parallel worker processes**.
+Standard batch generation (`/api/batch_generate`) plans parameters **sequentially** (same `SAMPLERS` / cyclic coverage as a single continuous run), then synthesizes clips in **parallel worker processes** in **waves** (default 5000 clips per wave) so very large jobs (e.g. 1M) do not exhaust RAM.
 
 - Default worker count: `min(CPU count − 2, 40)` (e.g. ~46 workers on a 48-vCPU VM).
-- Override via JSON: `"batch": { "workers": 32, ... }`
-- Or environment: `DOPPLERNET_BATCH_WORKERS=32 python3 app_batch.py`
+- Override via JSON: `"batch": { "workers": 32, "wave_size": 5000, ... }`
+- Or environment: `DOPPLERNET_BATCH_WORKERS=32`, `DOPPLERNET_BATCH_WAVE_SIZE=5000`
+- Jobs with **≥ 10 000** clips return immediately and run in a **background thread**; poll `/api/progress` or `{batch_dir}/progress.json`.
+- Resume: restart the same batch folder/name; completed `sample_XXXXXXX` folders are skipped and `sampler_state.json` is restored.
+- Large batches stream labels to `dataset.csv` and `clips_metadata.jsonl` (no giant in-memory metadata list).
 
 Set `"workers": 1` to force single-process synthesis (debugging).
 

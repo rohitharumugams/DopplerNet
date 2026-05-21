@@ -38,7 +38,7 @@ class CyclicIntegerSampler:
         return int(val)
 
 
-def save_sampler_state():
+def save_sampler_state(filepath=None):
     state = {}
     for key, sampler in SAMPLERS.items():
         state[key] = {
@@ -48,15 +48,17 @@ def save_sampler_state():
             "offset": sampler.offset,
             "k": sampler.k
         }
-    with open(SAMPLER_STATE_FILE, "w") as f:
+    target = filepath or SAMPLER_STATE_FILE
+    with open(target, "w") as f:
         json.dump(state, f, indent=2)
 
 
-def load_sampler_state():
+def load_sampler_state(filepath=None):
     import os
-    if not os.path.exists(SAMPLER_STATE_FILE):
+    target = filepath or SAMPLER_STATE_FILE
+    if not os.path.exists(target):
         return
-    with open(SAMPLER_STATE_FILE, "r") as f:
+    with open(target, "r") as f:
         state = json.load(f)
 
     for key, s in state.items():

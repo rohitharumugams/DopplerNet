@@ -7,6 +7,7 @@ cyclic coverage). Workers only run synthesis from fixed job payloads.
 
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
 import shutil
 import traceback
@@ -14,6 +15,21 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from core.progress import save_progress
+
+
+def resolve_wave_size(config: Optional[dict] = None) -> int:
+    """Clips planned/synthesized per wave (limits RAM and pending futures)."""
+    cfg = config or {}
+    batch_cfg = cfg.get('batch') or {}
+    raw = batch_cfg.get('wave_size')
+    if raw is None:
+        raw = os.environ.get('DOPPLERNET_BATCH_WAVE_SIZE')
+    if raw is not None:
+        try:
+            return max(1, int(raw))
+        except (TypeError, ValueError):
+            pass
+    return 5000
 
 
 def resolve_batch_worker_count(config: Optional[dict] = None) -> int:
@@ -158,9 +174,12 @@ def run_planned_jobs_parallel(
     outcomes: Dict[int, Dict[str, Any]] = {}
     completed = 0
 
+    # spawn avoids inheriting Flask listen sockets from forked workers
+    mp_ctx = mp.get_context('spawn')
     with ProcessPoolExecutor(
         max_workers=workers,
         initializer=_init_worker,
+        mp_context=mp_ctx,
     ) as pool:
         future_to_slot = {
             pool.submit(_execute_batch_job, job): slot

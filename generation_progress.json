@@ -1,4 +1,8 @@
 {
-  "total_target": 100,
-  "generated_so_far": 100
+  "total_target": 11000,
+  "generated_so_far": 88,
+  "phase": "synthesis",
+  "status": "running",
+  "batch_directory": "static/batch_outputs/check_progress",
+  "wave_start": 0
 }
