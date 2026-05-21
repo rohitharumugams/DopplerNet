@@ -8,10 +8,10 @@ Summary of changes for running very large batches (e.g. 1M clips) in one logical
 |------|--------|
 | **`core/batch_runner.py`** | **New.** Wave loop (plan → parallel synth → finalize → clear wave RAM), resume (`sample_*` skip + `sampler_state.json`), streaming `dataset.csv` / `clips_metadata.jsonl`, background thread for jobs ≥ 10k clips. |
 | **`core/batch_parallel.py`** | Added `resolve_wave_size()`; `ProcessPoolExecutor` uses **`spawn`** (avoids forked workers inheriting Flask sockets). |
-| **`core/progress.py`** | Progress writes to `generation_progress.json` and `{batch_dir}/progress.json`; fields `phase`, `status`, `batch_directory`, `wave_start`. `load_progress()` can read batch-dir file. |
+| **`core/progress.py`** | Progress writes to `generation_progress.json` and `{batch_dir}/progress.json`; includes `phase`, `status`, `batch_id`, and on finish `metadata_file`, `log_file`, `stats_file`, `formatted_time`. |
 | **`core/sampler.py`** | `save_sampler_state()` / `load_sampler_state()` accept optional filepath (per-batch `sampler_state.json`). |
 | **`routes/batch_routes.py`** | Planning moved into `_plan_slot(i)`; synthesis/finalize delegated to `dispatch_standard_batch()`. Removed monolithic “plan all → submit all futures” path. |
-| **`templates/index_batch.html`** | Progress bar keeps polling when API returns `started: true` (background jobs); shows `phase` in log. |
+| **`templates/index_batch.html`** | Background jobs: no fake “complete” on POST; poll starts **after** response with `?batch_directory=...`; completion only when `status=completed` and `phase=done`. |
 | **`README.md`** | Documented waves, workers, background threshold, resume, streaming metadata. |
 
 ## What is different (behavior)

@@ -238,6 +238,7 @@ def run_standard_batch(
         phase='starting',
         status='running',
         batch_directory=batch_dir,
+        batch_id=batch_id,
     )
 
     clips_metadata: List[Dict[str, Any]] = []
@@ -362,15 +363,6 @@ def run_standard_batch(
 
         save_sampler_state(sampler_state_path)
 
-    save_progress(
-        total_clips,
-        generated_so_far,
-        batch_dir,
-        phase='done',
-        status='completed',
-        batch_directory=batch_dir,
-    )
-
     metadata_file = os.path.join(batch_dir, f'metadata_{batch_id}.json')
     metadata_payload = {
         'batch_id': batch_id,
@@ -406,6 +398,21 @@ def run_standard_batch(
     elapsed_time = time.time() - start_time
     formatted_time = f"{elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)"
     print(f"Batch generation finished in {formatted_time}")
+
+    save_progress(
+        total_clips,
+        generated_so_far,
+        batch_dir,
+        phase='done',
+        status='completed',
+        batch_directory=batch_dir,
+        batch_id=batch_id,
+        metadata_file=metadata_file,
+        log_file=log_file,
+        stats_file=stats_file,
+        formatted_time=formatted_time,
+        slots_failed=slots_failed,
+    )
 
     return {
         'success': True,
@@ -489,6 +496,7 @@ def dispatch_standard_batch(
         phase='starting',
         status='running',
         batch_directory=batch_dir,
+        batch_id=batch_id,
     )
     return {
         'success': True,

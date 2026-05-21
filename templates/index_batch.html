@@ -3199,8 +3199,8 @@
       document.getElementById('progressLog').innerHTML = 'Starting batch generation.';
 
       const startTime = Date.now();
-
       let progressInterval = null;
+
       const stopProgressPolling = () => {
         if (progressInterval) {
           clearInterval(progressInterval);
@@ -3208,111 +3208,142 @@
         }
       };
 
+      const isBackgroundStart = (data) =>
+        data.started === true ||
+        (data.success && data.total_requested >= 10000 && data.total_generated == null);
+
+      const isSyncComplete = (data) =>
+        data.success &&
+        !isBackgroundStart(data) &&
+        typeof data.total_generated === 'number';
+
+      const isProgressComplete = (p) =>
+        p.status === 'completed' &&
+        p.phase === 'done' &&
+        p.total_target > 0 &&
+        p.generated_so_far >= p.total_target;
+
+      const updateProgressUI = (p) => {
+        if (p.total_target > 0) {
+          const percent = Math.min(
+            100,
+            Math.round((p.generated_so_far / p.total_target) * 100)
+          );
+          const fill = document.getElementById('progressFill');
+          fill.style.width = percent + '%';
+          fill.textContent = `${p.generated_so_far} / ${p.total_target} (${percent}%)`;
+        }
+        if (p.status === 'running' && p.phase) {
+          document.getElementById('progressLog').innerHTML =
+            `Running (${p.phase})… ${p.generated_so_far} / ${p.total_target} clips`;
+        }
+        if (p.generated_so_far > 0 && p.total_target > p.generated_so_far) {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const avgTimePerClip = elapsed / p.generated_so_far;
+          const remainingSeconds = Math.round(
+            (p.total_target - p.generated_so_far) * avgTimePerClip
+          );
+          const mins = Math.floor(remainingSeconds / 60);
+          const secs = remainingSeconds % 60;
+          document.getElementById('batchTimer').textContent =
+            `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+      };
+
       const showBatchComplete = (data) => {
-        document.getElementById('batchTimer').textContent = 'Generation Complete';
-        const requested = data.total_requested ?? data.total_generated ?? 0;
-        const generated = data.total_generated ?? 0;
+        const requested = Number(data.total_requested ?? data.total_target ?? 0);
+        const generated = Number(data.total_generated ?? data.generated_so_far ?? 0);
         const pct = requested > 0 ? Math.round((generated / requested) * 100) : 100;
+        document.getElementById('batchTimer').textContent = 'Generation Complete';
         document.getElementById('progressFill').style.width = '100%';
         document.getElementById('progressFill').textContent = `${generated} / ${requested} (${pct}%)`;
         const failNote = (data.slots_failed > 0)
-          ? `<br><span class="error">${data.slots_failed} slot(s) failed after retries — see log.</span>`
+          ? `<br><span class="error">${data.slots_failed} slot(s) failed — see log.</span>`
           : '';
-        document.getElementById('progressLog').innerHTML += `<br><span class="success">✓ Batch generation complete!</span>${failNote}`;
+        document.getElementById('progressLog').innerHTML =
+          `<span class="success">✓ Batch generation complete!</span>${failNote}`;
         document.getElementById('resultBox').style.display = 'block';
         document.getElementById('resultBox').innerHTML = `
                     <h3 class="success">Batch Generated</h3>
-                    <p>Batch ID: ${data.batch_id}</p>
+                    <p>Batch ID: ${data.batch_id || '—'}</p>
                     <p>Clips: ${generated} / ${requested} requested</p>
                     <p>Time Taken: ${data.formatted_time || '—'}</p>
-                    <p>Output Directory: ${data.batch_directory}</p>
+                    <p>Output Directory: ${data.batch_directory || '—'}</p>
                     <p>Metadata: ${data.metadata_file || '—'}</p>
                     <p>Log: ${data.log_file || '—'}</p>
                     <p>Statistics: ${data.stats_file || '—'}</p>
                 `;
       };
 
-      const pollProgressOnce = async () => {
-        const res = await fetch('/api/progress');
-        const data = await res.json();
-        if (data.total_target > 0) {
-          const percent = Math.round((data.generated_so_far / data.total_target) * 100);
-          const fill = document.getElementById('progressFill');
-          fill.style.width = percent + '%';
-          fill.textContent = `${data.generated_so_far} / ${data.total_target} (${percent}%)`;
-          if (data.phase && data.phase !== 'idle') {
-            document.getElementById('progressLog').innerHTML =
-              `Running (${data.phase})… ${data.generated_so_far} / ${data.total_target} clips`;
-          }
-          if (data.generated_so_far > 0) {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const avgTimePerClip = elapsed / data.generated_so_far;
-            const remainingClips = data.total_target - data.generated_so_far;
-            const remainingSeconds = Math.round(remainingClips * avgTimePerClip);
-            if (remainingSeconds >= 0) {
-              const mins = Math.floor(remainingSeconds / 60);
-              const secs = remainingSeconds % 60;
-              document.getElementById('batchTimer').textContent =
-                `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
-            }
-          }
-        }
-        return data;
-      };
+      const startProgressPolling = (batchDirectory) => {
+        const pollUrl = batchDirectory
+          ? `/api/progress?batch_directory=${encodeURIComponent(batchDirectory)}`
+          : '/api/progress';
 
-      progressInterval = setInterval(async () => {
-        try {
-          const data = await pollProgressOnce();
-          if (data.status === 'completed' && data.generated_so_far >= data.total_target) {
-            stopProgressPolling();
-            showBatchComplete({
-              batch_id: data.batch_id || '—',
-              total_requested: data.total_target,
-              total_generated: data.generated_so_far,
-              batch_directory: data.batch_directory || '—',
-            });
-          } else if (data.status === 'failed') {
-            stopProgressPolling();
-            document.getElementById('batchTimer').textContent = 'Error occurred';
-            document.getElementById('resultBox').style.display = 'block';
-            document.getElementById('resultBox').innerHTML =
-              `<div class="error">Batch failed: ${data.error || 'unknown error'}</div>`;
+        progressInterval = setInterval(async () => {
+          try {
+            const res = await fetch(pollUrl);
+            const p = await res.json();
+            updateProgressUI(p);
+            if (isProgressComplete(p)) {
+              stopProgressPolling();
+              showBatchComplete({
+                batch_id: p.batch_id,
+                total_requested: p.total_target,
+                total_generated: p.generated_so_far,
+                batch_directory: p.batch_directory || batchDirectory,
+                formatted_time: p.formatted_time,
+                metadata_file: p.metadata_file,
+                log_file: p.log_file,
+                stats_file: p.stats_file,
+                slots_failed: p.slots_failed,
+              });
+            } else if (p.status === 'failed') {
+              stopProgressPolling();
+              document.getElementById('batchTimer').textContent = 'Error occurred';
+              document.getElementById('resultBox').style.display = 'block';
+              document.getElementById('resultBox').innerHTML =
+                `<div class="error">Batch failed: ${p.error || 'unknown error'}</div>`;
+            }
+          } catch (err) {
+            console.warn('Polling error:', err);
           }
-        } catch (err) {
-          console.warn("Polling error:", err);
-        }
-      }, 500);
+        }, 500);
+      };
 
       try {
         const response = await fetch('/api/batch_generate', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(config)
         });
 
         const data = await response.json();
 
         if (data.error) {
-          stopProgressPolling();
           document.getElementById('batchTimer').textContent = 'Error occurred';
           document.getElementById('resultBox').style.display = 'block';
-          document.getElementById('resultBox').innerHTML = `<div class="error">Error: ${data.error}</div>`;
-        } else if (data.started) {
+          document.getElementById('resultBox').innerHTML =
+            `<div class="error">Error: ${data.error}</div>`;
+        } else if (isBackgroundStart(data)) {
+          document.getElementById('resultBox').style.display = 'none';
           document.getElementById('progressLog').innerHTML =
-            `Large batch started in background (${data.total_requested} clips). Progress updates every 0.5s.`;
+            `Batch running in background (${data.total_requested} clips). Do not close the server.`;
           document.getElementById('batchTimer').textContent = 'Running in background…';
-          // Keep polling until status === completed (handled in interval)
-        } else {
-          stopProgressPolling();
+          startProgressPolling(data.batch_directory);
+        } else if (isSyncComplete(data)) {
           showBatchComplete(data);
+        } else {
+          document.getElementById('resultBox').style.display = 'block';
+          document.getElementById('resultBox').innerHTML =
+            `<div class="error">Unexpected batch response. Check server logs and output folder.</div>`;
         }
       } catch (error) {
         stopProgressPolling();
         document.getElementById('batchTimer').textContent = 'Error occurred';
         document.getElementById('resultBox').style.display = 'block';
-        document.getElementById('resultBox').innerHTML = `<div class="error">Error: ${error}</div>`;
+        document.getElementById('resultBox').innerHTML =
+          `<div class="error">Error: ${error}</div>`;
       }
     }
 
