@@ -983,7 +983,13 @@
             <!-- GROUP A: SINGLE VEHICLE -->
             <div id="group-single">
               <h4 style="font-size: 13px; color: #58a6ff; margin-bottom: 8px;">Single Vehicle Benchmarks</h4>
-              <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B1" onchange="updateSelectAllState()"> B1: Speed Estimation</label>
+              <label class="checkbox-label" id="b1-wrapper">
+                <input type="checkbox" class="benchmark-cb" data-group="single" value="B1" id="benchmark-B1" onchange="handleB1Click(this); updateSelectAllState()">
+                B1: Speed Estimation
+              </label>
+              <div id="b1-ca-warning" class="hidden" style="font-size: 11px; color: #ff7b72; margin: -5px 0 10px 25px; line-height: 1.4; font-weight: 500;">
+                B1 (Speed Estimation) is not available in Constant Acceleration mode because speed is not constant.
+              </div>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B2" onchange="toggleBenchmarkExtra('B2'); updateSelectAllState()"> B2: Direction Identification</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B3" onchange="updateSelectAllState()"> B3: Distance Estimation</label>
               <label class="checkbox-label"><input type="checkbox" class="benchmark-cb" data-group="single" value="B4" onchange="updateSelectAllState()"> B4: Trajectory Localization</label>
@@ -2778,6 +2784,58 @@
       return benchEnabled && (mode === 'multi' || mode === 'intersection');
     }
 
+    function isConstantAccelerationMode() {
+      return (document.getElementById('simulationMode')?.value || 'cv') === 'ca';
+    }
+
+    function showB1CaWarning(flash) {
+      const warn = document.getElementById('b1-ca-warning');
+      if (!warn) return;
+      warn.classList.remove('hidden');
+      if (flash) {
+        warn.style.animation = 'none';
+        warn.offsetHeight;
+        warn.style.animation = 'highlightWarning 0.5s ease';
+      }
+    }
+
+    function refreshB1BenchmarkUI() {
+      const b1 = document.getElementById('benchmark-B1');
+      const wrapper = document.getElementById('b1-wrapper');
+      const warn = document.getElementById('b1-ca-warning');
+      if (!b1) return;
+
+      const caMode = isConstantAccelerationMode();
+      const singleGroup = document.getElementById('group-single');
+      const groupLocked = singleGroup && singleGroup.style.pointerEvents === 'none';
+
+      if (groupLocked) {
+        if (warn) warn.classList.add('hidden');
+        return;
+      }
+
+      if (caMode) {
+        if (b1.checked) b1.checked = false;
+        b1.disabled = true;
+        if (wrapper) wrapper.style.opacity = '0.55';
+        showB1CaWarning(false);
+      } else {
+        b1.disabled = false;
+        if (wrapper) wrapper.style.opacity = '';
+        if (warn) warn.classList.add('hidden');
+      }
+      updateSelectAllState();
+    }
+
+    function handleB1Click(cb) {
+      if (!cb || cb.value !== 'B1') return;
+      if (isConstantAccelerationMode()) {
+        cb.checked = false;
+        showB1CaWarning(true);
+        updateSelectAllState();
+      }
+    }
+
     function showAccelInlineWarning(kind) {
       const cvWarn = document.getElementById('accelWarning');
       const multiWarn = document.getElementById('accelMultiWarning');
@@ -2843,6 +2901,7 @@
           accelMax.value = 2.5;
         }
       }
+      refreshB1BenchmarkUI();
     }
 
     function getActiveBenchmarkCheckboxes() {
@@ -2883,6 +2942,7 @@
         }
       } else {
         refreshBatchAccelerationUI();
+        refreshB1BenchmarkUI();
       }
     }
 
@@ -3107,6 +3167,7 @@
         }
       }
       refreshBatchAccelerationUI();
+      refreshB1BenchmarkUI();
     }
 
     function toggleAllBenchmarks(master) {
@@ -3250,15 +3311,18 @@
       const tempMax = Math.max(tempMinRaw, tempMaxRaw);
       const humMin = Math.min(humMinRaw, humMaxRaw);
       const humMax = Math.max(humMinRaw, humMaxRaw);
-      const selectedBenchmarkValues = Array.from(document.querySelectorAll('.benchmark-cb:checked')).map(cb => cb.value);
-      const linearOverlapEnabled = !!document.getElementById('enableLinearOverlap')?.checked;
-      const b7Enabled = selectedBenchmarkValues.includes('B7');
-
       const benchMode = (document.querySelector('input[name="benchMode"]:checked') || {}).value || 'single';
       const multiSourceBench = isMultiSourceBenchMode();
       const simulationMode = multiSourceBench
         ? 'cv'
         : (document.getElementById('simulationMode') ? document.getElementById('simulationMode').value : 'cv');
+
+      let selectedBenchmarkValues = Array.from(document.querySelectorAll('.benchmark-cb:checked')).map(cb => cb.value);
+      if (simulationMode === 'ca') {
+        selectedBenchmarkValues = selectedBenchmarkValues.filter((v) => v !== 'B1');
+      }
+      const linearOverlapEnabled = !!document.getElementById('enableLinearOverlap')?.checked;
+      const b7Enabled = selectedBenchmarkValues.includes('B7');
 
       // Read global Acceleration inputs with strict physics hard bounds [-8.0, 8.0]
       const accelMinRaw = multiSourceBench
@@ -3924,6 +3988,7 @@
 
       simModeSelect.addEventListener('change', () => {
         refreshBatchAccelerationUI();
+        refreshB1BenchmarkUI();
         const b7cb = document.getElementById('benchmark-B7');
         if (b7cb && b7cb.checked && !isMultiSourceBenchMode()) {
           if (simModeSelect.value === 'ca') {
@@ -3946,6 +4011,7 @@
       accelMax.addEventListener('focus', onAccelInteractionAttempt);
 
       refreshBatchAccelerationUI();
+      refreshB1BenchmarkUI();
     }
 
     function loadPresetProfile(presetName) {
