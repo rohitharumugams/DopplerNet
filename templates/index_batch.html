@@ -184,6 +184,13 @@
       100% { transform: scale(1); }
     }
 
+    .section-highlight {
+      outline: 2px solid #58a6ff;
+      outline-offset: 4px;
+      border-radius: 6px;
+      transition: outline-color 0.2s ease;
+    }
+
     .btn {
       background-color: #238636;
       color: white;
@@ -678,13 +685,16 @@
     <!-- BATCH MODE (UNCHANGED) -->
     <div id="batchMode">
 
-      <div class="section">
+      <div class="section" id="simulationModeSection">
         <h3 class="section-title">Simulation Mode</h3>
         <div class="param-group">
           <select id="simulationMode" style="width: 100%;">
             <option value="cv">Constant Velocity (CV)</option>
             <option value="ca">Constant Acceleration (CA)</option>
           </select>
+          <div id="b7-ca-required" class="hidden" style="color: #ff7b72; font-size: 12px; margin-top: 10px; line-height: 1.4; font-weight: 500;">
+            B7 requires Constant Acceleration mode.
+          </div>
         </div>
       </div>
 
@@ -780,6 +790,9 @@
 
           <div id="accelWarning" style="color: #ff7b72; font-size: 12px; margin-top: 8px; line-height: 1.4; display: none; font-weight: 500;">
             ⚠️ Acceleration can only be modified in Constant Acceleration mode.
+          </div>
+          <div id="accelMultiWarning" style="color: #ff7b72; font-size: 12px; margin-top: 8px; line-height: 1.4; display: none; font-weight: 500;">
+            Acceleration is currently not supported for multi-source scenes.
           </div>
         </div>
 
@@ -891,11 +904,11 @@
           <div class="grid-2" style="background: #0d1117; padding: 15px; border-radius: 6px; border: 1px solid #30363d; margin-bottom: 15px;">
             <label class="radio-label" style="font-weight: bold;">
               <input type="radio" name="benchMode" value="single" checked onchange="switchBenchGroup('single')">
-              Part 1: Single Vehicle (B1 - B6)
+              Part 1: Single Vehicle - Constant Velocity
             </label>
             <label class="radio-label" style="font-weight: bold;">
               <input type="radio" name="benchMode" value="b7" onchange="switchBenchGroup('b7')">
-              Part 2: B7 Acceleration
+              Part 2: Single Vehicle - Constant Acceleration
             </label>
             <label class="radio-label" style="font-weight: bold;">
               <input type="radio" name="benchMode" value="multi" onchange="switchBenchGroup('multi')">
@@ -986,15 +999,7 @@
                 <span>B7: Accelerated Motion Analysis</span>
               </label>
               <div id="b7-message" class="hidden" style="font-size: 11px; color: #58a6ff; margin: -5px 0 10px 25px;">
-                B7 enabled: acceleration sampling active for generation.
-              </div>
-              <div style="margin: 8px 0 6px 25px;">
-                <label class="param-label" style="display: block; margin-bottom: 6px;">Acceleration Range (m/s²)</label>
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <input type="number" id="benchmark_accel_min" value="-3.5" step="0.1" min="-8.0" max="0.0" style="width: 110px;">
-                  <span style="color: #8b949e;">to</span>
-                  <input type="number" id="benchmark_accel_max" value="2.5" step="0.1" min="0.0" max="8.0" style="width: 110px;">
-                </div>
+                B7 enabled: set the acceleration range in the Acceleration section (next to Speed).
               </div>
             </div>
 
@@ -2767,11 +2772,102 @@
       return radio ? radio.value : 'single';
     }
 
+    function isMultiSourceBenchMode() {
+      const benchEnabled = !!document.getElementById('enableBenchmarks')?.checked;
+      const mode = getActiveBenchMode();
+      return benchEnabled && (mode === 'multi' || mode === 'intersection');
+    }
+
+    function showAccelInlineWarning(kind) {
+      const cvWarn = document.getElementById('accelWarning');
+      const multiWarn = document.getElementById('accelMultiWarning');
+      if (cvWarn) cvWarn.style.display = kind === 'cv' ? 'block' : 'none';
+      if (multiWarn) multiWarn.style.display = kind === 'multi' ? 'block' : 'none';
+      const active = kind === 'cv' ? cvWarn : multiWarn;
+      if (active) {
+        active.style.animation = 'none';
+        active.offsetHeight;
+        active.style.animation = 'highlightWarning 0.5s ease';
+      }
+    }
+
+    function refreshBatchAccelerationUI() {
+      const simModeSelect = document.getElementById('simulationMode');
+      const accelMin = document.getElementById('accelMin');
+      const accelMax = document.getElementById('accelMax');
+      const overlay = document.getElementById('accelerationOverlay');
+      const section = document.getElementById('accelerationSection');
+      if (!simModeSelect || !accelMin || !accelMax || !overlay || !section) return;
+
+      const cvWarn = document.getElementById('accelWarning');
+      const multiWarn = document.getElementById('accelMultiWarning');
+      if (multiWarn) multiWarn.style.display = 'none';
+      if (cvWarn) cvWarn.style.display = 'none';
+
+      const lockSection = (showOverlay) => {
+        accelMin.value = 0.0;
+        accelMax.value = 0.0;
+        accelMin.disabled = true;
+        accelMax.disabled = true;
+        accelMin.style.backgroundColor = '#21262d';
+        accelMin.style.color = '#8b949e';
+        accelMin.style.cursor = 'not-allowed';
+        accelMax.style.backgroundColor = '#21262d';
+        accelMax.style.color = '#8b949e';
+        accelMax.style.cursor = 'not-allowed';
+        overlay.style.display = showOverlay ? 'block' : 'none';
+        section.classList.add('section-disabled');
+      };
+
+      if (isMultiSourceBenchMode()) {
+        lockSection(true);
+        return;
+      }
+
+      const mode = simModeSelect.value;
+      if (mode === 'cv') {
+        lockSection(true);
+      } else {
+        accelMin.disabled = false;
+        accelMax.disabled = false;
+        accelMin.style.backgroundColor = '';
+        accelMin.style.color = '';
+        accelMin.style.cursor = '';
+        accelMax.style.backgroundColor = '';
+        accelMax.style.color = '';
+        accelMax.style.cursor = '';
+        overlay.style.display = 'none';
+        section.classList.remove('section-disabled');
+        if (parseFloat(accelMin.value) === 0 && parseFloat(accelMax.value) === 0) {
+          accelMin.value = -3.5;
+          accelMax.value = 2.5;
+        }
+      }
+    }
+
     function getActiveBenchmarkCheckboxes() {
       const mode = getActiveBenchMode();
-      return Array.from(
-        document.querySelectorAll(`.benchmark-cb[data-group="${mode}"]`)
-      ).filter((cb) => !cb.disabled);
+      const groups = mode === 'b7' ? ['single', 'b7'] : [mode];
+      const boxes = [];
+      groups.forEach((g) => {
+        document.querySelectorAll(`.benchmark-cb[data-group="${g}"]`).forEach((cb) => {
+          if (!cb.disabled) boxes.push(cb);
+        });
+      });
+      return boxes;
+    }
+
+    function applyBenchSimulationMode(group) {
+      const simModeSelect = document.getElementById('simulationMode');
+      if (!simModeSelect) return;
+      if (group === 'b7') {
+        simModeSelect.value = 'ca';
+      } else if (group === 'single') {
+        simModeSelect.value = 'cv';
+      } else {
+        return;
+      }
+      simModeSelect.dispatchEvent(new Event('change'));
     }
 
     function toggleBenchmarkUI() {
@@ -2785,6 +2881,8 @@
           batchNoiseCb.checked = false;
           toggleBatchAirNoiseControls();
         }
+      } else {
+        refreshBatchAccelerationUI();
       }
     }
 
@@ -2884,13 +2982,14 @@
         document.querySelectorAll('.benchmark-cb[data-group="single"]').forEach(cb => {
           cb.disabled = false;
         });
+        applyBenchSimulationMode('single');
         updateBenchCpaPanel();
       } else if (group === 'b7') {
-        // Enable B7 only
+        // Part 2: B1–B6 and B7 (constant acceleration)
+        singleGroup.style.opacity = '1';
+        singleGroup.style.pointerEvents = 'auto';
         b7Group.style.opacity = '1';
         b7Group.style.pointerEvents = 'auto';
-        singleGroup.style.opacity = '0.5';
-        singleGroup.style.pointerEvents = 'none';
         multiGroup.style.opacity = '0.5';
         multiGroup.style.pointerEvents = 'none';
         intersectionGroup.classList.add('hidden');
@@ -2903,10 +3002,7 @@
         }
 
         document.querySelectorAll('.benchmark-cb[data-group="single"]').forEach(cb => {
-          cb.checked = false;
-          cb.disabled = true;
-          const val = cb.value;
-          if (['B2', 'B5', 'B6'].includes(val)) toggleBenchmarkExtra(val);
+          cb.disabled = false;
         });
         document.querySelectorAll('.benchmark-cb[data-group="multi"]').forEach(cb => {
           cb.checked = false;
@@ -2920,6 +3016,8 @@
         document.querySelectorAll('.benchmark-cb[data-group="b7"]').forEach(cb => {
           cb.disabled = false;
         });
+        applyBenchSimulationMode('b7');
+        updateBenchCpaPanel();
       } else if (group === 'multi') {
         // Enable Multi, Disable Single
         multiGroup.style.opacity = '1';
@@ -3008,6 +3106,7 @@
           busy.style.opacity = '0.85';
         }
       }
+      refreshBatchAccelerationUI();
     }
 
     function toggleAllBenchmarks(master) {
@@ -3049,12 +3148,42 @@
       updateBenchCpaPanel();
     }
 
+    function focusUiSection(el) {
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('section-highlight');
+      setTimeout(() => el.classList.remove('section-highlight'), 1200);
+    }
+
+    function focusB7AccelerationRange() {
+      focusUiSection(document.getElementById('accelerationSection'));
+    }
+
+    function focusSimulationModeSection() {
+      focusUiSection(document.getElementById('simulationModeSection'));
+    }
+
+    function setB7CaRequiredVisible(visible) {
+      const caReq = document.getElementById('b7-ca-required');
+      if (!caReq) return;
+      caReq.classList.toggle('hidden', !visible);
+    }
+
     function handleB7Click(cb) {
       const msg = document.getElementById('b7-message');
-      if (cb.checked) {
-        if (msg) msg.classList.remove('hidden');
+      if (!cb.checked) {
+        if (msg) msg.classList.add('hidden');
+        setB7CaRequiredVisible(false);
+        return;
+      }
+      if (msg) msg.classList.remove('hidden');
+      const simMode = document.getElementById('simulationMode')?.value || 'cv';
+      if (simMode === 'ca') {
+        setB7CaRequiredVisible(false);
+        focusB7AccelerationRange();
       } else {
-         if (msg) msg.classList.add('hidden');
+        setB7CaRequiredVisible(true);
+        focusSimulationModeSection();
       }
     }
 
@@ -3124,19 +3253,22 @@
       const selectedBenchmarkValues = Array.from(document.querySelectorAll('.benchmark-cb:checked')).map(cb => cb.value);
       const linearOverlapEnabled = !!document.getElementById('enableLinearOverlap')?.checked;
       const b7Enabled = selectedBenchmarkValues.includes('B7');
-      const b7MinInput = parseFloat(document.getElementById('benchmark_accel_min')?.value);
-      const b7MaxInput = parseFloat(document.getElementById('benchmark_accel_max')?.value);
-      const accMin = Number.isFinite(b7MinInput) ? b7MinInput : -3.5;
-      const accMax = Number.isFinite(b7MaxInput) ? b7MaxInput : 2.5;
 
       const benchMode = (document.querySelector('input[name="benchMode"]:checked') || {}).value || 'single';
-      const simulationMode = document.getElementById('simulationMode') ? document.getElementById('simulationMode').value : 'cv';
+      const multiSourceBench = isMultiSourceBenchMode();
+      const simulationMode = multiSourceBench
+        ? 'cv'
+        : (document.getElementById('simulationMode') ? document.getElementById('simulationMode').value : 'cv');
 
       // Read global Acceleration inputs with strict physics hard bounds [-8.0, 8.0]
-      const accelMinRaw = clamp(document.getElementById('accelMin')?.value || 0, -8, 8, 0);
-      const accelMaxRaw = clamp(document.getElementById('accelMax')?.value || 0, -8, 8, 0);
-      const accelMinVal = Math.min(accelMinRaw, accelMaxRaw);
-      const accelMaxVal = Math.max(accelMinRaw, accelMaxRaw);
+      const accelMinRaw = multiSourceBench
+        ? 0
+        : clamp(document.getElementById('accelMin')?.value || 0, -8, 8, 0);
+      const accelMaxRaw = multiSourceBench
+        ? 0
+        : clamp(document.getElementById('accelMax')?.value || 0, -8, 8, 0);
+      const accelMinVal = multiSourceBench ? 0.0 : Math.min(accelMinRaw, accelMaxRaw);
+      const accelMaxVal = multiSourceBench ? 0.0 : Math.max(accelMinRaw, accelMaxRaw);
 
       const config = {
         simulation_mode: simulationMode,
@@ -3184,9 +3316,9 @@
           air_noise_frequency_hz: parseFloat(document.getElementById('batchAirNoiseFrequencyHz')?.value || '1200')
         },
         acceleration: {
-          randomize: simulationMode === 'ca' || b7Enabled,
-          min: simulationMode === 'ca' ? accelMinVal : (b7Enabled ? Math.min(accMin, accMax) : 0.0),
-          max: simulationMode === 'ca' ? accelMaxVal : (b7Enabled ? Math.max(accMin, accMax) : 0.0),
+          randomize: !multiSourceBench && simulationMode === 'ca',
+          min: multiSourceBench ? 0.0 : (simulationMode === 'ca' ? accelMinVal : 0.0),
+          max: multiSourceBench ? 0.0 : (simulationMode === 'ca' ? accelMaxVal : 0.0),
           value: 0.0
         },
         batch: {
@@ -3760,45 +3892,16 @@
       const accelMin = document.getElementById('accelMin');
       const accelMax = document.getElementById('accelMax');
       const overlay = document.getElementById('accelerationOverlay');
-      const warning = document.getElementById('accelWarning');
-      const section = document.getElementById('accelerationSection');
 
       if (!simModeSelect || !accelMin || !accelMax) return;
 
-      function updateUIState() {
-        const mode = simModeSelect.value;
-        if (mode === 'cv') {
+      function enforceAccelLimits(e) {
+        if (isMultiSourceBenchMode()) {
           accelMin.value = 0.0;
           accelMax.value = 0.0;
-          accelMin.disabled = true;
-          accelMax.disabled = true;
-          accelMin.style.backgroundColor = '#21262d';
-          accelMin.style.color = '#8b949e';
-          accelMin.style.cursor = 'not-allowed';
-          accelMax.style.backgroundColor = '#21262d';
-          accelMax.style.color = '#8b949e';
-          accelMax.style.cursor = 'not-allowed';
-          overlay.style.display = 'block';
-          section.classList.add('section-disabled');
-        } else {
-          accelMin.disabled = false;
-          accelMax.disabled = false;
-          accelMin.style.backgroundColor = '';
-          accelMin.style.color = '';
-          accelMin.style.cursor = '';
-          accelMax.style.backgroundColor = '';
-          accelMax.style.color = '';
-          accelMax.style.cursor = '';
-          overlay.style.display = 'none';
-          warning.style.display = 'none';
-          section.classList.remove('section-disabled');
-
-          accelMin.value = -3.5;
-          accelMax.value = 2.5;
+          showAccelInlineWarning('multi');
+          return;
         }
-      }
-
-      function enforceAccelLimits(e) {
         let val = parseFloat(e.target.value);
         if (isNaN(val)) return;
         if (val < -8.0) {
@@ -3806,25 +3909,43 @@
         } else if (val > 8.0) {
           e.target.value = 8.0;
         }
+        if (simModeSelect.value === 'cv') {
+          showAccelInlineWarning('cv');
+        }
       }
 
-      simModeSelect.addEventListener('change', updateUIState);
+      function onAccelInteractionAttempt() {
+        if (isMultiSourceBenchMode()) {
+          showAccelInlineWarning('multi');
+        } else if (simModeSelect.value === 'cv') {
+          showAccelInlineWarning('cv');
+        }
+      }
 
-      overlay.addEventListener('click', () => {
-        if (simModeSelect.value === 'cv') {
-          warning.style.display = 'block';
-          warning.style.animation = 'none';
-          warning.offsetHeight; /* trigger reflow */
-          warning.style.animation = 'highlightWarning 0.5s ease';
+      simModeSelect.addEventListener('change', () => {
+        refreshBatchAccelerationUI();
+        const b7cb = document.getElementById('benchmark-B7');
+        if (b7cb && b7cb.checked && !isMultiSourceBenchMode()) {
+          if (simModeSelect.value === 'ca') {
+            setB7CaRequiredVisible(false);
+            focusB7AccelerationRange();
+          } else {
+            setB7CaRequiredVisible(true);
+            focusSimulationModeSection();
+          }
         }
       });
+
+      overlay.addEventListener('click', onAccelInteractionAttempt);
 
       accelMin.addEventListener('change', enforceAccelLimits);
       accelMax.addEventListener('change', enforceAccelLimits);
       accelMin.addEventListener('input', enforceAccelLimits);
       accelMax.addEventListener('input', enforceAccelLimits);
+      accelMin.addEventListener('focus', onAccelInteractionAttempt);
+      accelMax.addEventListener('focus', onAccelInteractionAttempt);
 
-      updateUIState();
+      refreshBatchAccelerationUI();
     }
 
     function loadPresetProfile(presetName) {

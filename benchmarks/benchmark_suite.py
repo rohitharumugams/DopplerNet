@@ -190,7 +190,7 @@ def generate_labels(batch_outputs_dir, output_csv):
                 else:
                     cpa_time_out = float(cpa_time_sec)
                 
-                samples.append({
+                row = {
                     'sample_id': sample_folder,
                     'batch_id': batch_id,
                     'speed_mps': labels.get('speed_mps', params.get('speed', 0)),
@@ -201,14 +201,16 @@ def generate_labels(batch_outputs_dir, output_csv):
                     'vehicle_class': labels.get('vehicle_class', clip.get('vehicle', 'multi' if num_sources > 1 else 'unknown')),
                     'num_sources': num_sources, # B8
                     'cpa_time_sec': cpa_time_out,
-                    'pass_by_in_clip': pass_by,
-                    'motion_scenario': labels.get(
-                        'motion_scenario', params.get('motion_scenario', 'pass_by' if pass_by else 'miss'),
-                    ),
                     'audio_path': audio_rel_path.as_posix(),
                     'path_plot': path_plot,
                     'spectrogram_plot': spectrogram_plot
-                })
+                }
+                if num_sources <= 1:
+                    row['pass_by_in_clip'] = pass_by
+                    row['motion_scenario'] = labels.get(
+                        'motion_scenario', params.get('motion_scenario', 'pass_by' if pass_by else 'miss'),
+                    )
+                samples.append(row)
         except Exception as e:
             print(f"Warning: Could not process {batch_meta_file}: {e}")
 
@@ -217,7 +219,7 @@ def generate_labels(batch_outputs_dir, output_csv):
         df = pd.DataFrame(columns=[
             'sample_id', 'batch_id', 'speed_mps', 'acceleration', 'cpa_distance_m',
             'trajectory_type', 'direction_label', 'vehicle_class', 'num_sources',
-            'cpa_time_sec', 'pass_by_in_clip', 'audio_path', 'path_plot', 'spectrogram_plot',
+            'cpa_time_sec', 'audio_path', 'path_plot', 'spectrogram_plot',
         ])
     else:
         df = pd.DataFrame(samples)

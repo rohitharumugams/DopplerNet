@@ -805,21 +805,28 @@ def generate_random_parameters(
         v_cpa = float(params.get('speed', 1.0))
         d_cpa = float(params.get('distance', params.get('h', 1.0)))
         dur = float(params.get('duration', 10.0))
+        strict = bool(params.get('strict_identifiability', True))
         
-        # 1. Effective acceleration identifiability metric
-        v_cpa_sq = max(v_cpa**2, 1e-6)
-        alpha_eff = abs(accel) * d_cpa / v_cpa_sq
-        if alpha_eff < 0.05:
-            raise ValueError(f"Acceleration too weak for distance/speed (alpha_eff={alpha_eff:.3f} < 0.05)")
-        
-        # 2. No Reversal / Speed Limit constraint
+        # 1. No Reversal / Speed Limit constraint
         # Determine the maximum time from CPA. In the worst case, t_cpa could be 0 or dur.
         # Ensure velocity is strictly positive throughout the whole duration.
-        v_start = v_cpa - accel * dur
-        v_end = v_cpa + accel * dur
+        max_accel = (v_cpa - 1.0) / max(dur, 1e-6)
+        min_accel = (1.0 - v_cpa) / max(dur, 1e-6)
         
-        if v_start < 1.0 or v_end < 1.0:
-            raise ValueError(f"Trajectory contains unphysical reversal or near-stop speeds. v_start={v_start:.1f}, v_end={v_end:.1f}")
+        if accel > max_accel or accel < min_accel:
+            if strict:
+                v_start = v_cpa - accel * dur
+                v_end = v_cpa + accel * dur
+                raise ValueError(f"Trajectory contains unphysical reversal or near-stop speeds. v_start={v_start:.1f}, v_end={v_end:.1f}")
+            else:
+                accel = max(min(accel, max_accel), min_accel)
+                params['acceleration'] = accel
+        
+        # 2. Effective acceleration identifiability metric
+        v_cpa_sq = max(v_cpa**2, 1e-6)
+        alpha_eff = abs(accel) * d_cpa / v_cpa_sq
+        if alpha_eff < 0.05 and strict:
+            raise ValueError(f"Acceleration too weak for distance/speed (alpha_eff={alpha_eff:.3f} < 0.05)")
 
     # -------- ATMOSPHERE --------
     tmin, tmax = DEFAULT_RANGES['temperature']
@@ -1422,6 +1429,8 @@ def _save_numpy_visualization(doppler_audio, spec, frequency, dfdt, rms,
         ax.set_title(f'Spectrogram ({spectrogram_type.upper()})')
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
+        clip_duration_s = float(len(doppler_audio)) / float(SR)
+        ax.set_xlim(0.0, max(clip_duration_s, 1e-6))
         fig.savefig(os.path.join(sample_dir, f'{base_name}_spectrogram.png'),
                     dpi=120, bbox_inches='tight', facecolor='white')
         plt.close(fig)
@@ -1569,18 +1578,19 @@ def save_benchmark_datasets(sample_dir, features, labels, params, config):
         np.save(os.path.join(b6_dir, 'segmentation_mask.npy'), mask.astype(np.bool_))
 
     # B7: Acceleration/Deceleration
-    b7_features = {
-        'time': features['time'],
-        'frequency': features['frequency'],
-        'dfdt': features['dfdt'],
-    }
-    if features.get('kinematics') is not None:
-        b7_features['kinematics'] = features['kinematics']
-    save_set(
-        'B7', 'B7_Acceleration',
-        {'acceleration_mps2': labels.get('acceleration_mps2', params.get('acceleration', 0.0))},
-        b7_features
-    )
+    if 'B7' in selected:
+        b7_dir = os.path.join(sample_dir, 'B7_Acceleration')
+        os.makedirs(b7_dir, exist_ok=True)
+        acc_val = labels.get(
+            'acceleration_mps2',
+            params.get('acceleration', 0.0),
+        )
+        np.save(os.path.join(b7_dir, 'acceleration.npy'), np.array(acc_val))
+        np.save(os.path.join(b7_dir, 'time.npy'), features['time'])
+        np.save(os.path.join(b7_dir, 'frequency.npy'), features['frequency'])
+        np.save(os.path.join(b7_dir, 'dfdt.npy'), features['dfdt'])
+        if features.get('kinematics') is not None:
+            np.save(os.path.join(b7_dir, 'kinematics.npy'), features['kinematics'])
 
 
 def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, index, config, custom_filename=None):
@@ -1707,10 +1717,46 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
 # AUDIO MIXING
 # ============================================================
 
+def _trim_leading_silence(y, sr, hop_length=512, threshold_frac=0.02, max_trim_s=6.0):
+    """
+    Shift audio left to drop leading near-silence so spectrograms start at audible onset.
+    Used for multi-source mixes (same goal as cleaner single-source benchmark onsets).
+    """
+    y = np.asarray(y, dtype=np.float32)
+    if len(y) < hop_length:
+        return y
+    rms = librosa.feature.rms(
+        y=y, frame_length=hop_length * 2, hop_length=hop_length
+    )[0]
+    peak = float(np.max(rms))
+    if peak < 1e-8:
+        return y
+    thresh = threshold_frac * peak
+    onset_frame = 0
+    for i, val in enumerate(rms):
+        if val >= thresh:
+            onset_frame = i
+            break
+    onset_sample = min(int(onset_frame * hop_length), int(max_trim_s * sr))
+    if onset_sample <= 0:
+        return y
+    trimmed = y[onset_sample:]
+    out = np.zeros_like(y)
+    n = min(len(trimmed), len(out))
+    out[:n] = trimmed[:n]
+    return out
+
+
 def mix_audio_clips(clips_with_delays):
     """Mix multiple audio arrays with staggered start times"""
     if not clips_with_delays:
         return np.array([])
+
+    min_delay = min(float(d) for _, d in clips_with_delays)
+    clips_with_delays = [
+        (audio, max(0.0, float(delay) - min_delay))
+        for audio, delay in clips_with_delays
+    ]
 
     max_end_sample = 0
     for audio, delay_s in clips_with_delays:
@@ -1801,12 +1847,29 @@ def generate_statistics(clips_metadata, config):
     format_stats("CPA Distance Statistics", distances, "m")
     stats.append("")
 
-    stats.append("Pass-by Distribution:")
-    pass_by_count = sum(1 for clip in clips_metadata if clip.get('pass_by_in_clip', True))
-    non_pass_by_count = total_clips - pass_by_count
-    stats.append(f"  Pass-by: {pass_by_count} clips ({pass_by_count / total_clips * 100:.1f}%)")
-    stats.append(f"  Non Pass-by: {non_pass_by_count} clips ({non_pass_by_count / total_clips * 100:.1f}%)")
-    stats.append("")
+    def _is_multi_source_clip(clip):
+        labels = clip.get('labels', {}) or {}
+        num = int(labels.get('num_sources', clip.get('num_sources', 1)) or 1)
+        if num > 1:
+            return True
+        if clip.get('vehicle') == 'multi':
+            return True
+        if labels.get('vehicle_class') == 'multi':
+            return True
+        return False
+
+    single_clips = [c for c in clips_metadata if not _is_multi_source_clip(c)]
+    if single_clips:
+        stats.append("Pass-by Distribution (single-source clips only):")
+        pass_by_count = sum(1 for clip in single_clips if clip.get('pass_by_in_clip', True))
+        non_pass_by_count = len(single_clips) - pass_by_count
+        stats.append(
+            f"  Pass-by: {pass_by_count} clips ({pass_by_count / len(single_clips) * 100:.1f}%)"
+        )
+        stats.append(
+            f"  Non Pass-by: {non_pass_by_count} clips ({non_pass_by_count / len(single_clips) * 100:.1f}%)"
+        )
+        stats.append("")
 
     stats.append("Acceleration Mode (CV/CA):")
     cv_count = 0
@@ -1929,6 +1992,17 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
         if 'arrival_time' in v_cfg and 'delay' not in v_cfg:
             delay = max(0.0, v_cfg['arrival_time'] - 5.0)
 
+        # Disable strict identifiability for multi-object scenes to prevent validation crashes
+        dop_params['strict_identifiability'] = False
+        # Multi-source synthesis does not support constant-acceleration kinematics yet.
+        dop_params['acceleration'] = 0.0
+
+        bench_cfg = config.get('benchmarks', {}) if isinstance(config, dict) else {}
+        if bench_cfg.get('enabled', False):
+            dop_params.setdefault('enrichment_gate_power', 2.4)
+            dop_params.setdefault('passby_attack_gamma', 1.45)
+            dop_params.setdefault('passby_edge_floor', 0.03)
+
         # Generate audio array for this vehicle using relative physics_params
         audio_arr, _, _ = get_doppler_audio_array(v_name, path_type, dop_params)
         
@@ -1945,6 +2019,7 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
 
     # Mix audio
     mixed_audio = mix_audio_clips(clips_with_delays)
+    mixed_audio = _trim_leading_silence(mixed_audio, SR)
     atm_cfg = config.get('atmosphere', {}) if isinstance(config, dict) else {}
     if bool(atm_cfg.get('add_air_noise', False)):
         noise_strength = float(atm_cfg.get('air_noise_strength', 8.0))
@@ -2089,5 +2164,6 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
         'path_plot': f"{base_name}.png",
         'sample_dir': sample_id,
         'num_sources': len(vehicles_configs),
-        'individual_files': individual_files
+        'individual_files': individual_files,
+        'acceleration': 0.0,
     }

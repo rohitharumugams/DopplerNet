@@ -953,18 +953,33 @@ def batch_generate():
 
         # NEW: Save ground-truth dataset.csv
         dataset_file = os.path.join(batch_dir, 'dataset.csv')
+
+        def _is_multi_source_clip(clip):
+            labels = clip.get('labels', {}) or {}
+            num = int(labels.get('num_sources', clip.get('num_sources', 1)) or 1)
+            if num > 1:
+                return True
+            if clip.get('vehicle') == 'multi':
+                return True
+            if labels.get('vehicle_class') == 'multi':
+                return True
+            return False
+
         csv_headers = [
             'sample_id', 'batch_id', 'filename', 'vehicle_class', 'trajectory_type',
             'speed_mps', 'acceleration', 'direction_label', 'direction_text', 'cpa_distance_m', 'cpa_time_sec',
-            'num_sources', 'is_crossing', 'pass_by_in_clip'
+            'num_sources', 'is_crossing',
         ]
-        
+        has_single_source = any(not _is_multi_source_clip(c) for c in clips_metadata)
+        if has_single_source:
+            csv_headers.append('pass_by_in_clip')
+
         with open(dataset_file, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=csv_headers)
             writer.writeheader()
             for clip in clips_metadata:
                 labels = clip.get('labels', {})
-                writer.writerow({
+                row = {
                     'sample_id': clip.get('sample_dir', ''),
                     'batch_id': batch_id,
                     'filename': clip.get('filename', ''),
@@ -978,8 +993,10 @@ def batch_generate():
                     'cpa_time_sec': labels.get('cpa_time_sec', 5.0),
                     'num_sources': labels.get('num_sources', 1),
                     'is_crossing': labels.get('is_crossing', False),
-                    'pass_by_in_clip': str(clip.get('pass_by_in_clip', True)).lower()
-                })
+                }
+                if has_single_source and not _is_multi_source_clip(clip):
+                    row['pass_by_in_clip'] = str(clip.get('pass_by_in_clip', True)).lower()
+                writer.writerow(row)
 
         # Save log
         log_file = os.path.join(batch_dir, f'generation_log_{batch_id}.txt')
