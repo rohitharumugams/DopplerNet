@@ -34,6 +34,9 @@ A Flask-based system for generating realistic Doppler-shifted vehicle audio clip
 DopplerNet/
 ├── core/
 │   ├── config.py            # Environment, dirs, and default parameter ranges
+│   ├── batch_runner.py      # Wave orchestration, resume, streaming metadata
+│   ├── batch_parallel.py    # Worker pool / wave size resolution
+│   ├── batch_planning.py    # Per-slot planning (main process)
 │   ├── progress.py          # Batch progress tracking
 │   └── sampler.py           # Cyclic parameter sampling
 ├── physics/
@@ -101,6 +104,17 @@ Used to create large-scale datasets for machine learning.
 3. Set ranges for speed, distance, and angle.
 4. Define total clips and distribution mode (Automatic or Manual).
 5. **Output**: Folders containing WAVs, metadata.json, path plots, and spectrograms.
+
+#### Large-scale batch orchestration
+
+Standard batch generation uses **wave orchestration** so very large jobs (e.g. 1M clips) do not load every planned slot into memory at once.
+
+- **Waves** (~5000 clips by default): plan one wave on the main process, synthesize in parallel, finalize/stream outputs, then clear wave state before the next wave.
+- **Workers**: `ProcessPoolExecutor` with **spawn** context (safe with Flask). Configure via `batch.workers` or `DOPPLERNET_BATCH_WORKERS`.
+- **Wave size**: `batch.wave_size` or `DOPPLERNET_BATCH_WAVE_SIZE` (default `5000`).
+- **Background jobs**: batches with **≥ 10,000** clips return immediately; work continues in a background thread. Poll `/api/progress?batch_directory=...` or read `{batch_dir}/progress.json`.
+- **Resume**: restart with the same batch folder/name. Completed `sample_*` directories are skipped; sampler continuity is restored from `{batch_dir}/sampler_state.json` and plan lists from `{batch_dir}/batch_plan_state.json`.
+- **Streaming metadata** (large runs): incremental `dataset.csv` and `clips_metadata.jsonl` instead of a giant in-memory clips array. Smaller runs still write a compact `metadata_{batch_id}.json` with a `clips` array for backward compatibility.
 
 ### 2. Batch Overlap (Busy Road Simulation)
 Simulates realistic environments with multiple vehicles.
