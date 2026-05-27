@@ -1,4 +1,12 @@
 {
-  "total_target": 10,
-  "generated_so_far": 10
+  "total_target": 3,
+  "generated_so_far": 3,
+  "batch_id": "workspace_samples",
+  "phase": "done",
+  "status": "completed",
+  "metadata_file": "static/workspace_outputs\\prof_kia_60mph\\workspace_samples\\metadata_workspace_samples.json",
+  "log_file": "static/workspace_outputs\\prof_kia_60mph\\workspace_samples\\generation_log_workspace_samples.txt",
+  "stats_file": "static/workspace_outputs\\prof_kia_60mph\\workspace_samples\\statistics_workspace_samples.txt",
+  "formatted_time": "36.62 seconds (0.61 minutes)",
+  "slots_failed": 0
 }

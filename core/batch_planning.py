@@ -488,15 +488,36 @@ def plan_slot(i: int, ctx: dict) -> dict:
             }
     else:
         # Standard single-source mode
+        ws_cfg = (config.get('workspace') or {}) if isinstance(config, dict) else {}
+        fixed_slots = ws_cfg.get('fixed_slots') if ws_cfg else None
+        path_type_plan = path_type
+        vehicle_plan = vehicle_name
+        if bool(ws_cfg.get('enabled')) and fixed_slots and i < len(fixed_slots):
+            fs = fixed_slots[i]
+            path_type_plan = fs.get('path_type', 'straight')
+            vehicle_plan = fs.get('vehicle_name', vehicle_name)
+
         params = generate_random_parameters(
         config,
-        vehicle_name,
-        path_type,
+        vehicle_plan,
+        path_type_plan,
         clip_index=clip_index,
         total_clips=total_clips,
         motion_pass_by=motion_pass_by_flags[i],
         )
-        path_type_use = params.pop('_force_path_type', path_type)
+        if bool(ws_cfg.get('enabled')) and fixed_slots and i < len(fixed_slots):
+            fs = fixed_slots[i]
+            for key in (
+                'speed', 'distance', 'duration', 'acceleration', 'angle',
+                'temperature', 'humidity', 'h', 'simulation_mode',
+            ):
+                if key in fs and fs[key] is not None:
+                    params[key] = fs[key]
+            if abs(float(params.get('acceleration', 0.0))) < 1e-9:
+                params['simulation_mode'] = 'cv'
+                params['acceleration'] = 0.0
+
+        path_type_use = params.pop('_force_path_type', path_type_plan)
         params.pop('_clip_index', None)
         params.pop('_total_clips', None)
         params.pop('_motion_pass_by', None)
@@ -546,6 +567,21 @@ def synthesize_planned(job: dict) -> dict:
         if 'road_bezier_bulge' in job:
             kwargs['road_bezier_bulge'] = job['road_bezier_bulge']
         return generate_multi_object_clip(**kwargs)
+
+    # Workspace sandbox: opt-in only, isolated from normal generation.
+    ws_cfg = (config.get('workspace', {}) or {}) if isinstance(config, dict) else {}
+    if bool(ws_cfg.get('enabled', False)):
+        from audio.workspace_generation import generate_single_clip_workspace
+
+        return generate_single_clip_workspace(
+            job['vehicle_name'],
+            job['path_type'],
+            job['params'],
+            audio_dir,
+            batch_id,
+            clip_index,
+            config,
+        )
     return generate_single_clip(
         job['vehicle_name'],
         job['path_type'],

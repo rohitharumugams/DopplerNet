@@ -779,6 +779,10 @@ def generate_random_parameters(
     # -------- ACCELERATION (CV / CA Modes) --------
     sim_mode = str(config.get('simulation_mode', 'cv')).lower()
     params['simulation_mode'] = sim_mode
+    ws_enabled = bool((config.get('workspace') or {}).get('enabled', False))
+    if ws_enabled:
+        # Experimental workspace: allow broader CA exploration without benchmark identifiability rejects.
+        params['strict_identifiability'] = False
 
     if sim_mode == 'cv':
         # Constant Velocity (CV) Mode: Force acceleration to exactly 0.0
@@ -795,9 +799,17 @@ def generate_random_parameters(
         # Enforce global bounds [-8.0, 8.0]
         amin = max(-8.0, min(8.0, float(amin_raw)))
         amax = max(-8.0, min(8.0, float(amax_raw)))
-            
-        lo, hi = int(min(amin, amax)), int(max(amin, amax))
-        params['acceleration'] = get_sampler("acceleration", lo, hi)
+
+        if ws_enabled:
+            lo_f, hi_f = min(amin, amax), max(amin, amax)
+            acc = random.uniform(lo_f, hi_f)
+            if abs(acc) < 0.05 and (hi_f - lo_f) > 0.1:
+                sign = 1.0 if (lo_f + hi_f) >= 0 else -1.0
+                acc = sign * random.uniform(0.5, max(abs(lo_f), abs(hi_f), 0.5))
+            params['acceleration'] = acc
+        else:
+            lo, hi = int(min(amin, amax)), int(max(amin, amax))
+            params['acceleration'] = get_sampler("acceleration", lo, hi)
 
     # --- KINEMATIC & IDENTIFIABILITY VALIDATION ---
     accel = float(params.get('acceleration', 0.0))
@@ -805,7 +817,7 @@ def generate_random_parameters(
         v_cpa = float(params.get('speed', 1.0))
         d_cpa = float(params.get('distance', params.get('h', 1.0)))
         dur = float(params.get('duration', 10.0))
-        strict = bool(params.get('strict_identifiability', True))
+        strict = bool(params.get('strict_identifiability', not ws_enabled))
         
         # 1. No Reversal / Speed Limit constraint
         # Determine the maximum time from CPA. In the worst case, t_cpa could be 0 or dur.
@@ -920,7 +932,16 @@ def generate_random_parameters(
 # CORE AUDIO GENERATION
 # ============================================================
 
-def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', phase_offset=0.0, pitch_shift=1.0):
+def get_doppler_audio_array(
+    vehicle_name,
+    path_type,
+    params,
+    method='resample',
+    phase_offset=0.0,
+    pitch_shift=1.0,
+    *,
+    src_pitch_curve=None,
+):
     """
     Synthesize one pass-by clip (matches the paper pipeline figure).
 
@@ -1120,6 +1141,21 @@ def get_doppler_audio_array(vehicle_name, path_type, params, method='resample', 
 
     # Force tonal separation among identical vehicle models
     freq_ratios = freq_ratios * pitch_shift
+
+    # Optional: time-varying emitted/source-frequency evolution before Doppler.
+    # This is used ONLY by experimental workspaces and is off by default.
+    if src_pitch_curve is not None:
+        curve = np.asarray(src_pitch_curve, dtype=np.float32)
+        if curve.size > 0:
+            # Align curve length to physics arrays.
+            if len(curve) != len(freq_ratios):
+                curve = np.interp(
+                    np.linspace(0, len(curve) - 1, len(freq_ratios)),
+                    np.arange(len(curve)),
+                    curve,
+                ).astype(np.float32)
+            curve = np.clip(curve, 0.02, 20.0).astype(np.float32)
+            freq_ratios = freq_ratios * curve
 
     # Single-hump pass-by shaping assumes one CPA (attack → peak → release). Polyline / map paths can
     # revisit the observer (loops, U-turns); that envelope forces decay after the first amplitude peak

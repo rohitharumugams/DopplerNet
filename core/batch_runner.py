@@ -23,7 +23,7 @@ from core.batch_parallel import (
     resolve_wave_size,
     resolve_workers,
 )
-from core.batch_planning import plan_slot, synthesize_planned
+from core.batch_planning import plan_slot, plan_slot_with_retries, synthesize_planned
 from core.config import OUTPUT_FOLDER
 from core.progress import save_progress
 from core.sampler import SAMPLERS, load_sampler_state, save_sampler_state
@@ -276,10 +276,10 @@ def _process_wave(
         planned: List[Tuple[int, dict]] = []
         for i in wave_indices:
             try:
-                planned.append((i, plan_slot(i, ctx)))
-            except Exception:
+                planned.append((i, plan_slot_with_retries(i, ctx)))
+            except Exception as exc:
                 slots_failed += 1
-                err = f"Error planning slot {i + 1}/{ctx['total_clips']}"
+                err = f"Error planning slot {i + 1}/{ctx['total_clips']}: {exc}"
                 traceback.print_exc()
                 errors.append(err)
 

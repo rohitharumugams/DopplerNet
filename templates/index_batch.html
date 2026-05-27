@@ -557,11 +557,13 @@
 
     /* Smooth transitions for mode switching */
     #batchMode,
+    #workspaceMode,
     #singleMode {
       transition: opacity 0.3s ease-in-out;
     }
 
     #batchMode.hidden,
+    #workspaceMode.hidden,
     #singleMode.hidden {
       opacity: 0;
       pointer-events: none;
@@ -629,8 +631,308 @@
         <button id="modeCustomPath" class="mode-btn">Custom Path</button>
         <button id="modeMap" class="mode-btn">Outline Converter</button>
         <button id="modeIntersection" class="mode-btn">Intersection</button>
+        <button id="modeWorkspace" class="mode-btn">Workspace</button>
       </div>
     </header>
+
+    <!-- WORKSPACE MODE (EXPERIMENTAL, ISOLATED) -->
+    <div id="workspaceMode" class="hidden" style="display:none;">
+      <div class="section">
+        <h3 class="section-title">Quadratic Acceleration Testing</h3>
+        <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 0;">
+          Experimental sandbox isolated from Batch Generation and benchmarks. Explores
+          <strong>f<sub>obs</sub>(t) = f<sub>src</sub>(t) × Doppler(t)</strong> where emitted frequency couples to speed/RPM under
+          kinematic acceleration — RPM-dependent pitch, acceleration-aware source evolution, combined engine-pitch + Doppler,
+          and nonlinear/quadratic frequency change. No CV mode; acceleration-focused only. Outputs use a
+          <strong>single flat folder per sample</strong> (no Common/Essential copies): WAV, <code>.npy</code> features, diagnostic PNGs,
+          aligned overlay, plus three spectrogram views (CQT, wide-band STFT, narrow-band STFT).
+        </p>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Source Frequency Model (Pre-Doppler)</h3>
+        <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 10px;">
+          g(v/v<sub>ref</sub>) scales the source spectrum before geometric Doppler warping. Compare kinematic-only vs RPM-linear vs RPM-quadratic coupling.
+        </p>
+        <div class="grid-3">
+          <div class="param-group">
+            <label class="param-label">Model</label>
+            <select id="wsSrcModel" style="width: 100%;">
+              <option value="doppler_only">Kinematic-only Doppler (baseline)</option>
+              <option value="rpm_linear" selected>Doppler + RPM coupling (linear)</option>
+              <option value="rpm_quadratic">Doppler + RPM coupling (quadratic)</option>
+            </select>
+          </div>
+          <div class="param-group">
+            <label class="param-label">Coupling Strength (k1)</label>
+            <input type="number" id="wsCouplingK1" value="0.35" min="0" max="3" step="0.01">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Quadratic Strength (k2)</label>
+            <input type="number" id="wsCouplingK2" value="0.25" min="0" max="6" step="0.01">
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top: 10px;">
+          <div class="param-group">
+            <label class="param-label">Reference Speed v<sub>ref</sub> (m/s)</label>
+            <input type="number" id="wsVref" value="30" min="1" max="120" step="1">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Pitch Clamp Min</label>
+            <input type="number" id="wsPitchClampMin" value="0.35" min="0.05" max="2" step="0.01">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Pitch Clamp Max</label>
+            <input type="number" id="wsPitchClampMax" value="2.50" min="0.2" max="8" step="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Path Types</h3>
+        <label class="checkbox-label">
+          <input type="checkbox" id="wsPathStraight" value="straight" checked>
+          Straight Line Path
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="wsPathParabola" value="parabola" checked>
+          Parabolic Path
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="wsPathBezier" value="bezier" checked>
+          Bezier Curve Path
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <div class="section">
+          <h3 class="section-title">Sound Source</h3>
+          <div class="param-group">
+            <label class="param-label">Choose Sound Type:</label>
+            <select id="wsSoundSource" onchange="loadWorkspaceVehicles()">
+              <option value="all">All Sounds (Cars + Drones)</option>
+              <option value="vehicle" selected>Car sounds Only</option>
+              <option value="drone">Drone Sounds Only</option>
+            </select>
+          </div>
+        </div>
+        <div class="section">
+          <h3 class="section-title">Spectrogram Settings</h3>
+          <div class="param-group">
+            <label class="param-label">Spectrogram Type (.npy output)</label>
+            <select id="wsSpectrogramType">
+              <option value="cqt">CQT — Constant-Q Transform</option>
+              <option value="stft">STFT — Short-Time Fourier Transform</option>
+              <option value="mel">Mel Spectrogram</option>
+            </select>
+          </div>
+          <div class="param-group" style="margin-top: 10px;">
+            <label class="param-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="wsGenerateDiagnostics" checked>
+              Generate Diagnostic Plots (freq, df/dt, RMS, top-K)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Car Selection</h3>
+        <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 10px;">
+          Select which sounds to include in this workspace batch:
+        </p>
+        <div id="wsVehicleSelectionCheckboxes"></div>
+      </div>
+
+      <div class="grid-4">
+        <div class="section">
+          <h3 class="section-title">Speed</h3>
+          <p class="param-label">Each clip will use a random speed between these values.</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Speed (1-100 m/s)</label>
+            <input type="number" id="wsSpeedMin" value="10" min="1" max="100">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Speed (1-100 m/s)</label>
+            <input type="number" id="wsSpeedMax" value="50" min="1" max="100">
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Acceleration (required)</h3>
+          <p class="param-label">Acceleration-focused workspace; no constant-velocity mode or CV benchmarks.</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Acceleration (-8 to 8 m/s²)</label>
+            <input type="number" id="wsAccelMin" value="-3.5" min="-8" max="8" step="0.1">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Acceleration (-8 to 8 m/s²)</label>
+            <input type="number" id="wsAccelMax" value="2.5" min="-8" max="8" step="0.1">
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Distance</h3>
+          <p class="param-label">Random closest distance to observer (always positive).</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Distance (1-1000 m)</label>
+            <input type="number" id="wsDistanceMin" value="5" min="1" max="1000">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Distance (1-1000 m)</label>
+            <input type="number" id="wsDistanceMax" value="100" min="1" max="1000">
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Angle (Straight Path)</h3>
+          <p class="param-label">Random approach angle; always between -45° and +45°.</p>
+          <div class="param-group">
+            <label class="param-label">Minimum Angle (-45 to 45°)</label>
+            <input type="number" id="wsAngleMin" value="-45" min="-45" max="45">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Maximum Angle (-45 to 45°)</label>
+            <input type="number" id="wsAngleMax" value="45" min="-45" max="45">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Atmosphere</h3>
+        <p class="param-label">Temperature and humidity affect the speed of sound and Doppler acoustics.</p>
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label">Temperature Range (-20 to 50°C)</label>
+            <div class="input-row">
+              <input type="number" id="wsTempMin" value="15" min="-20" max="50" title="Min: -20, Max: 50">
+              <input type="number" id="wsTempMax" value="35" min="-20" max="50" title="Min: -20, Max: 50">
+            </div>
+          </div>
+          <div class="param-group">
+            <label class="param-label">Humidity Range (0 to 100%)</label>
+            <div class="input-row">
+              <input type="number" id="wsHumMin" value="30" min="0" max="100" title="Min: 0, Max: 100">
+              <input type="number" id="wsHumMax" value="70" min="0" max="100" title="Min: 0, Max: 100">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Output Settings</h3>
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label">Output Duration (s)</label>
+            <input type="number" id="wsAudioDuration" value="10" min="0.5" max="120" step="0.5">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Output Format</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="wsOutputFormat" value="wav" checked>
+                WAV
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="wsOutputFormat" value="mp3">
+                MP3
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">Save Path</label>
+          <div class="path-display" id="wsSavePath">static/workspace_outputs/</div>
+          <button class="browse-btn" onclick="browseWorkspaceFolderPath()">Change Path</button>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #30363d; margin: 25px 0 20px;">
+
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label" for="wsBatchName">Batch Name (Optional)</label>
+            <input type="text" id="wsBatchName" placeholder="Default: batch_YYYYMMDD_HHMMSS" style="width: 100%;">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Total Number of Clips</label>
+            <input type="number" id="wsTotalClips" value="100" min="1" max="10000">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Analysis-by-Synthesis (v, d) Calibration</h3>
+        <p class="param-label" style="font-size: 12px; color: #8b949e;">
+          Repeatable inverse experiment on a real pass-by: 1 s far-field source → dedopplerize per v → repeat-stitch →
+          synthesize per (v, d) on a 13×13 grid → L1/L2 spectrogram error (full clip + CPA windows W = 0.5, 1.0, 2.0 s).
+          Heatmaps and marginals show broad (v, d) valleys; use synthetic GT fields to validate identifiability before trusting argmins.
+        </p>
+        <div class="grid-2">
+          <div class="param-group">
+            <label class="param-label">Original recording (WAV)</label>
+            <input type="file" id="wsAbsAudio" accept="audio/*,.wav,.mp3,.flac,.ogg">
+          </div>
+          <div class="param-group">
+            <label class="param-label" for="wsAbsJobName">Job name (optional)</label>
+            <input type="text" id="wsAbsJobName" placeholder="e.g. kia_vs13_grid" style="width: 100%;">
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="param-group">
+            <label class="param-label">Output folder</label>
+            <div class="path-display" id="wsAbsOutDir">static/workspace_outputs/abs_grid/</div>
+          </div>
+          <div class="param-group">
+            <label class="param-label">CPA window (s)</label>
+            <input type="number" id="wsAbsCpaWindow" value="1.0" min="0.2" max="5" step="0.1">
+            <p class="param-label" style="font-size: 11px; margin-top: 4px;">Also runs W = 0.5 and 2.0 s</p>
+          </div>
+          <div class="param-group">
+            <label class="param-label">Metric</label>
+            <select id="wsAbsMetric" style="width: 100%;">
+              <option value="both" selected>L1 + L2</option>
+              <option value="l2">L2 only</option>
+              <option value="l1">L1 only</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top: 10px;">
+          <div class="param-group">
+            <label class="param-label">Synthetic GT speed (kph, optional)</label>
+            <input type="number" id="wsAbsGtV" placeholder="e.g. 50" min="1" max="200">
+          </div>
+          <div class="param-group">
+            <label class="param-label">Synthetic GT distance (m, optional)</label>
+            <input type="number" id="wsAbsGtD" placeholder="e.g. 4.5" min="0.5" max="50" step="0.1">
+          </div>
+        </div>
+        <div style="text-align: center; margin: 20px 0 10px;">
+          <button class="btn" onclick="runWorkspaceAbsGrid()" style="padding: 12px 32px; font-size: 15px; background: #238636;">
+            Run (v, d) Grid
+          </button>
+        </div>
+        <div class="progress-container" id="wsAbsProgressContainer" style="display:none;">
+          <div id="wsAbsProgressLog" class="log-box">Starting analysis-by-synthesis grid.</div>
+        </div>
+        <div class="result-box" id="wsAbsResultBox" style="display:none;"></div>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <button class="btn" onclick="generateWorkspaceBatch()" style="padding: 15px 40px; font-size: 16px;">
+          Generate Workspace Batch
+        </button>
+      </div>
+
+      <div class="progress-container" id="wsProgressContainer" style="display:none;">
+        <div id="wsBatchTimer" class="timer-display" style="display: none;">Estimated Time Remaining: --:--</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="wsProgressFill">0%</div>
+        </div>
+        <div class="log-box" id="wsProgressLog"></div>
+      </div>
+
+      <div class="result-box" id="wsResultBox" style="display:none;"></div>
+    </div>
 
     <!-- INTERSECTION MODE -->
     <div id="intersectionMode" class="hidden">
@@ -1915,6 +2217,41 @@
   </div>
 
   <script>
+    function browseWorkspaceFolderPath() {
+      const pathDisplay = document.getElementById('wsSavePath');
+      if (!pathDisplay) return;
+
+      const currentPath = pathDisplay.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentPath;
+      input.className = 'path-display';
+      input.style.width = '100%';
+
+      pathDisplay.replaceWith(input);
+      input.focus();
+      input.select();
+
+      function savePath() {
+        const newPath = input.value.trim() || 'static/workspace_outputs/';
+        const newDisplay = document.createElement('div');
+        newDisplay.id = 'wsSavePath';
+        newDisplay.className = 'path-display';
+        newDisplay.textContent = newPath;
+        input.replaceWith(newDisplay);
+      }
+
+      input.addEventListener('blur', savePath);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          savePath();
+        } else if (e.key === 'Escape') {
+          input.value = currentPath;
+          savePath();
+        }
+      });
+    }
+
     function browseFolderPath() {
       const pathDisplay = document.getElementById('savePath');
       if (!pathDisplay) return;
@@ -2059,6 +2396,417 @@
         if (checkboxContainer) {
           checkboxContainer.innerHTML = '<p class="error">Failed to load audio files. Please refresh the page.</p>';
         }
+      }
+    }
+
+    async function loadWorkspaceVehicles() {
+      try {
+        const source = document.getElementById('wsSoundSource')?.value || 'all';
+        const response = await fetch(`/api/list_vehicles?source=${source}`);
+        const data = await response.json();
+
+        const checkboxContainer = document.getElementById('wsVehicleSelectionCheckboxes');
+        if (!checkboxContainer) return;
+
+        checkboxContainer.innerHTML = '';
+
+        if (!data.vehicles || data.vehicles.length === 0) {
+          checkboxContainer.innerHTML = '<p class="error">No audio files found in static/vehicle_sounds or static/drone_sounds</p>';
+          return;
+        }
+
+        // Match the Batch Generation visual messaging.
+        const hasVehicleSounds = data.vehicles.some(v => v.source === 'vehicle');
+        const hasDroneSounds = data.vehicles.some(v => v.source === 'drone');
+        const sourceChoice = document.getElementById('wsSoundSource')?.value || 'all';
+
+        if (sourceChoice !== 'drone' && !hasVehicleSounds && hasDroneSounds) {
+          const infoMsg = document.createElement('p');
+          infoMsg.className = 'param-label';
+          infoMsg.style.cssText = 'font-size: 12px; color: #58a6ff; margin-bottom: 10px; background: #0d1117; padding: 8px; border-radius: 4px; border: 1px solid #30363d;';
+          infoMsg.innerHTML = '📢 Using drone sounds as fallback (no car sounds found)';
+          checkboxContainer.appendChild(infoMsg);
+        } else if (sourceChoice === 'drone' && hasDroneSounds) {
+          const infoMsg = document.createElement('p');
+          infoMsg.className = 'param-label';
+          infoMsg.style.cssText = 'font-size: 12px; color: #7ee787; margin-bottom: 10px; background: #0d1117; padding: 8px; border-radius: 4px; border: 1px solid #30363d;';
+          infoMsg.innerHTML = '🚁 Displaying drone sounds';
+          checkboxContainer.appendChild(infoMsg);
+        } else if (sourceChoice === 'vehicle' && hasVehicleSounds) {
+          const infoMsg = document.createElement('p');
+          infoMsg.className = 'param-label';
+          infoMsg.style.cssText = 'font-size: 12px; color: #7ee787; margin-bottom: 10px; background: #0d1117; padding: 8px; border-radius: 4px; border: 1px solid #30363d;';
+          infoMsg.innerHTML = '🚗 Displaying car sounds';
+          checkboxContainer.appendChild(infoMsg);
+        }
+
+        data.vehicles.forEach(vehicle => {
+          const label = document.createElement('label');
+          label.className = 'checkbox-label';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = vehicle.name;
+          cb.checked = true;
+
+          const span = document.createElement('span');
+          const sourceIcon = vehicle.source === 'drone' ? '🚁' : '🚗';
+          span.textContent = `${sourceIcon} ${vehicle.name} (${vehicle.duration}s)`;
+
+          label.appendChild(cb);
+          label.appendChild(span);
+          checkboxContainer.appendChild(label);
+        });
+      } catch (error) {
+        console.error('Failed to load workspace vehicles:', error);
+        const checkboxContainer = document.getElementById('wsVehicleSelectionCheckboxes');
+        if (checkboxContainer) {
+          checkboxContainer.innerHTML = '<p class="error">Failed to load audio files. Please refresh the page.</p>';
+        }
+      }
+    }
+
+    function getSelectedWorkspaceVehicles() {
+      const selected = [];
+      const checkboxes = document.querySelectorAll('#wsVehicleSelectionCheckboxes input[type="checkbox"]:checked');
+      checkboxes.forEach(cb => selected.push(cb.value));
+      return selected;
+    }
+
+    function getSelectedWorkspacePaths() {
+      const selected = [];
+      const ids = ['wsPathStraight', 'wsPathParabola', 'wsPathBezier'];
+      ids.forEach((id) => {
+        const cb = document.getElementById(id);
+        if (cb && cb.checked) selected.push(cb.value);
+      });
+      return selected;
+    }
+
+    async function generateWorkspaceBatch() {
+      function clamp(val, min, max, fallback) {
+        let v = parseFloat(val);
+        if (isNaN(v)) v = fallback;
+        if (v < min) v = min;
+        if (v > max) v = max;
+        return v;
+      }
+
+      const speedMinRaw = clamp(document.getElementById('wsSpeedMin')?.value, 1, 100, 10);
+      const speedMaxRaw = clamp(document.getElementById('wsSpeedMax')?.value, 1, 100, 50);
+      const distanceMinRaw = clamp(document.getElementById('wsDistanceMin')?.value, 1, 1000, 5);
+      const distanceMaxRaw = clamp(document.getElementById('wsDistanceMax')?.value, 1, 1000, 100);
+      const durationUser = clamp(document.getElementById('wsAudioDuration')?.value, 0.5, 120, 10);
+      const angleMinRaw = clamp(document.getElementById('wsAngleMin')?.value, -45, 45, -45);
+      const angleMaxRaw = clamp(document.getElementById('wsAngleMax')?.value, -45, 45, 45);
+
+      const tempMinRaw = clamp(document.getElementById('wsTempMin')?.value, -20, 50, 15);
+      const tempMaxRaw = clamp(document.getElementById('wsTempMax')?.value, -20, 50, 35);
+      const humMinRaw = clamp(document.getElementById('wsHumMin')?.value, 0, 100, 30);
+      const humMaxRaw = clamp(document.getElementById('wsHumMax')?.value, 0, 100, 70);
+
+      const accelMinRaw = clamp(document.getElementById('wsAccelMin')?.value, -8, 8, -3.5);
+      const accelMaxRaw = clamp(document.getElementById('wsAccelMax')?.value, -8, 8, 2.5);
+
+      const speedMin = Math.min(speedMinRaw, speedMaxRaw);
+      const speedMax = Math.max(speedMinRaw, speedMaxRaw);
+      const distanceMin = Math.min(distanceMinRaw, distanceMaxRaw);
+      const distanceMax = Math.max(distanceMinRaw, distanceMaxRaw);
+      const angleMin = Math.min(angleMinRaw, angleMaxRaw);
+      const angleMax = Math.max(angleMinRaw, angleMaxRaw);
+      const tempMin = Math.min(tempMinRaw, tempMaxRaw);
+      const tempMax = Math.max(tempMinRaw, tempMaxRaw);
+      const humMin = Math.min(humMinRaw, humMaxRaw);
+      const humMax = Math.max(humMinRaw, humMaxRaw);
+      const accelMinVal = Math.min(accelMinRaw, accelMaxRaw);
+      const accelMaxVal = Math.max(accelMinRaw, accelMaxRaw);
+
+      const srcModel = document.getElementById('wsSrcModel')?.value || 'rpm_linear';
+      const k1 = clamp(document.getElementById('wsCouplingK1')?.value, 0, 3, 0.35);
+      const k2 = clamp(document.getElementById('wsCouplingK2')?.value, 0, 6, 0.25);
+      const vRef = clamp(document.getElementById('wsVref')?.value, 1, 120, 30);
+      const clampMin = clamp(document.getElementById('wsPitchClampMin')?.value, 0.05, 2.0, 0.35);
+      const clampMax = clamp(document.getElementById('wsPitchClampMax')?.value, 0.2, 8.0, 2.5);
+
+      const selectedVehicles = getSelectedWorkspaceVehicles();
+      const selectedPaths = getSelectedWorkspacePaths();
+      const totalClips = Math.max(1, Math.min(10000, parseInt(document.getElementById('wsTotalClips')?.value || '100')));
+
+      if (selectedVehicles.length === 0) {
+        alert('No vehicles available. Please ensure vehicle audio files are present.');
+        return;
+      }
+      if (selectedPaths.length === 0) {
+        alert('Please select at least one path type.');
+        return;
+      }
+
+      const config = {
+        // Acceleration-focused kinematics (no CV); source pitch via workspace g(v).
+        simulation_mode: 'ca',
+        output: {
+          format: (document.querySelector('input[name="wsOutputFormat"]:checked') || {}).value || 'wav',
+          path: document.getElementById('wsSavePath')?.textContent || 'static/workspace_outputs/',
+          spectrogram_type: document.getElementById('wsSpectrogramType')?.value || 'cqt',
+          generate_diagnostics: !!document.getElementById('wsGenerateDiagnostics')?.checked
+        },
+        vehicles: { selected: selectedVehicles },
+        paths: { selected: selectedPaths },
+        speed: { randomize: true, min: speedMin, max: speedMax },
+        distance: { randomize: true, min: distanceMin, max: distanceMax },
+        duration: { randomize: true, min: durationUser, max: durationUser },
+        angle: { randomize: true, min: angleMin, max: angleMax },
+        atmosphere: {
+          randomize: true,
+          temp_min: tempMin,
+          temp_max: tempMax,
+          hum_min: humMin,
+          hum_max: humMax,
+          add_air_noise: false
+        },
+        acceleration: {
+          randomize: true,
+          min: accelMinVal,
+          max: accelMaxVal,
+          value: 0.0
+        },
+        batch: {
+          total_clips: totalClips,
+          mode: 'auto',
+          name: (document.getElementById('wsBatchName')?.value || '').trim()
+        },
+        benchmarks: {
+          enabled: false,
+          selected: [],
+          params: {}
+        },
+        workspace: {
+          enabled: true,
+          kind: 'quadratic_acceleration_testing',
+          src_model: srcModel,
+          coupling_k1: k1,
+          coupling_k2: k2,
+          v_ref_mps: vRef,
+          pitch_clamp_min: clampMin,
+          pitch_clamp_max: clampMax
+        }
+      };
+
+      const container = document.getElementById('wsProgressContainer');
+      const timer = document.getElementById('wsBatchTimer');
+      const fill = document.getElementById('wsProgressFill');
+      const log = document.getElementById('wsProgressLog');
+      const result = document.getElementById('wsResultBox');
+
+      if (container) container.style.display = 'block';
+      if (timer) {
+        timer.style.display = 'block';
+        timer.textContent = 'Estimated Time Remaining: --:--';
+      }
+      if (result) result.style.display = 'none';
+      if (fill) {
+        fill.style.width = '0%';
+        fill.textContent = '0%';
+      }
+      if (log) log.innerHTML = 'Starting workspace batch generation.';
+
+      const startTime = Date.now();
+      let progressInterval = null;
+
+      function showWorkspaceComplete(data) {
+        if (timer) timer.textContent = 'Generation Complete';
+        const requested = data.total_requested ?? data.total_target ?? data.total_generated;
+        const generated = data.total_generated ?? data.generated_so_far ?? requested;
+        const pct = requested > 0 ? Math.round((generated / requested) * 100) : 100;
+        if (fill) {
+          fill.style.width = '100%';
+          fill.textContent = `${generated} / ${requested} (${pct}%)`;
+        }
+        if (log) log.innerHTML += `<br><span class="success">✓ Workspace batch generation complete!</span>`;
+
+        if (result) {
+          result.style.display = 'block';
+          result.innerHTML = `
+            <h3 class="success">Workspace Batch Generated</h3>
+            <p>Batch ID: ${data.batch_id}</p>
+            <p>Clips: ${generated} / ${requested} requested</p>
+            <p>Time Taken: ${data.formatted_time || '—'}</p>
+            <p>Output Directory: ${data.batch_directory}</p>
+            <p>Metadata: ${data.metadata_file || '—'}</p>
+            <p>Log: ${data.log_file || '—'}</p>
+            <p>Statistics: ${data.stats_file || '—'}</p>
+          `;
+        }
+      }
+
+      function startPolling(batchDirectory) {
+        const progressUrl = batchDirectory
+          ? `/api/progress?batch_directory=${encodeURIComponent(batchDirectory)}`
+          : '/api/progress';
+
+        progressInterval = setInterval(async () => {
+          try {
+            const res = await fetch(progressUrl);
+            const data = await res.json();
+            if (data.total_target > 0) {
+              const percent = Math.round((data.generated_so_far / data.total_target) * 100);
+              if (fill) {
+                fill.style.width = percent + '%';
+                fill.textContent = `${data.generated_so_far} / ${data.total_target} (${percent}%)`;
+              }
+              if (data.generated_so_far > 0) {
+                const elapsed = (Date.now() - startTime) / 1000;
+                const avg = elapsed / data.generated_so_far;
+                const remaining = Math.round((data.total_target - data.generated_so_far) * avg);
+                if (timer && remaining >= 0) {
+                  const mins = Math.floor(remaining / 60);
+                  const secs = remaining % 60;
+                  timer.textContent = `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                }
+              }
+            }
+
+            if (data.status === 'completed' && data.phase === 'done') {
+              clearInterval(progressInterval);
+              showWorkspaceComplete({
+                batch_id: data.batch_id,
+                total_requested: data.total_target,
+                total_generated: data.generated_so_far,
+                formatted_time: data.formatted_time,
+                batch_directory: batchDirectory,
+                metadata_file: data.metadata_file,
+                log_file: data.log_file,
+                stats_file: data.stats_file,
+              });
+            } else if (data.status === 'failed') {
+              clearInterval(progressInterval);
+              if (timer) timer.textContent = 'Error occurred';
+              if (result) {
+                result.style.display = 'block';
+                result.innerHTML = `<div class="error">Workspace batch generation failed. Check server logs.</div>`;
+              }
+            }
+          } catch (err) {
+            console.warn("Workspace polling error:", err);
+          }
+        }, 500);
+      }
+
+      try {
+        const response = await fetch('/api/batch_generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        const data = await response.json();
+
+        if (data.error) {
+          if (progressInterval) clearInterval(progressInterval);
+          if (timer) timer.textContent = 'Error occurred';
+          if (result) {
+            result.style.display = 'block';
+            result.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+          }
+        } else if (data.background) {
+          if (log) log.innerHTML += `<br>Background job started (${data.total_requested} clips). Polling progress...`;
+          if (timer) timer.textContent = 'Running in background...';
+          startPolling(data.batch_directory);
+        } else {
+          showWorkspaceComplete(data);
+        }
+      } catch (error) {
+        if (progressInterval) clearInterval(progressInterval);
+        if (timer) timer.textContent = 'Error occurred';
+        if (result) {
+          result.style.display = 'block';
+          result.innerHTML = `<div class="error">Error: ${error}</div>`;
+        }
+      }
+    }
+
+    let wsAbsPollInterval = null;
+
+    async function runWorkspaceAbsGrid() {
+      const fileInput = document.getElementById('wsAbsAudio');
+      const log = document.getElementById('wsAbsProgressLog');
+      const progBox = document.getElementById('wsAbsProgressContainer');
+      const result = document.getElementById('wsAbsResultBox');
+
+      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Please select the original pass-by WAV file.');
+        return;
+      }
+
+      if (wsAbsPollInterval) clearInterval(wsAbsPollInterval);
+
+      const form = new FormData();
+      form.append('audio', fileInput.files[0]);
+      form.append('out_dir', document.getElementById('wsAbsOutDir')?.textContent || 'static/workspace_outputs/abs_grid/');
+      form.append('metric', document.getElementById('wsAbsMetric')?.value || 'both');
+      form.append('cpa_window', document.getElementById('wsAbsCpaWindow')?.value || '1.0');
+      form.append('job_name', document.getElementById('wsAbsJobName')?.value || '');
+
+      const gtV = document.getElementById('wsAbsGtV')?.value;
+      const gtD = document.getElementById('wsAbsGtD')?.value;
+      if (gtV && gtD) {
+        form.append('gt_v_kph', gtV);
+        form.append('gt_d_m', gtD);
+      }
+
+      if (progBox) progBox.style.display = 'block';
+      if (log) log.innerHTML = 'Uploading and starting grid (169 points: v=30..90 kph, d=1..7 m)...';
+      if (result) result.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/workspace/abs_grid', { method: 'POST', body: form });
+        const data = await response.json();
+
+        if (data.error) {
+          if (log) log.innerHTML = `<span class="error">Error: ${data.error}</span>`;
+          return;
+        }
+
+        const jobId = data.job_id;
+        const outDir = data.out_dir;
+
+        wsAbsPollInterval = setInterval(async () => {
+          try {
+            const st = await fetch(`/api/workspace/abs_grid/status/${jobId}`);
+            const status = await st.json();
+            if (log) {
+              log.innerHTML = `${status.message || status.status} (${status.progress || 0}/${status.total || '?'})`;
+            }
+            if (status.status === 'completed') {
+              clearInterval(wsAbsPollInterval);
+              wsAbsPollInterval = null;
+              const r = status.results || {};
+              const a2 = r.argmin_l2_full || {};
+              const a1 = r.argmin_l1_full || {};
+              if (result) {
+                result.style.display = 'block';
+                result.innerHTML = `
+                  <h3 class="success">Analysis-by-synthesis grid complete</h3>
+                  <p>Output: <code>${outDir}</code></p>
+                  <p><strong>L2 full:</strong> best v = ${a2.best_v_kph ?? '—'} kph, best d = ${a2.best_d_m ?? '—'} m</p>
+                  <p><strong>L1 full:</strong> best v = ${a1.best_v_kph ?? '—'} kph, best d = ${a1.best_d_m ?? '—'} m</p>
+                  <p>Files: heatmap_l1_full.png, heatmap_l2_full.png, marginals, error_*.csv, README_abs_grid.md</p>
+                  <p class="param-label" style="font-size: 12px;">Interpret argmins as points in a valley, not ground truth, unless CPA-local + synthetic GT agree.</p>
+                `;
+              }
+            } else if (status.status === 'failed') {
+              clearInterval(wsAbsPollInterval);
+              wsAbsPollInterval = null;
+              if (result) {
+                result.style.display = 'block';
+                result.innerHTML = `<div class="error">Grid failed: ${status.message}</div>`;
+              }
+            }
+          } catch (err) {
+            console.warn('ABS poll error', err);
+          }
+        }, 800);
+      } catch (error) {
+        if (log) log.innerHTML = `<span class="error">Error: ${error}</span>`;
       }
     }
 
@@ -5338,6 +6086,7 @@
 
     function initModeToggle() {
       const btnBatch = document.getElementById('modeBatch');
+      const btnWorkspace = document.getElementById('modeWorkspace');
       const btnOverlap = document.getElementById('modeOverlap');
       const btnSpectrogram = document.getElementById('modeSpectrogram');
       const btnCompare = document.getElementById('modeCompare');
@@ -5347,6 +6096,7 @@
       const btnIntersection = document.getElementById('modeIntersection');
 
       const batchMode = document.getElementById('batchMode');
+      const workspaceMode = document.getElementById('workspaceMode');
       const overlapMode = document.getElementById('overlapMode');
       const spectrogramMode = document.getElementById('spectrogramMode');
       const compareMode = document.getElementById('compareMode');
@@ -5355,8 +6105,8 @@
       const mapMode = document.getElementById('mapMode');
       const intersectionMode = document.getElementById('intersectionMode');
 
-      if (!btnBatch || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnCustomPath || !btnMap || !btnIntersection ||
-        !batchMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !customPathMode || !mapMode || !intersectionMode) return;
+      if (!btnBatch || !btnWorkspace || !btnOverlap || !btnSpectrogram || !btnCompare || !btnSingle || !btnCustomPath || !btnMap || !btnIntersection ||
+        !batchMode || !workspaceMode || !overlapMode || !spectrogramMode || !compareMode || !singleMode || !customPathMode || !mapMode || !intersectionMode) return;
 
       function switchTo(activeBtn, showMode) {
         stopPlayback();
@@ -5364,10 +6114,10 @@
         if (showMode !== customPathMode) {
           window._lastSimIsCustom = false;
         }
-        [btnBatch, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnCustomPath, btnMap, btnIntersection].forEach(b => b.classList.remove('active'));
+        [btnBatch, btnWorkspace, btnOverlap, btnSpectrogram, btnCompare, btnSingle, btnCustomPath, btnMap, btnIntersection].forEach(b => b.classList.remove('active'));
         activeBtn.classList.add('active');
 
-        [batchMode, overlapMode, spectrogramMode, compareMode, singleMode, customPathMode, mapMode, intersectionMode].forEach(m => {
+        [batchMode, workspaceMode, overlapMode, spectrogramMode, compareMode, singleMode, customPathMode, mapMode, intersectionMode].forEach(m => {
           m.classList.add('hidden');
           setTimeout(() => {
             if (m === showMode) {
@@ -5381,6 +6131,10 @@
       }
 
       btnBatch.addEventListener('click', () => switchTo(btnBatch, batchMode));
+      btnWorkspace.addEventListener('click', () => {
+        switchTo(btnWorkspace, workspaceMode);
+        loadWorkspaceVehicles();
+      });
       btnOverlap.addEventListener('click', () => switchTo(btnOverlap, overlapMode));
       btnSpectrogram.addEventListener('click', () => switchTo(btnSpectrogram, spectrogramMode));
       btnCompare.addEventListener('click', () => switchTo(btnCompare, compareMode));

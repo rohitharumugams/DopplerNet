@@ -16,6 +16,7 @@ import os
 from routes.vehicle_routes import vehicle_bp
 from routes.batch_routes import batch_bp
 from routes.simulate_routes import simulate_bp
+from routes.workspace_routes import workspace_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -24,6 +25,7 @@ CORS(app)
 app.register_blueprint(vehicle_bp)
 app.register_blueprint(batch_bp)
 app.register_blueprint(simulate_bp)
+app.register_blueprint(workspace_bp)  # Workspace tab only; other modes unchanged
 
 # Serve MapExtraction outputs via a clean relative route
 @app.route('/map_outputs/<path:filename>')

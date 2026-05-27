@@ -42,6 +42,7 @@ Thumbs.db
 ref_docs/
 *.pdf
 *test*.py
+static/workspace_outputs/
 
 # LaTeX paper (local draft)
 latex/
