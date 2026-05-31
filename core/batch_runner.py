@@ -263,14 +263,32 @@ def _synthesize_slot_with_retries(i: int, ctx: dict, executor: Optional[ProcessP
     raise last_err or RuntimeError('clip generation failed')
 
 
+def _touch_progress(ctx: dict, generated_so_far: int) -> None:
+    """Write progress after each synthesized clip so the UI can poll incrementally."""
+    save_progress(
+        ctx['total_clips'],
+        generated_so_far,
+        batch_dir=ctx['batch_dir'],
+        batch_id=ctx['batch_id'],
+        phase='running',
+        status='running',
+    )
+
+
 def _process_wave(
     wave_indices: List[int],
     ctx: dict,
     executor: Optional[ProcessPoolExecutor],
+    *,
+    generated_count: int,
 ) -> Tuple[List[Tuple[int, dict]], int, List[str]]:
     results: List[Tuple[int, dict]] = []
     slots_failed = 0
     errors: List[str] = []
+    total_clips = ctx['total_clips']
+
+    def _report_synth_progress() -> None:
+        _touch_progress(ctx, generated_count + len(results))
 
     if executor is not None and ctx['workers'] > 1:
         planned: List[Tuple[int, dict]] = []
@@ -289,27 +307,30 @@ def _process_wave(
             i = futures[fut]
             try:
                 results.append((i, fut.result()))
+                _report_synth_progress()
             except Exception:
                 failed_indices.append(i)
-                err = f"Error synthesizing slot {i + 1}/{ctx['total_clips']}"
+                err = f"Error synthesizing slot {i + 1}/{total_clips}"
                 traceback.print_exc()
                 errors.append(err)
 
         for i in failed_indices:
             try:
                 results.append((i, _synthesize_slot_with_retries(i, ctx, None)))
+                _report_synth_progress()
             except Exception:
                 slots_failed += 1
-                err = f"Error generating slot {i + 1}/{ctx['total_clips']}"
+                err = f"Error generating slot {i + 1}/{total_clips}"
                 traceback.print_exc()
                 errors.append(err)
     else:
         for i in wave_indices:
             try:
                 results.append((i, _synthesize_slot_with_retries(i, ctx, None)))
+                _report_synth_progress()
             except Exception:
                 slots_failed += 1
-                err = f"Error generating slot {i + 1}/{ctx['total_clips']}"
+                err = f"Error generating slot {i + 1}/{total_clips}"
                 traceback.print_exc()
                 errors.append(err)
 
@@ -409,7 +430,9 @@ def run_standard_batch(ctx: dict, start_time: float) -> dict:
         with executor_ctx as executor:
             for wave_start in range(0, len(pending_indices), wave_size):
                 wave_indices = pending_indices[wave_start: wave_start + wave_size]
-                wave_results, wave_failed, wave_errors = _process_wave(wave_indices, ctx, executor)
+                wave_results, wave_failed, wave_errors = _process_wave(
+                    wave_indices, ctx, executor, generated_count=generated_count,
+                )
                 slots_failed += wave_failed
                 for err in wave_errors:
                     log_fp.write(err + '\n')
@@ -508,39 +531,35 @@ def dispatch_standard_batch(config: dict, start_time: float):
     ctx = build_batch_context(config)
     total_clips = ctx['total_clips']
 
-    if total_clips >= BACKGROUND_THRESHOLD:
-        save_progress(
-            total_clips,
-            len(ctx['completed_samples']),
-            batch_dir=ctx['batch_dir'],
-            batch_id=ctx['batch_id'],
-            phase='running',
-            status='running',
-        )
+    save_progress(
+        total_clips,
+        len(ctx['completed_samples']),
+        batch_dir=ctx['batch_dir'],
+        batch_id=ctx['batch_id'],
+        phase='running',
+        status='running',
+    )
 
-        def _background_run():
-            try:
-                run_standard_batch(ctx, start_time)
-            except Exception:
-                traceback.print_exc()
-                save_progress(
-                    total_clips,
-                    len(ctx['completed_samples']),
-                    batch_dir=ctx['batch_dir'],
-                    batch_id=ctx['batch_id'],
-                    phase='done',
-                    status='failed',
-                )
+    def _background_run():
+        try:
+            run_standard_batch(ctx, start_time)
+        except Exception:
+            traceback.print_exc()
+            save_progress(
+                total_clips,
+                len(ctx['completed_samples']),
+                batch_dir=ctx['batch_dir'],
+                batch_id=ctx['batch_id'],
+                phase='done',
+                status='failed',
+            )
 
-        threading.Thread(target=_background_run, daemon=True).start()
-        return jsonify({
-            'success': True,
-            'background': True,
-            'batch_id': ctx['batch_id'],
-            'total_requested': total_clips,
-            'batch_directory': ctx['batch_dir'],
-            'resume': ctx['resume'],
-        })
-
-    result = run_standard_batch(ctx, start_time)
-    return jsonify(result)
+    threading.Thread(target=_background_run, daemon=True).start()
+    return jsonify({
+        'success': True,
+        'background': True,
+        'batch_id': ctx['batch_id'],
+        'total_requested': total_clips,
+        'batch_directory': ctx['batch_dir'],
+        'resume': ctx['resume'],
+    })

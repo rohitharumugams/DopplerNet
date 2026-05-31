@@ -8,7 +8,8 @@ from typing import Any, Dict
 
 DEFAULT_WAVE_SIZE = 5000
 DEFAULT_WORKERS = max(1, (os.cpu_count() or 1))
-BACKGROUND_THRESHOLD = 10_000
+# Always return immediately so the UI can poll per-sample progress (was 10_000 → sync blocked polling).
+BACKGROUND_THRESHOLD = 1
 
 
 def resolve_wave_size(config: Dict[str, Any]) -> int:

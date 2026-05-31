@@ -2639,32 +2639,50 @@
         }
       }
 
+      function applyWorkspaceProgressUi(data) {
+        const total = data.total_target || 0;
+        const done = data.generated_so_far || 0;
+        if (total <= 0) return;
+        const percent = Math.min(100, Math.round((done / total) * 100));
+        if (fill) {
+          fill.style.width = percent + '%';
+          fill.textContent = `${done} / ${total} (${percent}%)`;
+        }
+        if (done > 0 && timer) {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const avg = elapsed / done;
+          const remaining = Math.round((total - done) * avg);
+          if (remaining >= 0) {
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            timer.textContent = `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+          }
+        } else if (timer && data.status === 'running') {
+          timer.textContent = 'Generating…';
+        }
+      }
+
       function startPolling(batchDirectory) {
         const progressUrl = batchDirectory
           ? `/api/progress?batch_directory=${encodeURIComponent(batchDirectory)}`
           : '/api/progress';
 
-        progressInterval = setInterval(async () => {
+        const pollOnce = async () => {
           try {
             const res = await fetch(progressUrl);
             const data = await res.json();
-            if (data.total_target > 0) {
-              const percent = Math.round((data.generated_so_far / data.total_target) * 100);
-              if (fill) {
-                fill.style.width = percent + '%';
-                fill.textContent = `${data.generated_so_far} / ${data.total_target} (${percent}%)`;
-              }
-              if (data.generated_so_far > 0) {
-                const elapsed = (Date.now() - startTime) / 1000;
-                const avg = elapsed / data.generated_so_far;
-                const remaining = Math.round((data.total_target - data.generated_so_far) * avg);
-                if (timer && remaining >= 0) {
-                  const mins = Math.floor(remaining / 60);
-                  const secs = remaining % 60;
-                  timer.textContent = `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
-                }
-              }
-            }
+            applyWorkspaceProgressUi(data);
+            return data;
+          } catch (err) {
+            console.warn('Workspace polling error:', err);
+            return null;
+          }
+        };
+
+        pollOnce();
+        progressInterval = setInterval(async () => {
+          const data = await pollOnce();
+          if (!data) return;
 
             if (data.status === 'completed' && data.phase === 'done') {
               clearInterval(progressInterval);
@@ -2686,9 +2704,6 @@
                 result.innerHTML = `<div class="error">Workspace batch generation failed. Check server logs.</div>`;
               }
             }
-          } catch (err) {
-            console.warn("Workspace polling error:", err);
-          }
         }, 500);
       }
 
@@ -2707,9 +2722,8 @@
             result.style.display = 'block';
             result.innerHTML = `<div class="error">Error: ${data.error}</div>`;
           }
-        } else if (data.background) {
-          if (log) log.innerHTML += `<br>Background job started (${data.total_requested} clips). Polling progress...`;
-          if (timer) timer.textContent = 'Running in background...';
+        } else if (data.batch_directory) {
+          if (log) log.innerHTML += `<br>Job started (${data.total_requested || '?'} clips). Polling progress…`;
           startPolling(data.batch_directory);
         } else {
           showWorkspaceComplete(data);
@@ -4235,35 +4249,53 @@
                 `;
       }
 
+      function applyBatchProgressUi(data) {
+        const fill = document.getElementById('progressFill');
+        const timerEl = document.getElementById('batchTimer');
+        const logEl = document.getElementById('progressLog');
+        const total = data.total_target || 0;
+        const done = data.generated_so_far || 0;
+        if (total <= 0) return;
+        const percent = Math.min(100, Math.round((done / total) * 100));
+        if (fill) {
+          fill.style.width = percent + '%';
+          fill.textContent = `${done} / ${total} (${percent}%)`;
+        }
+        if (done > 0 && timerEl) {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const avgTimePerClip = elapsed / done;
+          const remainingSeconds = Math.round((total - done) * avgTimePerClip);
+          if (remainingSeconds >= 0) {
+            const mins = Math.floor(remainingSeconds / 60);
+            const secs = remainingSeconds % 60;
+            timerEl.textContent = `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+          }
+        } else if (timerEl && data.status === 'running') {
+          timerEl.textContent = 'Generating…';
+        }
+      }
+
       function startBatchPolling(batchDirectory) {
         const progressUrl = batchDirectory
           ? `/api/progress?batch_directory=${encodeURIComponent(batchDirectory)}`
           : '/api/progress';
 
-        progressInterval = setInterval(async () => {
+        const pollOnce = async () => {
           try {
             const res = await fetch(progressUrl);
             const data = await res.json();
-            if (data.total_target > 0) {
-              const percent = Math.round((data.generated_so_far / data.total_target) * 100);
-              const fill = document.getElementById('progressFill');
-              fill.style.width = percent + '%';
-              fill.textContent = `${data.generated_so_far} / ${data.total_target} (${percent}%)`;
+            applyBatchProgressUi(data);
+            return data;
+          } catch (err) {
+            console.warn('Polling error:', err);
+            return null;
+          }
+        };
 
-              if (data.generated_so_far > 0) {
-                const elapsed = (Date.now() - startTime) / 1000;
-                const avgTimePerClip = elapsed / data.generated_so_far;
-                const remainingClips = data.total_target - data.generated_so_far;
-                const remainingSeconds = Math.round(remainingClips * avgTimePerClip);
-
-                if (remainingSeconds >= 0) {
-                  const mins = Math.floor(remainingSeconds / 60);
-                  const secs = remainingSeconds % 60;
-                  document.getElementById('batchTimer').textContent =
-                    `Estimated Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
-                }
-              }
-            }
+        pollOnce();
+        progressInterval = setInterval(async () => {
+          const data = await pollOnce();
+          if (!data) return;
 
             if (data.status === 'completed' && data.phase === 'done') {
               clearInterval(progressInterval);
@@ -4284,9 +4316,6 @@
               document.getElementById('resultBox').style.display = 'block';
               document.getElementById('resultBox').innerHTML = `<div class="error">Batch generation failed. Check server logs.</div>`;
             }
-          } catch (err) {
-            console.warn("Polling error:", err);
-          }
         }, 500);
       }
 
@@ -4306,9 +4335,8 @@
           document.getElementById('batchTimer').textContent = 'Error occurred';
           document.getElementById('resultBox').style.display = 'block';
           document.getElementById('resultBox').innerHTML = `<div class="error">Error: ${data.error}</div>`;
-        } else if (data.background) {
-          document.getElementById('progressLog').innerHTML += `<br>Background job started (${data.total_requested} clips). Polling progress...`;
-          document.getElementById('batchTimer').textContent = 'Running in background...';
+        } else if (data.batch_directory) {
+          document.getElementById('progressLog').innerHTML += `<br>Job started (${data.total_requested || '?'} clips). Polling progress…`;
           startBatchPolling(data.batch_directory);
         } else {
           showBatchComplete(data);

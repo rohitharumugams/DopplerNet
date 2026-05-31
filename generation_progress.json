@@ -1,12 +1,12 @@
 {
-  "total_target": 3,
-  "generated_so_far": 3,
-  "batch_id": "workspace_samples",
+  "total_target": 1000,
+  "generated_so_far": 1000,
+  "batch_id": "model_test_1000",
   "phase": "done",
   "status": "completed",
-  "metadata_file": "static/workspace_outputs\\prof_kia_60mph\\workspace_samples\\metadata_workspace_samples.json",
-  "log_file": "static/workspace_outputs\\prof_kia_60mph\\workspace_samples\\generation_log_workspace_samples.txt",
-  "stats_file": "static/workspace_outputs\\prof_kia_60mph\\workspace_samples\\statistics_workspace_samples.txt",
-  "formatted_time": "36.62 seconds (0.61 minutes)",
+  "metadata_file": "static/batch_outputs/model_test_1000\\metadata_model_test_1000.json",
+  "log_file": "static/batch_outputs/model_test_1000\\generation_log_model_test_1000.txt",
+  "stats_file": "static/batch_outputs/model_test_1000\\statistics_model_test_1000.txt",
+  "formatted_time": "756.56 seconds (12.61 minutes)",
   "slots_failed": 0
 }

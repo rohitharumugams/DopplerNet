@@ -51,10 +51,17 @@ def save_progress(
     if slots_failed is not None:
         payload["slots_failed"] = int(slots_failed)
 
-    with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(payload, f, indent=2)
+    def _write_atomic(path: str) -> None:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, indent=2)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                pass
+
+    _write_atomic(PROGRESS_FILE)
 
     if batch_dir:
         os.makedirs(batch_dir, exist_ok=True)
-        with open(os.path.join(batch_dir, 'progress.json'), 'w', encoding='utf-8') as f:
-            json.dump(payload, f, indent=2)
+        _write_atomic(os.path.join(batch_dir, 'progress.json'))
