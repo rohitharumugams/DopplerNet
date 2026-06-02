@@ -20,6 +20,15 @@ workspace_bp = Blueprint("workspace", __name__)
 _ABS_JOBS: dict[str, dict] = {}
 _ABS_LOCK = threading.Lock()
 
+_EC_JOBS: dict[str, dict] = {}
+_EC_LOCK = threading.Lock()
+
+
+def _ec_job_update(job_id: str, **kwargs) -> None:
+    with _EC_LOCK:
+        if job_id in _EC_JOBS:
+            _EC_JOBS[job_id].update(kwargs)
+
 
 def _abs_job_update(job_id: str, **kwargs) -> None:
     with _ABS_LOCK:
@@ -75,7 +84,9 @@ def workspace_abs_grid():
 
         def _run():
             try:
-                from workspace.analysis_by_synthesis_grid import run_analysis_by_synthesis_grid
+                from workspace.quadratic_acceleration.analysis_by_synthesis_grid import (
+                    run_analysis_by_synthesis_grid,
+                )
 
                 def prog(i, t, v, d):
                     _abs_job_update(
@@ -151,7 +162,9 @@ def workspace_distance_panel():
             audio_file.save(audio_path)
             vehicle = None
 
-        from workspace.distance_spectrogram_panel import run_distance_spectrogram_panel
+        from workspace.quadratic_acceleration.distance_spectrogram_panel import (
+            run_distance_spectrogram_panel,
+        )
 
         summary = run_distance_spectrogram_panel(
             distances_m=[float(x.strip()) for x in distances_raw.split(",") if x.strip()],
@@ -163,6 +176,98 @@ def workspace_distance_panel():
             max_y_freq=max_freq,
         )
         return jsonify({"success": True, "out_dir": job_dir.replace("\\", "/"), "results": _safe_json(summary)})
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+@workspace_bp.route("/api/workspace/emitter_centric/generate", methods=["POST"])
+def workspace_emitter_centric_generate():
+    """Single-clip or batch emitter-centric generation (isolated workspace sub-mode)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        job_id = uuid.uuid4().hex[:12]
+        config = data.get("config") or data
+        total = int(config.get("total_clips", 1))
+
+        with _EC_LOCK:
+            _EC_JOBS[job_id] = {
+                "status": "running",
+                "progress": 0,
+                "total": total,
+                "message": "Starting...",
+            }
+
+        def _run():
+            try:
+                from workspace.emitter_centric.batch_runner import run_batch
+
+                def prog(i, t, msg):
+                    _ec_job_update(
+                        job_id,
+                        progress=i,
+                        total=t,
+                        message=msg,
+                    )
+
+                result = run_batch(config, progress_callback=prog)
+                _ec_job_update(
+                    job_id,
+                    status="completed",
+                    progress=result.get("total_generated", total),
+                    total=total,
+                    message="Complete",
+                    results=_safe_json(result),
+                )
+            except Exception as exc:
+                traceback.print_exc()
+                _ec_job_update(job_id, status="failed", message=str(exc))
+
+        threading.Thread(target=_run, daemon=True).start()
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "status_url": f"/api/workspace/emitter_centric/status/{job_id}",
+        })
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+@workspace_bp.route("/api/workspace/emitter_centric/status/<job_id>", methods=["GET"])
+def workspace_emitter_centric_status(job_id: str):
+    with _EC_LOCK:
+        job = _EC_JOBS.get(job_id)
+    if not job:
+        return jsonify({"error": "Unknown job"}), 404
+    return jsonify(job)
+
+
+@workspace_bp.route("/api/workspace/emitter_centric/synthesize", methods=["POST"])
+def workspace_emitter_centric_synthesize():
+    """Legacy quick-synthesis endpoint (single clip, comparison on)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        config = {
+            "total_clips": 1,
+            "batch_name": data.get("job_name") or datetime.now().strftime("ec_%Y%m%d_%H%M%S"),
+            "save_path": data.get("save_path") or "static/workspace_outputs/emitter_centric",
+            "vehicles": [data.get("vehicle") or "KiaSportage"],
+            "path_types": ["straight"],
+            "duration_s": float(data.get("duration_s", 10)),
+            "speed": {"min": float(data.get("speed_mps", 30)), "max": float(data.get("speed_mps", 30))},
+            "distance": {"min": float(data.get("distance_m", 15)), "max": float(data.get("distance_m", 15))},
+            "angle": {"min": float(data.get("angle_deg", 0)), "max": float(data.get("angle_deg", 0))},
+            "temperature": {"min": float(data.get("temp_c", 20)), "max": float(data.get("temp_c", 20))},
+            "humidity": {"min": float(data.get("humidity", 50)), "max": float(data.get("humidity", 50))},
+            "simulation_mode": "cv",
+            "compare_observer": True,
+            "output": {"format": "wav", "spectrogram_type": "cqt", "generate_diagnostics": True},
+        }
+        from workspace.emitter_centric.batch_runner import run_batch
+
+        result = run_batch(config)
+        return jsonify({"success": True, "results": _safe_json(result)})
     except Exception as exc:
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500

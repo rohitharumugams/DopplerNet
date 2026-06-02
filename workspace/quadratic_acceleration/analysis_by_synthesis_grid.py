@@ -7,7 +7,7 @@ pass-by from the first 1 s of a recording (dedopplerized + repeat-stitched), com
 STFT magnitude spectrograms to the original, and export heatmaps + L1/L2 marginals.
 
 CLI:
-  python -m workspace.analysis_by_synthesis_grid --audio path/to.wav --out_dir results/kia_grid
+  python -m workspace.quadratic_acceleration.analysis_by_synthesis_grid --audio path/to.wav --out_dir results/kia_grid
 """
 
 from __future__ import annotations
@@ -24,11 +24,11 @@ import librosa
 import numpy as np
 
 # Project root on path
-_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from workspace.abs_synthesis import (
+from workspace.quadratic_acceleration.abs_synthesis import (
     dedopplerize_far_field_segment,
     find_peak_time,
     stitch_repeat_segment,

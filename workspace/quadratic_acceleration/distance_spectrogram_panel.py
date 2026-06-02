@@ -16,12 +16,12 @@ from datetime import datetime
 import librosa
 import numpy as np
 
-_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from audio.audio_utils import extend_audio_with_overlap, get_speed_of_sound, load_audio
-from workspace.abs_synthesis import synthesize_passby_straight
+from workspace.quadratic_acceleration.abs_synthesis import synthesize_passby_straight
 
 PLOT_SR = 44100
 N_FFT = 4096

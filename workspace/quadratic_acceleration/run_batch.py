@@ -9,13 +9,13 @@ Professor reference defaults (60 mph figure):
 
 Examples:
   # Full pack for prof (panel PNG + 3 flat samples with all spectrograms/npy)
-  python -m workspace.run_batch --prof-pack --name prof_kia_60mph
+  python -m workspace.quadratic_acceleration.run_batch --prof-pack --name prof_kia_60mph
 
   # Override speed/distance/duration from CLI
-  python -m workspace.run_batch --prof-pack --speed-mph 55 --distances 40,20,8
+  python -m workspace.quadratic_acceleration.run_batch --prof-pack --speed-mph 55 --distances 40,20,8
 
   # Custom exploratory batch (RPM coupling)
-  python -m workspace.run_batch --clips 10 --src-model rpm_quadratic --accel-min -2 --accel-max 2
+  python -m workspace.quadratic_acceleration.run_batch --clips 10 --src-model rpm_quadratic --accel-min -2 --accel-max 2
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import os
 import sys
 import time
 
-_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -232,7 +232,7 @@ def run_prof_pack(args: argparse.Namespace) -> int:
 
     # 1) Stacked spectrogram panel (reference figure)
     panel_dir = os.path.join(pack_dir, "distance_panel")
-    from workspace.distance_spectrogram_panel import run_distance_spectrogram_panel
+    from workspace.quadratic_acceleration.distance_spectrogram_panel import run_distance_spectrogram_panel
 
     panel_summary = run_distance_spectrogram_panel(
         distances_m=distances_m,
@@ -267,7 +267,7 @@ def run_prof_pack(args: argparse.Namespace) -> int:
     # 3) Optional analysis-by-synthesis grid on uploaded recording
     if args.audio and os.path.isfile(args.audio):
         abs_dir = os.path.join(pack_dir, "abs_grid")
-        from workspace.analysis_by_synthesis_grid import run_analysis_by_synthesis_grid
+        from workspace.quadratic_acceleration.analysis_by_synthesis_grid import run_analysis_by_synthesis_grid
 
         print(f"=== (v,d) grid → {abs_dir}")
         abs_result = run_analysis_by_synthesis_grid(

@@ -49,3 +49,8 @@ latex/
 
 # Environment variables
 .env
+
+# Markdown: track README files only (plan notes, audits, local docs stay untracked)
+*.md
+!README.md
+!**/README.md

@@ -1695,6 +1695,14 @@ def generate_single_clip(vehicle_name, path_type, params, output_dir, batch_id, 
         base_name=base_name, essential_dir=essential_dir, params=params
     )
 
+    from physics.source_position import compute_source_position_track, save_source_positions_npy
+
+    save_source_positions_npy(
+        compute_source_position_track(path_type, params),
+        common_dir,
+        essential_dir,
+    )
+
     # ── Benchmark labels: derived from this recording (path + final audio) ──
     direction_label, direction_text = _infer_direction_info(path_type, params)
     from physics.recording_labels import derive_recording_labels
@@ -1959,6 +1967,7 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
     individual_files = []
     scenes_data = []
     v_identities = []
+    source_tracks = []
 
     for i, v_cfg in enumerate(vehicles_configs):
         v_name = v_cfg.get('vehicle_name', 'car_1')
@@ -2053,6 +2062,12 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
         # For plotting, we pass the ORIGINAL world-coordinate params
         scenes_data.append((path_type, v_params_input, v_name))
 
+        from physics.source_position import compute_source_position_track
+
+        track_params = dict(dop_params)
+        track_params.setdefault("duration", duration)
+        source_tracks.append(compute_source_position_track(path_type, track_params, duration_s=duration))
+
     # Mix audio
     mixed_audio = mix_audio_clips(clips_with_delays)
     mixed_audio = _trim_leading_silence(mixed_audio, SR)
@@ -2081,6 +2096,15 @@ def generate_multi_object_clip(vehicles_configs, output_dir, batch_name, index, 
         mixed_audio, sample_dir, spectrogram_type, config,
         base_name=base_name, essential_dir=essential_dir, params=None
     )
+
+    if source_tracks:
+        from physics.source_position import save_source_positions_npy
+
+        if len(source_tracks) == 1:
+            combined_track = source_tracks[0]
+        else:
+            combined_track = np.stack(source_tracks, axis=0)
+        save_source_positions_npy(combined_track, common_dir, essential_dir)
 
     # Save combined path plot
     try:

@@ -615,6 +615,99 @@
       margin-bottom: 5px;
       font-family: monospace;
     }
+
+    /* Workspace sub-mode landing */
+    .ws-submode-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .ws-submode-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 24px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    }
+
+    .ws-submode-card:hover {
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .ws-submode-card-wip {
+      opacity: 0.88;
+    }
+
+    .ws-submode-card-wip:hover {
+      border-color: #484f58;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .ws-submode-card-title {
+      color: #58a6ff;
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .ws-submode-card-desc {
+      color: #8b949e;
+      font-size: 14px;
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+
+    .ws-submode-card-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+    }
+
+    .ws-submode-card-badge-ready {
+      background: rgba(35, 134, 54, 0.15);
+      color: #3fb950;
+      border-color: rgba(35, 134, 54, 0.4);
+    }
+
+    .ws-submode-nav {
+      margin-bottom: 16px;
+    }
+
+    #workspaceLanding,
+    #workspaceQuadraticSubmode,
+    #workspaceEmitterCentricSubmode {
+      transition: opacity 0.25s ease-in-out;
+    }
+
+    /* Emitter-centric progress: gray at start, green while running, brighter green when done */
+    #workspaceEmitterCentricSubmode .progress-fill {
+      background: #30363d;
+      transition: width 0.25s ease-out, background-color 0.35s ease;
+    }
+
+    #workspaceEmitterCentricSubmode .progress-fill.ec-progress-active {
+      background: linear-gradient(90deg, #238636, #2ea043);
+    }
+
+    #workspaceEmitterCentricSubmode .progress-fill.ec-progress-complete {
+      background: linear-gradient(90deg, #2ea043, #3fb950);
+    }
+
+    #workspaceEmitterCentricSubmode .progress-fill.ec-progress-failed {
+      background: linear-gradient(90deg, #b62324, #f85149);
+    }
   </style>
 </head>
 
@@ -637,6 +730,43 @@
 
     <!-- WORKSPACE MODE (EXPERIMENTAL, ISOLATED) -->
     <div id="workspaceMode" class="hidden" style="display:none;">
+
+      <!-- Workspace sub-mode landing -->
+      <div id="workspaceLanding">
+        <div class="section">
+          <h3 class="section-title">Workspace</h3>
+          <p class="param-label" style="font-size: 14px; color: #8b949e; margin-bottom: 0;">
+            Isolated experimental sandbox for research prototypes. Select a workspace sub-mode below.
+            These tools are separate from Batch Generation, benchmarks, and other simulator modes.
+          </p>
+        </div>
+        <div class="ws-submode-grid">
+          <div class="ws-submode-card" onclick="openWorkspaceSubmode('quadratic')" role="button" tabindex="0"
+            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWorkspaceSubmode('quadratic'); }">
+            <div class="ws-submode-card-title">Quadratic Acceleration Mode</div>
+            <p class="ws-submode-card-desc">
+              Test acceleration-aware source frequency models with optional RPM coupling and combined Doppler effects.
+              Generate batches exploring kinematic Doppler together with linear or quadratic engine-pitch evolution under constant acceleration.
+            </p>
+            <span class="ws-submode-card-badge ws-submode-card-badge-ready">Available</span>
+          </div>
+          <div class="ws-submode-card" onclick="openWorkspaceSubmode('emitter_centric')" role="button" tabindex="0"
+            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWorkspaceSubmode('emitter_centric'); }">
+            <div class="ws-submode-card-title">Emitter-Centric Analysis</div>
+            <p class="ws-submode-card-desc">
+              Isolated sandbox: emission-time kinematics, forward deposit, and parity vs observer-centric Doppler.
+              Outputs under static/workspace_outputs/emitter_centric/.
+            </p>
+            <span class="ws-submode-card-badge ws-submode-card-badge-ready">Prototype</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quadratic Acceleration sub-mode (existing workspace — unchanged) -->
+      <div id="workspaceQuadraticSubmode" class="hidden" style="display:none;">
+        <div class="ws-submode-nav">
+          <button type="button" class="browse-btn" onclick="backToWorkspaceLanding()">← Back to Workspace</button>
+        </div>
       <div class="section">
         <h3 class="section-title">Quadratic Acceleration Testing</h3>
         <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 0;">
@@ -932,6 +1062,247 @@
       </div>
 
       <div class="result-box" id="wsResultBox" style="display:none;"></div>
+      </div><!-- /workspaceQuadraticSubmode -->
+
+      <!-- Emitter-Centric Analysis (isolated — does not affect other modes) -->
+      <div id="workspaceEmitterCentricSubmode" class="hidden" style="display:none;">
+        <div class="ws-submode-nav">
+          <button type="button" class="browse-btn" onclick="backToWorkspaceLanding()">← Back to Workspace</button>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Emitter-Centric Analysis</h3>
+          <p class="param-label" style="font-size: 13px; color: #8b949e; margin-bottom: 10px;">
+            Co-moving source-frame synthesis (no geometric Doppler on emitter output). Optional roadside observer branch
+            for comparison. See <code>workspace/emitter_centric/plan.md</code> (§13 first principles, §12 references).
+          </p>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Generation Mode</h3>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="ecGenMode" value="single" checked onchange="ecUpdateGenMode()">
+              Single Clip
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="ecGenMode" value="batch" onchange="ecUpdateGenMode()">
+              Batch Generation
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Simulation Mode</h3>
+          <select id="ecSimulationMode" style="width: 100%;" onchange="ecRefreshAccelerationUI()">
+            <option value="cv">Constant Velocity (CV)</option>
+            <option value="ca">Constant Acceleration (WIP)</option>
+          </select>
+          <p class="param-label" style="font-size: 12px; color: #8b949e; margin-top: 8px;">
+            Drives intrinsic engine/RPM evolution on the co-moving microphone (not roadside Doppler).
+          </p>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Path Types</h3>
+          <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
+            Used for scene geometry, path plots, and observer-centric comparison (when enabled).
+          </p>
+          <label class="checkbox-label"><input type="checkbox" id="ecPathStraight" value="straight" checked> Straight Line Path</label>
+          <label class="checkbox-label"><input type="checkbox" id="ecPathParabola" value="parabola" checked> Parabolic Path</label>
+          <label class="checkbox-label"><input type="checkbox" id="ecPathBezier" value="bezier" checked> Bézier Curve Path</label>
+        </div>
+
+        <div class="grid-2">
+          <div class="section">
+            <h3 class="section-title">Sound Source</h3>
+            <select id="ecSoundSource" onchange="loadEcVehicles()" style="width: 100%;">
+              <option value="all">All Sounds (Cars + Drones)</option>
+              <option value="vehicle" selected>Car sounds Only</option>
+              <option value="drone">Drone Sounds Only</option>
+            </select>
+          </div>
+          <div class="section">
+            <h3 class="section-title">Spectrogram Settings</h3>
+            <select id="ecSpectrogramType" style="width: 100%;">
+              <option value="cqt">CQT</option>
+              <option value="stft">STFT</option>
+              <option value="mel">Mel</option>
+            </select>
+            <label class="checkbox-label" style="margin-top: 10px;">
+              <input type="checkbox" id="ecGenerateDiagnostics" checked>
+              Generate Diagnostic Plots
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Car Selection</h3>
+          <p class="param-label" style="font-size: 12px; color: #8b949e; margin-bottom: 10px;">
+            Select which sounds to include in this batch:
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+            <button type="button" class="browse-btn" onclick="ecSelectAllVehicles(true)">Select All</button>
+            <button type="button" class="browse-btn" onclick="ecSelectAllVehicles(false)">Deselect All</button>
+          </div>
+          <div id="ecVehicleSelectionCheckboxes"></div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">Clip Duration (s)</label>
+          <input type="number" id="ecDuration" value="10" min="1" max="30" step="0.5">
+        </div>
+
+        <div class="grid-4">
+          <div class="section">
+            <h3 class="section-title">Speed</h3>
+            <p class="param-label">Each clip will use a random speed between these values.</p>
+            <div class="param-group"><label class="param-label">Minimum Speed (1-100 m/s)</label><input type="number" id="ecSpeedMin" value="10" min="1" max="100"></div>
+            <div class="param-group"><label class="param-label">Maximum Speed (1-100 m/s)</label><input type="number" id="ecSpeedMax" value="50" min="1" max="100"></div>
+          </div>
+          <div class="section" id="ecAccelerationSection" style="position: relative;">
+            <div id="ecAccelerationOverlay" class="accel-overlay" style="display: none;"></div>
+            <h3 class="section-title">Acceleration</h3>
+            <p class="param-label">Each clip will use a random acceleration between these values.</p>
+            <div class="param-group"><label class="param-label">Minimum Acceleration (-8 to 8 m/s²)</label><input type="number" id="ecAccelMin" value="0" min="-8" max="8" step="0.1"></div>
+            <div class="param-group"><label class="param-label">Maximum Acceleration (-8 to 8 m/s²)</label><input type="number" id="ecAccelMax" value="0" min="-8" max="8" step="0.1"></div>
+            <div id="ecAccelWarning" style="color: #ff7b72; font-size: 12px; margin-top: 8px; line-height: 1.4; display: none; font-weight: 500;">
+              ⚠️ Acceleration can only be modified in Constant Acceleration mode.
+            </div>
+          </div>
+          <div class="section">
+            <h3 class="section-title">Scene Lateral Offset</h3>
+            <p class="param-label" style="font-size: 12px; color: #8b949e; line-height: 1.45;">
+              Perpendicular distance from the fixed roadside observer to the vehicle path (same as closest-approach distance in Batch Generation).
+              Used for observer-centric comparison and path plots—not for co-moving emitter audio. The simulator enforces a minimum of 1&nbsp;m;
+              values below 1 are treated as 1&nbsp;m. Setting min and max to zero is <strong>not</strong> meaningful (you would not get a valid pass-by geometry).
+            </p>
+            <div class="param-group"><label class="param-label">Minimum Distance (1-1000 m)</label><input type="number" id="ecDistanceMin" value="5" min="1" max="1000"></div>
+            <div class="param-group"><label class="param-label">Maximum Distance (1-1000 m)</label><input type="number" id="ecDistanceMax" value="50" min="1" max="1000"></div>
+          </div>
+          <div class="section">
+            <h3 class="section-title">Angle (Straight Path)</h3>
+            <p class="param-label">Random approach angle; always between -45° and +45°.</p>
+            <div class="param-group"><label class="param-label">Minimum Angle (-45 to 45°)</label><input type="number" id="ecAngleMin" value="-45" min="-45" max="45"></div>
+            <div class="param-group"><label class="param-label">Maximum Angle (-45 to 45°)</label><input type="number" id="ecAngleMax" value="45" min="-45" max="45"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Atmosphere</h3>
+          <p class="param-label">Temperature and humidity affect the speed of sound and Doppler acoustics.</p>
+          <div class="grid-2">
+            <div class="param-group">
+              <label class="param-label">Temperature Range (-20 to 50°C)</label>
+              <div class="input-row">
+                <input type="number" id="ecTempMin" value="15" min="-20" max="50">
+                <input type="number" id="ecTempMax" value="35" min="-20" max="50">
+              </div>
+            </div>
+            <div class="param-group">
+              <label class="param-label">Humidity Range (0 to 100%)</label>
+              <div class="input-row">
+                <input type="number" id="ecHumMin" value="30" min="0" max="100">
+                <input type="number" id="ecHumMax" value="70" min="0" max="100">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 16px; border-top: 1px solid #30363d; padding-top: 14px;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ecAddAirNoise" onchange="ecToggleAirNoiseControls()">
+              Add subtle ambient air noise to clips (optional)
+            </label>
+            <p class="param-label" style="margin: 6px 0 0 24px; font-size: 12px; color: #8b949e;">
+              Same environmental bed as Batch Generation when enabled.
+            </p>
+            <div class="grid-2" style="margin-top: 10px;">
+              <div class="param-group">
+                <label class="param-label" for="ecAirNoiseStrength">Air Noise Strength (%)</label>
+                <input type="range" id="ecAirNoiseStrength" min="0" max="100" step="1" value="8"
+                  oninput="ecUpdateAirNoiseStrengthLabel()" disabled>
+                <div style="margin-top: 6px; color: #8b949e;">
+                  <span id="ecAirNoiseStrengthValue">8%</span> (kept subtle by default)
+                </div>
+              </div>
+              <div class="param-group">
+                <label class="param-label" for="ecAirNoiseFrequencyHz">Air Noise Frequency (Hz)</label>
+                <input type="number" id="ecAirNoiseFrequencyHz" min="80" max="5000" step="10" value="1200" disabled>
+                <div style="margin-top: 6px; color: #8b949e;">
+                  Center frequency for soft environmental hiss/wind bed.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Source-Frame Model</h3>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ecRpmCoupling" checked>
+            RPM / pitch coupling g(v) ∝ v/v_ref (co-moving)
+          </label>
+          <label class="checkbox-label" style="margin-top: 12px; font-weight: bold; color: #58a6ff;">
+            <input type="checkbox" id="ecCompareObserver" checked>
+            Generate Observer-Centric Comparison Outputs
+          </label>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Batch Settings</h3>
+          <div class="grid-2">
+            <div class="param-group">
+              <label class="param-label" for="ecBatchName">Batch Name (Optional)</label>
+              <input type="text" id="ecBatchName" placeholder="Default: batch_YYYYMMDD_HHMMSS" style="width: 100%;">
+            </div>
+            <div class="param-group">
+              <label class="param-label">Output Format</label>
+              <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="ecOutputFormat" value="wav" checked> WAV</label>
+                <label class="radio-label"><input type="radio" name="ecOutputFormat" value="mp3"> MP3</label>
+              </div>
+            </div>
+          </div>
+          <div class="param-group">
+            <label class="param-label">Save Path</label>
+            <div class="path-display" id="ecSavePath">static/workspace_outputs/emitter_centric/</div>
+            <button type="button" class="browse-btn" onclick="ecBrowseSavePath()">Change Path</button>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #30363d; margin: 20px 0;">
+          <div class="param-group" id="ecTotalClipsGroup">
+            <label class="param-label">Total Number of Clips</label>
+            <input type="number" id="ecTotalClips" value="100" min="1" max="10000" onchange="ecUpdateDistTotal()">
+          </div>
+          <div class="param-group" id="ecDistModeGroup">
+            <label class="param-label">Distribution Mode</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="ecDistMode" value="auto" checked onchange="ecToggleDistribution()"> Automatic (Equal)</label>
+              <label class="radio-label"><input type="radio" name="ecDistMode" value="manual" onchange="ecToggleDistribution()"> Manual</label>
+            </div>
+          </div>
+          <div id="ecManualDistribution" class="manual-dist" hidden>
+            <h4 style="color: #58a6ff;">Car Distribution</h4>
+            <div id="ecVehicleDistribution"></div>
+            <div class="dist-total" id="ecVehicleDistTotal">Total: 0</div>
+            <h4 style="color: #58a6ff; margin-top: 16px;">Path Distribution</h4>
+            <div class="param-group"><label class="param-label">Straight</label><input type="number" id="ecDistStraight" class="dist-input" value="0" min="0" onchange="ecUpdateDistTotal()"></div>
+            <div class="param-group"><label class="param-label">Parabola</label><input type="number" id="ecDistParabola" class="dist-input" value="0" min="0" onchange="ecUpdateDistTotal()"></div>
+            <div class="param-group"><label class="param-label">Bézier</label><input type="number" id="ecDistBezier" class="dist-input" value="0" min="0" onchange="ecUpdateDistTotal()"></div>
+            <div class="dist-total" id="ecPathDistTotal">Total: 0</div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin: 24px 0;">
+          <button type="button" class="btn" id="ecGenerateBtn" onclick="ecGenerate()" style="padding: 14px 40px; font-size: 16px;">
+            Generate
+          </button>
+        </div>
+        <div class="progress-container" id="ecProgressContainer" style="display: none;">
+          <div class="progress-bar"><div class="progress-fill" id="ecProgressFill">0%</div></div>
+          <div class="log-box" id="ecProgressLog"></div>
+        </div>
+        <div class="result-box" id="ecResultBox" style="display: none;"></div>
+      </div>
+
     </div>
 
     <!-- INTERSECTION MODE -->
@@ -2250,6 +2621,453 @@
           savePath();
         }
       });
+    }
+
+    function showWorkspaceLanding() {
+      const landing = document.getElementById('workspaceLanding');
+      const quadratic = document.getElementById('workspaceQuadraticSubmode');
+      const emitterCentric = document.getElementById('workspaceEmitterCentricSubmode');
+      if (!landing || !quadratic || !emitterCentric) return;
+      [quadratic, emitterCentric].forEach(el => {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      });
+      landing.classList.remove('hidden');
+      landing.style.display = 'block';
+    }
+
+    function openWorkspaceSubmode(name) {
+      const landing = document.getElementById('workspaceLanding');
+      const quadratic = document.getElementById('workspaceQuadraticSubmode');
+      const emitterCentric = document.getElementById('workspaceEmitterCentricSubmode');
+      if (!landing || !quadratic || !emitterCentric) return;
+      landing.classList.add('hidden');
+      landing.style.display = 'none';
+      [quadratic, emitterCentric].forEach(el => {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      });
+      const target = name === 'emitter_centric' ? emitterCentric : quadratic;
+      target.classList.remove('hidden');
+      target.style.display = 'block';
+      if (name === 'quadratic' && typeof loadWorkspaceVehicles === 'function') {
+        loadWorkspaceVehicles();
+      }
+      if (name === 'emitter_centric') {
+        if (typeof loadEcVehicles === 'function') loadEcVehicles();
+        if (typeof ecUpdateGenMode === 'function') ecUpdateGenMode();
+        if (typeof ecRefreshAccelerationUI === 'function') ecRefreshAccelerationUI();
+        if (typeof ecToggleAirNoiseControls === 'function') ecToggleAirNoiseControls();
+      }
+    }
+
+    function backToWorkspaceLanding() {
+      showWorkspaceLanding();
+    }
+
+    function ecUpdateGenMode() {
+      const batch = document.querySelector('input[name="ecGenMode"]:checked')?.value === 'batch';
+      const clipsGrp = document.getElementById('ecTotalClipsGroup');
+      const distGrp = document.getElementById('ecDistModeGroup');
+      const manual = document.getElementById('ecManualDistribution');
+      if (clipsGrp) clipsGrp.style.display = batch ? '' : 'none';
+      if (distGrp) distGrp.style.display = batch ? '' : 'none';
+      if (manual && !batch) manual.hidden = true;
+      const tc = document.getElementById('ecTotalClips');
+      if (tc && !batch) tc.value = '1';
+    }
+
+    function ecRefreshAccelerationUI() {
+      const simModeSelect = document.getElementById('ecSimulationMode');
+      const accelMin = document.getElementById('ecAccelMin');
+      const accelMax = document.getElementById('ecAccelMax');
+      const overlay = document.getElementById('ecAccelerationOverlay');
+      const section = document.getElementById('ecAccelerationSection');
+      const cvWarn = document.getElementById('ecAccelWarning');
+      if (!simModeSelect || !accelMin || !accelMax || !overlay || !section) return;
+
+      if (cvWarn) cvWarn.style.display = 'none';
+
+      const lockSection = (showOverlay) => {
+        accelMin.value = 0.0;
+        accelMax.value = 0.0;
+        accelMin.disabled = true;
+        accelMax.disabled = true;
+        accelMin.style.backgroundColor = '#21262d';
+        accelMin.style.color = '#8b949e';
+        accelMin.style.cursor = 'not-allowed';
+        accelMax.style.backgroundColor = '#21262d';
+        accelMax.style.color = '#8b949e';
+        accelMax.style.cursor = 'not-allowed';
+        overlay.style.display = showOverlay ? 'block' : 'none';
+        section.classList.add('section-disabled');
+      };
+
+      if (simModeSelect.value === 'cv') {
+        lockSection(true);
+      } else {
+        accelMin.disabled = false;
+        accelMax.disabled = false;
+        accelMin.style.backgroundColor = '';
+        accelMin.style.color = '';
+        accelMin.style.cursor = '';
+        accelMax.style.backgroundColor = '';
+        accelMax.style.color = '';
+        accelMax.style.cursor = '';
+        overlay.style.display = 'none';
+        section.classList.remove('section-disabled');
+        if (parseFloat(accelMin.value) === 0 && parseFloat(accelMax.value) === 0) {
+          accelMin.value = -3.5;
+          accelMax.value = 2.5;
+        }
+      }
+    }
+
+    function ecShowAccelWarning() {
+      const warn = document.getElementById('ecAccelWarning');
+      if (warn) warn.style.display = 'block';
+    }
+
+    function ecToggleAirNoiseControls() {
+      const checkbox = document.getElementById('ecAddAirNoise');
+      const slider = document.getElementById('ecAirNoiseStrength');
+      const freqInput = document.getElementById('ecAirNoiseFrequencyHz');
+      if (!checkbox || !slider || !freqInput) return;
+      const enabled = checkbox.checked;
+      slider.disabled = !enabled;
+      freqInput.disabled = !enabled;
+    }
+
+    function ecUpdateAirNoiseStrengthLabel() {
+      const slider = document.getElementById('ecAirNoiseStrength');
+      const label = document.getElementById('ecAirNoiseStrengthValue');
+      if (!slider || !label) return;
+      label.textContent = `${slider.value}%`;
+    }
+
+    function ecSelectAllVehicles(checked) {
+      document.querySelectorAll('.ec-vehicle-cb').forEach(cb => { cb.checked = checked; });
+    }
+
+    function ecToggleDistribution() {
+      const manual = document.querySelector('input[name="ecDistMode"]:checked')?.value === 'manual';
+      const el = document.getElementById('ecManualDistribution');
+      if (el) el.hidden = !manual;
+      ecUpdateDistTotal();
+    }
+
+    function ecUpdateDistTotal() {
+      const total = parseInt(document.getElementById('ecTotalClips')?.value, 10) || 0;
+      let vSum = 0;
+      document.querySelectorAll('#ecVehicleDistribution input').forEach(inp => { vSum += parseInt(inp.value, 10) || 0; });
+      const vEl = document.getElementById('ecVehicleDistTotal');
+      if (vEl) vEl.textContent = `Total: ${vSum} (of ${total})`;
+      const pSum = (parseInt(document.getElementById('ecDistStraight')?.value, 10) || 0)
+        + (parseInt(document.getElementById('ecDistParabola')?.value, 10) || 0)
+        + (parseInt(document.getElementById('ecDistBezier')?.value, 10) || 0);
+      const pEl = document.getElementById('ecPathDistTotal');
+      if (pEl) pEl.textContent = `Total: ${pSum} (of ${total})`;
+    }
+
+    function ecBrowseSavePath() {
+      const el = document.getElementById('ecSavePath');
+      if (!el) return;
+      const cur = el.textContent.trim();
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = cur;
+      inp.className = 'path-display';
+      inp.style.width = '100%';
+      el.replaceWith(inp);
+      inp.focus();
+      inp.select();
+      const done = () => {
+        const p = document.createElement('div');
+        p.id = 'ecSavePath';
+        p.className = 'path-display';
+        p.textContent = inp.value.trim() || 'static/workspace_outputs/emitter_centric/';
+        inp.replaceWith(p);
+      };
+      inp.addEventListener('blur', done);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(); });
+    }
+
+    async function loadEcVehicles() {
+      try {
+        const source = document.getElementById('ecSoundSource')?.value || 'vehicle';
+        const res = await fetch(`/api/list_vehicles?source=${source}`);
+        const data = await res.json();
+        const cbBox = document.getElementById('ecVehicleSelectionCheckboxes');
+        const distBox = document.getElementById('ecVehicleDistribution');
+        if (!cbBox || !distBox) return;
+        cbBox.innerHTML = '';
+        distBox.innerHTML = '';
+
+        if (!data.vehicles || data.vehicles.length === 0) {
+          cbBox.innerHTML = '<p class="error">No audio files found in static/vehicle_sounds or static/drone_sounds</p>';
+          return;
+        }
+
+        const hasVehicleSounds = data.vehicles.some(v => v.source === 'vehicle');
+        const hasDroneSounds = data.vehicles.some(v => v.source === 'drone');
+        if (source !== 'drone' && !hasVehicleSounds && hasDroneSounds) {
+          const infoMsg = document.createElement('p');
+          infoMsg.className = 'param-label';
+          infoMsg.style.cssText = 'font-size: 12px; color: #58a6ff; margin-bottom: 10px; background: #0d1117; padding: 8px; border-radius: 4px; border: 1px solid #30363d;';
+          infoMsg.innerHTML = '📢 Using drone sounds as fallback (no car sounds found)';
+          cbBox.appendChild(infoMsg);
+        }
+
+        data.vehicles.forEach(vehicle => {
+          const label = document.createElement('label');
+          label.className = 'checkbox-label';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = vehicle.name;
+          cb.checked = true;
+          cb.className = 'ec-vehicle-cb';
+          const span = document.createElement('span');
+          const sourceIcon = vehicle.source === 'drone' ? '🚁' : '🚗';
+          span.textContent = `${sourceIcon} ${vehicle.name} (${vehicle.duration}s)`;
+          label.appendChild(cb);
+          label.appendChild(span);
+          cbBox.appendChild(label);
+
+          const distInput = document.createElement('div');
+          distInput.className = 'param-group';
+          distInput.innerHTML = `
+            <label class="param-label">${vehicle.name}</label>
+            <input type="number" class="ec-dist-veh" data-vehicle="${vehicle.name}" value="0" min="0" onchange="ecUpdateDistTotal()">
+          `;
+          distBox.appendChild(distInput);
+        });
+        ecUpdateDistTotal();
+      } catch (e) {
+        console.error('loadEcVehicles', e);
+      }
+    }
+
+    function initEcAccelerationUI() {
+      const simModeSelect = document.getElementById('ecSimulationMode');
+      const accelMin = document.getElementById('ecAccelMin');
+      const accelMax = document.getElementById('ecAccelMax');
+      const overlay = document.getElementById('ecAccelerationOverlay');
+      if (!simModeSelect || !accelMin || !accelMax || !overlay) return;
+
+      function onAccelInteractionAttempt() {
+        if (simModeSelect.value === 'cv') ecShowAccelWarning();
+      }
+
+      overlay.addEventListener('click', onAccelInteractionAttempt);
+      accelMin.addEventListener('focus', onAccelInteractionAttempt);
+      accelMax.addEventListener('focus', onAccelInteractionAttempt);
+      ecRefreshAccelerationUI();
+    }
+
+    function ecCollectConfig() {
+      const paths = [];
+      if (document.getElementById('ecPathStraight')?.checked) paths.push('straight');
+      if (document.getElementById('ecPathParabola')?.checked) paths.push('parabola');
+      if (document.getElementById('ecPathBezier')?.checked) paths.push('bezier');
+      const vehicles = [...document.querySelectorAll('.ec-vehicle-cb:checked')].map(cb => cb.value);
+      const isBatch = document.querySelector('input[name="ecGenMode"]:checked')?.value === 'batch';
+      const config = {
+        total_clips: isBatch ? parseInt(document.getElementById('ecTotalClips')?.value, 10) || 1 : 1,
+        batch_name: document.getElementById('ecBatchName')?.value?.trim() || '',
+        save_path: document.getElementById('ecSavePath')?.textContent?.trim() || 'static/workspace_outputs/emitter_centric/',
+        vehicles: vehicles.length ? vehicles : ['KiaSportage'],
+        path_types: paths.length ? paths : ['straight'],
+        duration_s: parseFloat(document.getElementById('ecDuration')?.value || '10'),
+        simulation_mode: document.getElementById('ecSimulationMode')?.value || 'cv',
+        speed: { min: +document.getElementById('ecSpeedMin')?.value, max: +document.getElementById('ecSpeedMax')?.value },
+        distance: { min: +document.getElementById('ecDistanceMin')?.value, max: +document.getElementById('ecDistanceMax')?.value },
+        angle: { min: +document.getElementById('ecAngleMin')?.value, max: +document.getElementById('ecAngleMax')?.value },
+        acceleration: { min: +document.getElementById('ecAccelMin')?.value, max: +document.getElementById('ecAccelMax')?.value },
+        temperature: { min: +document.getElementById('ecTempMin')?.value, max: +document.getElementById('ecTempMax')?.value },
+        humidity: { min: +document.getElementById('ecHumMin')?.value, max: +document.getElementById('ecHumMax')?.value },
+        distribution_mode: document.querySelector('input[name="ecDistMode"]:checked')?.value || 'auto',
+        compare_observer: !!document.getElementById('ecCompareObserver')?.checked,
+        enable_rpm_coupling: !!document.getElementById('ecRpmCoupling')?.checked,
+        atmosphere: {
+          add_air_noise: !!document.getElementById('ecAddAirNoise')?.checked,
+          air_noise_strength: parseFloat(document.getElementById('ecAirNoiseStrength')?.value || '8'),
+          air_noise_frequency_hz: parseFloat(document.getElementById('ecAirNoiseFrequencyHz')?.value || '1200'),
+        },
+        output: {
+          format: document.querySelector('input[name="ecOutputFormat"]:checked')?.value || 'wav',
+          spectrogram_type: document.getElementById('ecSpectrogramType')?.value || 'cqt',
+          generate_diagnostics: !!document.getElementById('ecGenerateDiagnostics')?.checked,
+        },
+      };
+      if (config.distribution_mode === 'manual') {
+        const vehDist = {};
+        document.querySelectorAll('.ec-dist-veh').forEach(inp => {
+          vehDist[inp.dataset.vehicle] = parseInt(inp.value, 10) || 0;
+        });
+        config.manual_distribution = {
+          vehicles: vehDist,
+          straight: parseInt(document.getElementById('ecDistStraight')?.value, 10) || 0,
+          parabola: parseInt(document.getElementById('ecDistParabola')?.value, 10) || 0,
+          bezier: parseInt(document.getElementById('ecDistBezier')?.value, 10) || 0,
+        };
+      }
+      return config;
+    }
+
+    let ecPollGeneration = 0;
+    let ecPollTimer = null;
+
+    /** Stop any in-flight status polling from a previous Generate click. */
+    function ecInvalidatePoll() {
+      ecPollGeneration += 1;
+      if (ecPollTimer != null) {
+        clearTimeout(ecPollTimer);
+        ecPollTimer = null;
+      }
+    }
+
+    function ecResetProgressUi() {
+      const fill = document.getElementById('ecProgressFill');
+      const log = document.getElementById('ecProgressLog');
+      const box = document.getElementById('ecResultBox');
+      const prog = document.getElementById('ecProgressContainer');
+      if (prog) prog.style.display = 'block';
+      if (fill) {
+        fill.style.width = '0%';
+        fill.textContent = '0%';
+        fill.classList.remove('ec-progress-active', 'ec-progress-complete', 'ec-progress-failed');
+      }
+      if (log) {
+        log.innerHTML = 'Starting emitter-centric generation…';
+        log.scrollTop = 0;
+      }
+      if (box) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+      }
+    }
+
+    function ecApplyProgressUi(job) {
+      const fill = document.getElementById('ecProgressFill');
+      const log = document.getElementById('ecProgressLog');
+      const total = job.total || 0;
+      const done = job.progress || 0;
+      const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+
+      if (fill) {
+        fill.style.width = percent + '%';
+        if (total > 0) {
+          fill.textContent = `${done} / ${total} (${percent}%)`;
+        } else {
+          fill.textContent = job.status === 'running' ? 'Preparing…' : `${percent}%`;
+        }
+        fill.classList.remove('ec-progress-complete', 'ec-progress-failed');
+        if (job.status === 'completed') {
+          fill.style.width = '100%';
+          fill.classList.add('ec-progress-complete');
+          fill.classList.remove('ec-progress-active');
+        } else if (job.status === 'failed') {
+          fill.classList.add('ec-progress-failed');
+          fill.classList.remove('ec-progress-active');
+        } else if (job.status === 'running') {
+          fill.classList.add('ec-progress-active');
+          if (percent === 0) {
+            fill.style.width = '4%';
+            if (!total) fill.textContent = 'Starting…';
+          }
+        }
+      }
+      if (log && job.message) {
+        log.textContent = job.message;
+      }
+    }
+
+    async function ecGenerate() {
+      const btn = document.getElementById('ecGenerateBtn');
+      const box = document.getElementById('ecResultBox');
+      const fill = document.getElementById('ecProgressFill');
+      if (!btn) return;
+
+      ecInvalidatePoll();
+      const pollId = ecPollGeneration;
+
+      btn.disabled = true;
+      ecResetProgressUi();
+
+      try {
+        const config = ecCollectConfig();
+        if (!config.vehicles.length) {
+          throw new Error('Select at least one vehicle in Car Selection.');
+        }
+        const res = await fetch('/api/workspace/emitter_centric/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || res.statusText);
+        if (pollId !== ecPollGeneration) return;
+
+        const poll = () => new Promise((resolve, reject) => {
+          const tick = async () => {
+            if (pollId !== ecPollGeneration) {
+              resolve();
+              return;
+            }
+            try {
+              const st = await fetch(data.status_url);
+              const job = await st.json();
+              if (pollId !== ecPollGeneration) {
+                resolve();
+                return;
+              }
+              ecApplyProgressUi(job);
+              if (job.status === 'completed') {
+                const r = job.results || {};
+                const requested = r.total_requested ?? job.total ?? 0;
+                const generated = r.total_generated ?? job.progress ?? 0;
+                ecApplyProgressUi({ status: 'completed', total: requested, progress: generated, message: job.message });
+                const log = document.getElementById('ecProgressLog');
+                if (log) {
+                  log.innerHTML += '\n<span class="success">✓ Emitter-centric generation complete!</span>';
+                }
+                if (box) {
+                  box.style.display = 'block';
+                  box.innerHTML = `<p class="param-label"><strong>Done.</strong> ${generated} / ${requested} clips</p>
+                    <p class="param-label">Output: <code>${r.batch_directory || ''}</code></p>
+                    <p class="param-label">Layout: overall_metadata.json · emitter_centric/ · observer_centric/ · comparison_outputs/ (with WAVs per sample)</p>`;
+                }
+                if (pollId === ecPollGeneration) btn.disabled = false;
+                resolve();
+                return;
+              }
+              if (job.status === 'failed') {
+                ecApplyProgressUi(job);
+                reject(new Error(job.message || 'Generation failed'));
+                return;
+              }
+              ecPollTimer = setTimeout(tick, 500);
+            } catch (err) {
+              reject(err);
+            }
+          };
+          tick();
+        });
+        await poll();
+      } catch (err) {
+        if (pollId !== ecPollGeneration) return;
+        if (fill) {
+          fill.classList.add('ec-progress-failed');
+          fill.classList.remove('ec-progress-active');
+        }
+        const log = document.getElementById('ecProgressLog');
+        if (log) log.innerHTML += `\n<span class="error">${err.message}</span>`;
+        if (box) {
+          box.style.display = 'block';
+          box.innerHTML = `<p class="param-label" style="color:#f85149;">${err.message}</p>`;
+        }
+        btn.disabled = false;
+      }
     }
 
     function browseFolderPath() {
@@ -6161,7 +6979,7 @@
       btnBatch.addEventListener('click', () => switchTo(btnBatch, batchMode));
       btnWorkspace.addEventListener('click', () => {
         switchTo(btnWorkspace, workspaceMode);
-        loadWorkspaceVehicles();
+        showWorkspaceLanding();
       });
       btnOverlap.addEventListener('click', () => switchTo(btnOverlap, overlapMode));
       btnSpectrogram.addEventListener('click', () => switchTo(btnSpectrogram, spectrogramMode));
@@ -7044,6 +7862,8 @@
       updateBatchAirNoiseStrengthLabel();
       switchBenchGroup(getActiveBenchMode());
       initAccelerationUI();
+      initEcAccelerationUI();
+      ecToggleAirNoiseControls();
     });
 
     window.addEventListener('resize', resizeCanvas);
