@@ -24,6 +24,10 @@ batch_YYYYMMDD_HHMMSS/
 │   └── metadata_{batch_id}.json
 ├── observer_centric/             # if comparison enabled
 └── comparison_outputs/sample_XXXXXXX/
+    ├── stacked_spectrogram_comparison.png  # CQT + narrow + wide (labeled rows)
+    ├── diagnostics_panel.png
+    ├── emitter_centric.wav / observer_centric.wav
+    └── comparison_report.txt
 ```
 
 Default save root: `static/workspace_outputs/emitter_centric/`

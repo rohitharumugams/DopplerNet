@@ -2952,7 +2952,9 @@
       const log = document.getElementById('ecProgressLog');
       const total = job.total || 0;
       const done = job.progress || 0;
+      const verified = job.outputs_verified ?? job.results?.outputs_verified ?? false;
       const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+      const fullyComplete = job.status === 'completed' && verified && total > 0 && done >= total;
 
       if (fill) {
         fill.style.width = percent + '%';
@@ -2962,11 +2964,11 @@
           fill.textContent = job.status === 'running' ? 'Preparing…' : `${percent}%`;
         }
         fill.classList.remove('ec-progress-complete', 'ec-progress-failed');
-        if (job.status === 'completed') {
+        if (fullyComplete) {
           fill.style.width = '100%';
           fill.classList.add('ec-progress-complete');
           fill.classList.remove('ec-progress-active');
-        } else if (job.status === 'failed') {
+        } else if (job.status === 'failed' || (job.status === 'completed' && !verified)) {
           fill.classList.add('ec-progress-failed');
           fill.classList.remove('ec-progress-active');
         } else if (job.status === 'running') {
@@ -3022,28 +3024,36 @@
                 return;
               }
               ecApplyProgressUi(job);
-              if (job.status === 'completed') {
+              if (job.status === 'completed' || job.status === 'failed') {
                 const r = job.results || {};
-                const requested = r.total_requested ?? job.total ?? 0;
+                const requested = r.total_requested ?? job.total ?? 1;
                 const generated = r.total_generated ?? job.progress ?? 0;
-                ecApplyProgressUi({ status: 'completed', total: requested, progress: generated, message: job.message });
+                const verified = job.outputs_verified ?? r.outputs_verified ?? false;
                 const log = document.getElementById('ecProgressLog');
                 if (log) {
-                  log.innerHTML += '\n<span class="success">✓ Emitter-centric generation complete!</span>';
+                  if (verified && job.status === 'completed') {
+                    log.innerHTML += '\n<span class="success">✓ Emitter-centric generation complete!</span>';
+                  } else if (r.batch_directory) {
+                    log.innerHTML += '\n<span class="error">Generation finished with missing or invalid outputs.</span>';
+                  }
                 }
-                if (box) {
+                if (box && r.batch_directory) {
+                  const failed = (r.failed || []).length;
+                  const failNote = failed
+                    ? `<p class="param-label" style="color:#f85149;">${failed} clip(s) failed — see server log or generation_log_*.txt</p>`
+                    : (!verified ? `<p class="param-label" style="color:#f85149;">Output verification failed — progress reflects verified clips only.</p>` : '');
                   box.style.display = 'block';
-                  box.innerHTML = `<p class="param-label"><strong>Done.</strong> ${generated} / ${requested} clips</p>
+                  box.innerHTML = `<p class="param-label"><strong>${verified ? 'Done.' : 'Incomplete.'}</strong> ${generated} / ${requested} clips verified</p>
+                    ${failNote}
                     <p class="param-label">Output: <code>${r.batch_directory || ''}</code></p>
                     <p class="param-label">Layout: overall_metadata.json · emitter_centric/ · observer_centric/ · comparison_outputs/ (with WAVs per sample)</p>`;
                 }
                 if (pollId === ecPollGeneration) btn.disabled = false;
+                if (job.status === 'failed' && !r.batch_directory) {
+                  reject(new Error(job.message || 'Generation failed'));
+                  return;
+                }
                 resolve();
-                return;
-              }
-              if (job.status === 'failed') {
-                ecApplyProgressUi(job);
-                reject(new Error(job.message || 'Generation failed'));
                 return;
               }
               ecPollTimer = setTimeout(tick, 500);

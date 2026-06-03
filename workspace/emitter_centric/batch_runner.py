@@ -22,13 +22,16 @@ from workspace.emitter_centric.compare_formulations import compare_waveforms
 from workspace.emitter_centric.comparison_plots import generate_all_comparisons
 from workspace.emitter_centric.config import SR
 from workspace.emitter_centric.kinematics import straight_cv_kinematics_with_c
+from workspace.emitter_centric.output_verify import verify_batch_outputs, verify_clip_outputs
+from workspace.emitter_centric.path_params import enrich_path_params
 from workspace.emitter_centric.sampling import build_clip_plan
 from workspace.emitter_centric.source_frame import speed_profile, synthesize_source_frame_audio
 from workspace.emitter_centric.synthesis import load_source_for_emitter
 
 
-def _params_for_generation(spec: dict) -> dict:
-    return {
+def _params_for_generation(spec: dict, config: dict | None = None) -> dict:
+    path_type = spec.get("path_type", "straight")
+    base = {
         "speed": float(spec["speed"]),
         "distance": float(spec["distance"]),
         "angle": float(spec["angle"]),
@@ -36,8 +39,12 @@ def _params_for_generation(spec: dict) -> dict:
         "acceleration": float(spec.get("acceleration", 0)),
         "temperature": float(spec.get("temperature", 20)),
         "humidity": float(spec.get("humidity", 50)),
-        "path_type": spec.get("path_type", "straight"),
+        "path_type": path_type,
     }
+    seed = int(spec.get("index", 0))
+    if config is not None and config.get("seed") is not None:
+        seed = int(config["seed"]) + seed
+    return enrich_path_params(path_type, base, seed=seed)
 
 
 def _maybe_apply_air_noise(audio: np.ndarray, config: dict) -> np.ndarray:
@@ -123,7 +130,7 @@ def generate_one_clip(
     index = int(spec["index"])
     vehicle = spec["vehicle"]
     path_type = spec["path_type"]
-    params = _params_for_generation(spec)
+    params = _params_for_generation(spec, config)
     duration = params["duration"]
 
     emit_root = os.path.join(batch_root, "emitter_centric")
@@ -278,22 +285,43 @@ def run_batch(
     total = len(plan)
     clips_meta: list[dict] = []
     failed: list[dict] = []
+    verified_count = 0
 
-    for i, spec in enumerate(plan, start=1):
+    for spec in plan:
         if progress_callback:
-            progress_callback(i, total, f"sample_{spec['index']:07d} {spec['vehicle']}")
-        try:
-            clips_meta.append(
-                generate_one_clip(batch_root, spec, config, compare_observer=compare)
+            progress_callback(
+                verified_count,
+                total,
+                f"Generating sample_{spec['index']:07d} {spec['vehicle']}…",
             )
+        try:
+            clip = generate_one_clip(batch_root, spec, config, compare_observer=compare)
+            clip_issues = verify_clip_outputs(batch_root, clip, compare_observer=compare)
+            if clip_issues:
+                failed.append({
+                    "index": spec["index"],
+                    "error": "; ".join(clip_issues),
+                })
+                continue
+            clips_meta.append(clip)
+            verified_count += 1
+            if progress_callback:
+                progress_callback(
+                    verified_count,
+                    total,
+                    f"Verified sample_{spec['index']:07d} ({verified_count}/{total})",
+                )
         except Exception as exc:
             traceback.print_exc()
             failed.append({"index": spec["index"], "error": str(exc)})
 
-    emit_clips = [
-        _branch_clip_entry(c["emitter"], branch="emitter_centric", spec=c["spec"])
-        for c in clips_meta
-    ]
+    if not clips_meta:
+        emit_clips: list[dict] = []
+    else:
+        emit_clips = [
+            _branch_clip_entry(c["emitter"], branch="emitter_centric", spec=c["spec"])
+            for c in clips_meta
+        ]
     emit_meta_path = _write_branch_metadata(
         os.path.join(batch_root, "emitter_centric"),
         batch_id,
@@ -375,8 +403,29 @@ def run_batch(
             for item in failed:
                 f.write(f"  sample_{item['index']:07d}: {item['error']}\n")
 
+    verification = verify_batch_outputs(
+        batch_root,
+        batch_id,
+        clips_meta,
+        compare_observer=compare,
+        total_requested=total,
+    )
+    all_ok = len(failed) == 0 and verification["ok"] and verified_count == total
+
+    if progress_callback:
+        if all_ok:
+            progress_callback(verified_count, total, f"Complete ({verified_count}/{total} verified)")
+        else:
+            progress_callback(
+                verified_count,
+                total,
+                f"Incomplete ({verified_count}/{total} verified)",
+            )
+
     return {
-        "success": len(failed) == 0,
+        "success": all_ok,
+        "outputs_verified": verification["ok"] and verified_count == total,
+        "verification": verification,
         "batch_directory": batch_root.replace("\\", "/"),
         "metadata_file": overall_path.replace("\\", "/"),
         "overall_metadata": overall_path.replace("\\", "/"),

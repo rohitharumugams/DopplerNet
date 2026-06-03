@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from physics.source_position import compute_source_position_track, save_source_positions_npy
+from workspace.emitter_centric.config import SR
 from workspace.emitter_centric.source_frame import speed_profile
 
 

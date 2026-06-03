@@ -19,6 +19,17 @@ from physics.parabola import sample_parabola_path_xy
 from physics.bezier import sample_bezier_path_xy
 
 
+def format_image_number(value, *, decimals: int = 3) -> str:
+    """Format scalars for legend/caption text on exported PNGs (display only)."""
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if not np.isfinite(x):
+        return str(value)
+    return f"{x:.{decimals}f}"
+
+
 def _get_direction_text(path_type, params):
     """Infer path travel direction text for legend entries."""
     is_forward = True
@@ -319,19 +330,9 @@ def render_simulator_path_summary_png(path_type, params, display_path_label=None
 
     fig.suptitle('DopplerSim path summary', fontsize=12, fontweight='600', y=0.97)
 
-    # Readable precision (avoid noisy 4+ decimals in a summary image).
-    def _fmt_len(m):
-        return f'{m:.1f}' if m >= 100 else f'{m:.2f}'
-
-    def _fmt_time(s):
-        return f'{s:.2f}'
-
-    def _fmt_spd(s_):
-        return f'{s_:.1f}' if s_ >= 10 else f'{s_:.2f}'
-
-    Ls = _fmt_len(L)
-    Ts = _fmt_time(T)
-    vs = _fmt_spd(v)
+    Ls = format_image_number(L)
+    Ts = format_image_number(T)
+    vs = format_image_number(v)
 
     # Single mention of path length L; footer lines framed with middle dots (·).
     metrics_text = (
@@ -397,7 +398,7 @@ def save_path_plot(path_type, params, output_dir, base_name):
             if params.get('motion_scenario'):
                 label_parts.append(str(params['motion_scenario']))
             if params.get('min_range_m') is not None:
-                label_parts.append(f"r_min={float(params['min_range_m']):.0f}m")
+                label_parts.append(f"r_min={format_image_number(params['min_range_m'])}m")
         else:
             label_parts.append("pass-by")
         for k in ['speed', 'distance', 'offset', 'angle', 'temperature', 'humidity']:
@@ -405,7 +406,11 @@ def save_path_plot(path_type, params, output_dir, base_name):
                 val = params[k]
                 lbl = {'speed': 'v', 'distance': 'd', 'offset': 'off', 'angle': 'θ'}.get(k, k[0])
                 unit = {'speed': 'm/s', 'distance': 'm', 'offset': 'm', 'angle': '°'}.get(k, '')
-                label_parts.append(f"{lbl}={val}{unit}")
+                if isinstance(val, (int, float, np.floating, np.integer)):
+                    val_s = format_image_number(val)
+                else:
+                    val_s = str(val)
+                label_parts.append(f"{lbl}={val_s}{unit}")
 
         direction_text, direction_arrow = _get_direction_text(path_type, params)
         label_parts.append(f"dir={direction_text}{direction_arrow}")
@@ -434,7 +439,7 @@ def save_path_plot(path_type, params, output_dir, base_name):
         if cpa_t is not None and np.isfinite(float(cpa_t)):
             i_cpa = cpa_index_on_path(t_plot, float(cpa_t))
             cx, cy = float(x[i_cpa]), float(y[i_cpa])
-            cpa_lbl = f'CPA {float(cpa_t):.2f}s'
+            cpa_lbl = f'CPA {format_image_number(cpa_t)}s'
             ax.plot([0, cx], [0, cy], linestyle=(0, (4, 3)), linewidth=1.0, color='#666666', alpha=0.75, zorder=2)
             ax.scatter([cx], [cy], s=120, color='#9467bd', marker='*', edgecolors='#3f2a4d', linewidths=0.6,
                        zorder=7, label=cpa_lbl)
@@ -613,8 +618,8 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
             direction_text, arrow = _get_direction_text(path_type, params)
             speed_val = params.get('speed', None)
             dist_val = params.get('distance', params.get('h', params.get('offset', None)))
-            speed_txt = f"{float(speed_val):.1f} m/s" if speed_val is not None else "n/a"
-            dist_txt = f"{abs(float(dist_val)):.1f} m" if dist_val is not None else "n/a"
+            speed_txt = f"{format_image_number(speed_val)} m/s" if speed_val is not None else "n/a"
+            dist_txt = f"{format_image_number(abs(float(dist_val)))} m" if dist_val is not None else "n/a"
             legend_label = f"V{i+1}: {vehicle_name} (v={speed_txt}, d={dist_txt}, dir={direction_text}) {arrow}"
             line, = ax.plot(x, y, linewidth=path_linewidth, label=legend_label, alpha=path_alpha, zorder=5)
 
@@ -667,7 +672,7 @@ def save_combined_path_plot(scenes_data, output_dir, base_name, **kwargs):
             ax.plot([x0, x0], [y0, y1], linestyle=':', linewidth=1.2, color='#555555', alpha=0.85, zorder=2)
             ax.text(
                 x0 + 2.5, (y0 + y1) / 2.0,
-                f"Distance = {d:.1f} m",
+                f"Distance = {format_image_number(d)} m",
                 fontsize=10, color='#333333',
                 bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.75, edgecolor='#cccccc')
             )

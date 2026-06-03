@@ -211,12 +211,21 @@ def workspace_emitter_centric_generate():
                     )
 
                 result = run_batch(config, progress_callback=prog)
+                gen = int(result.get("total_generated", 0))
+                total_req = int(result.get("total_requested", total))
+                verified = bool(result.get("outputs_verified", False))
+                success = bool(result.get("success", False))
                 _ec_job_update(
                     job_id,
-                    status="completed",
-                    progress=result.get("total_generated", total),
-                    total=total,
-                    message="Complete",
+                    status="completed" if success else "failed",
+                    progress=gen,
+                    total=total_req,
+                    outputs_verified=verified,
+                    message=(
+                        f"Complete ({gen}/{total_req} verified)"
+                        if success
+                        else f"Incomplete ({gen}/{total_req} verified)"
+                    ),
                     results=_safe_json(result),
                 )
             except Exception as exc:
