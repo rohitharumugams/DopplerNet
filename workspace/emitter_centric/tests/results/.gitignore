@@ -1,0 +1,2 @@
+# Validation JSON output from run_cv_validation.py (keep folder, ignore artifacts)
+*.json

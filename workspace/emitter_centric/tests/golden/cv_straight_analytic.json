@@ -1,0 +1,18 @@
+{
+  "description": "Reference straight CV pass-by for analytic freq_ratio regression (O6).",
+  "parameters": {
+    "speed_mps": 30.0,
+    "distance_m": 15.0,
+    "angle_deg": 0.0,
+    "duration_s": 10.0,
+    "temperature_c": 20.0,
+    "humidity_pct": 50.0,
+    "acceleration_mps2": 0.0
+  },
+  "tolerance_max_abs_ratio": 0.025,
+  "param_match_tol": {
+    "speed_mps": 2.0,
+    "distance_m": 3.0,
+    "angle_deg": 15.0
+  }
+}
